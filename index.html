@@ -1559,8 +1559,9 @@ const DASH={
     const _tmo=this.getTargetMo();
     const yr=_tmo.getFullYear();
     const curMo=_tmo.getMonth();
-    const _t1=D.getTarget('proc')||0,_t2=D.getTarget('fill')||0;
-    const tgt=type==='total'?Math.round((_t1+_t2)/2):D.getTarget(type==='lsvc'?'proc':type)||0;
+    const _t1=parseFloat(LS.get('target_proc',0))||0;
+    const _t2=parseFloat(LS.get('target_fill',0))||0;
+    const tgt=type==='total'?Math.round((_t1+_t2)/2):type==='proc'?_t1:type==='fill'?_t2:type==='lsvc'?_t1:0;
     const ids={proc:'pp',fill:'fp',lsvc:'lsp',total:'tp'};
     const cids={proc:'pch',fill:'fch',lsvc:'lschart',total:'tch'};
     const pe=document.getElementById(ids[type]);if(!pe)return;
@@ -1614,7 +1615,7 @@ const DASH={
       }
     }
     const cur=data[curIdx];
-    pe.textContent=cur!=null?cur+'%':'-';
+    pe.textContent=cur!=null?cur+'%':'-';if(document.getElementById('dbg-tgt-'+type))document.getElementById('dbg-tgt-'+type).textContent='tgt='+tgt;
     pe.className='dc-val'+(cur==null?' ot-none':cur>tgt?' ot-hi':' ot-ok');
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1);
     ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:70px;width:100%;padding-bottom:16px;position:relative;overflow:visible;cursor:pointer';
@@ -2435,7 +2436,7 @@ const SET={
         <div style="font-size:13px;font-weight:800;margin-bottom:10px">⚡ OT Settings</div>
         <div class="fg"><label class="fl">OT Target (%)</label>
           <input type="number" class="fi" value="${tgt}" min="0" max="50"
-            onchange="D.saveTarget(parseInt(this.value)||15);toast('✅')"></div>
+            onchange="D.saveTarget(parseInt(this.value)||0);DASH.render();toast('✅')"></div>
         <div class="fg"><label class="fl">OT สูงสุด/คน (ครั้ง/สัปดาห์)</label>
           <input type="number" class="fi" value="${maxOT}" min="1" max="7"
             onchange="D.saveMaxOT(parseInt(this.value)||3);toast('✅')"></div>
