@@ -3231,9 +3231,9 @@ const SCHED={
           const ws2raw=sc[dept]?.[di]?.[sh]||sc[dept]?.[String(di)]?.[sh]||[];
           const seenW=new Set();
           const ws2=ws2raw.filter(w=>{if(seenW.has(w.name))return false;seenW.add(w.name);return true;});
-          row+=`<td style="min-width:52px;vertical-align:top;padding:3px">${ws2.map(w=>{
+          const cells=ws2.map(w=>{
             const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh);
-            const ne=w.name.replace(/'/g,"\'");
+            const ne=w.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const isPreOT=w.otBefore;const otHrs=Math.round(w.otHrs||4);
             let displayStart,displayEnd;
@@ -3242,12 +3242,15 @@ const SCHED={
             else if(isPreOT&&sh==='morning'){displayStart='06:00';displayEnd='18:00';}
             else{const effEndH={morning:14,afternoon:22,night:30}[sh]||14;displayStart=String(shStartH).padStart(2,'0')+':00';displayEnd=String(Math.round(effEndH+otHrs)%24).padStart(2,'0')+':00';}
             const timeStr=w.ot?displayStart+'-'+displayEnd:'';
-            return'<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+'" onclick="if(S.user?.isAdmin||S.user?.emp?.name===''+ne+'')SCHED.openW(''+ne+'',''+dept+'','+di+',''+sh+'')">'
-              +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
-              +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
+            const clickFn=readOnly?'':'onclick="if(S.user?.isAdmin||S.user?.emp?.name===\''+ne+'\')SCHED.openW(\''+ne+'\',\''+dept+'\','+di+',\''+sh+'\')"';
+            return`<span class="wc ${w.ot?'ot':''} ${sg?'sg':''}" ${clickFn}>`
+              +`<span style="font-size:11px;font-weight:800">${w.name}</span>`
+              +(w.ot?`<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">${timeStr}</span>`:'')
               +(sg?'✅':(w.ot?'✍️':''))
               +'</span>';
-          }).join('')}${(S.user?.isAdmin&&!readOnly)?'<button class="aw-btn" onclick="SCHED.openAdd(''+dept+'','+di+',''+sh+'')">+</button>':''}</td>`;
+          }).join('');
+          const addBtn=(S.user?.isAdmin&&!readOnly)?`<button class="aw-btn" onclick="SCHED.openAdd('${dept}',${di},'${sh}')">+</button>`:'';
+          row+=`<td style="min-width:52px;vertical-align:top;padding:3px">${cells}${addBtn}</td>`;
         });
       });
       row+='</tr>';
