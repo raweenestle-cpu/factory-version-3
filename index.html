@@ -76,7 +76,7 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .dc-val{font-size:28px;font-weight:900;margin:4px 0;line-height:1}
 .dc-sub{font-size:11px;color:var(--text2)}
 .dc-chart{margin-top:10px;position:relative;overflow:visible}
-.mini-bars{display:block;width:100%;overflow:visible}
+.mini-bars{display:flex;align-items:flex-end;height:60px;gap:2px;width:100%;overflow:visible}
 .mini-bar{flex:1;border-radius:2px 2px 0 0;min-height:2px}
 .mini-bar.over{background:var(--red2)}
 .mini-bar.ok{background:var(--green2)}
@@ -1573,28 +1573,20 @@ const DASH={
     let data=[],labels=[],curIdx=0;
 
     if(mode==='month'){
-      // รายสัปดาห์ของเดือนปัจจุบัน
-      const allSchedKeys=Object.keys(LS.get('sched_proc',{})||{}).concat(Object.keys(LS.get('sched_fill',{})||{})).concat(Object.keys(LS.get('lsvc_data',{})||{}));
-      // หา wkKeys ที่อยู่ในเดือนปัจจุบัน
-      const wkSet=new Set();
-      // สร้าง wkKeys ของเดือนนี้ (4-5 สัปดาห์)
       const firstDay=new Date(yr,curMo,1);
       const lastDay=new Date(yr,curMo+1,0);
-      let d=new Date(firstDay);
-      // หา Monday แรกของเดือน
+      const wkSet=new Set();
       function getMonday2(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
-      d=getMonday2(firstDay);
+      let d=getMonday2(firstDay);
       while(d<=lastDay){
         const wk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        wkSet.add(wk);
-        d=new Date(d);d.setDate(d.getDate()+7);
+        wkSet.add(wk);d=new Date(d);d.setDate(d.getDate()+7);
       }
       const wkKeys=[...wkSet].sort();
       labels=wkKeys.map(k=>{const wp=k.split('-');return 'W'+wNum(new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2])));});
       const today=new Date();
       curIdx=wkKeys.findIndex(k=>{const wp=k.split('-');const mn=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));const me=new Date(mn);me.setDate(mn.getDate()+6);return today>=mn&&today<=me;});
       if(curIdx<0)curIdx=wkKeys.length-1;
-
       if(type==='proc')data=wkKeys.map(wk=>this.getOTWeek('proc',wk));
       else if(type==='fill')data=wkKeys.map(wk=>this.getOTWeek('fill',wk));
       else if(type==='lsvc')data=wkKeys.map(wk=>this.getLSVCOTWeek(wk));
@@ -1603,35 +1595,58 @@ const DASH={
         return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
       });
     } else {
-      // รายเดือน (ทั้งปี) — mode เดิม
-      labels=MONTHS;
-      curIdx=curMo;
+      labels=MONTHS;curIdx=curMo;
       if(type==='proc')data=Array.from({length:12},(_,mi)=>this.getOT('proc',yr,mi));
       else if(type==='fill')data=Array.from({length:12},(_,mi)=>this.getOT('fill',yr,mi));
       else if(type==='lsvc')data=Array.from({length:12},(_,mi)=>LSVC.getOT(yr,mi));
-      else{
-        data=Array.from({length:12},(_,mi)=>{
-          const vals=[this.getOT('proc',yr,mi),this.getOT('fill',yr,mi),LSVC.getOT(yr,mi)].filter(v=>v!=null);
-          return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
-        });
-      }
+      else data=Array.from({length:12},(_,mi)=>{
+        const vals=[this.getOT('proc',yr,mi),this.getOT('fill',yr,mi),LSVC.getOT(yr,mi)].filter(v=>v!=null);
+        return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+      });
     }
+
     const cur=data[curIdx];
     pe.textContent=cur!=null?cur+'%':'-';
     pe.className='dc-val'+(cur==null?' ot-none':cur>tgt?' ot-hi':' ot-ok');
-    ce.style.cssText='width:100%;display:flex;gap:3px;align-items:stretch;margin-top:8px';
+
+    const validData=data.filter(v=>v!=null);
+    if(!validData.length){ce.innerHTML='';return;}
+
+    // scale: max ของ data และ target + 20% headroom
+    const mx=Math.max(...validData,tgt,1)*1.2;
+
+    // ce เป็น .mini-bars ที่มี display:flex;align-items:flex-end;height:60px
+    // ไม่ต้อง set style เพิ่ม เพราะ CSS class จัดการแล้ว
+    // แค่ set overflow:visible และ position:relative สำหรับ target line
+    ce.style.position='relative';
+    ce.style.overflow='visible';
+
+    // วาด bar — ทุก bar ใช้ bottom coordinate เดียวกัน (align-items:flex-end)
+    // height เป็น % ของ parent 60px
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
-      const col=v==null?'#475569':v>tgt?'#EF4444':'#22C55E';
-      const bg=isCur?(v==null?'rgba(59,130,246,.2)':v>tgt?'rgba(239,68,68,.2)':'rgba(34,197,94,.2)'):'rgba(255,255,255,.04)';
-      const border=isCur?(v==null?'#3B82F6':v>tgt?'#EF4444':'#22C55E'):'rgba(255,255,255,.08)';
+      const col=v==null?'var(--border)':v>tgt?'var(--red2)':'var(--green2)';
+      // clamp max 100% ของ container
+      const hPct=v==null?0:Math.min(Math.round(v/mx*100),100);
       const label=labels[mi]||MONTHS[mi]||mi;
-      return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 1px;background:${bg};border:1.5px solid ${border};border-radius:6px;gap:1px">
-        <div style="font-size:${isCur?'11':'9'}px;font-weight:900;color:${col};line-height:1">${v!=null?v+'%':'-'}</div>
-        <div style="font-size:6px;color:${isCur?'#93C5FD':'#64748B'};font-weight:700;line-height:1">${label}</div>
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative">
+        ${v!=null?`<div style="font-size:6.5px;font-weight:800;color:${col};line-height:1;margin-bottom:1px;white-space:nowrap">${v}%</div>`:''}
+        <div style="width:100%;height:${hPct}%;background:${col};border-radius:2px 2px 0 0;min-height:${v!=null?2:0}px;transition:height .3s"></div>
+        <div style="position:absolute;bottom:-13px;font-size:6px;color:${isCur?'var(--blue2)':'var(--text3)'};font-weight:${isCur?900:600};white-space:nowrap;left:50%;transform:translateX(-50%)">${label}</div>
       </div>`;
     }).join('');
+
+    // Target line — ใช้ bottom coordinate เดียวกับ bar
+    // bottom = tgt/mx * 100% ของ parent height
+    if(tgt>0){
+      const tgtBottomPct=Math.min(Math.round(tgt/mx*100),95);
+      const tl=document.createElement('div');
+      tl.style.cssText=`position:absolute;left:0;right:0;bottom:${tgtBottomPct}%;border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
+      tl.innerHTML=`<span style="position:absolute;right:0;top:-10px;font-size:6.5px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 3px;border-radius:2px">T${tgt}%</span>`;
+      ce.appendChild(tl);
+    }
     }catch(e){console.log('renderChart error',e.message);}
+  }
   }
   },
   openChart(type){
