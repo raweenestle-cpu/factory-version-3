@@ -1869,7 +1869,8 @@ const PLAN={
         const ml=parseFloat(pm?.ml)||0;
         const liters=ml>0?Math.round(boxes*ml/1000):0;
         const safePN=prodName.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง" oninput="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value)" style="width:52px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
+        const literId='lbl_'+dept.replace(/[^a-z0-9]/gi,'_')+'_'+di+'_'+ii;
+        const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง" oninput="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value,document.getElementById('${literId}'),${ml})" style="width:52px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
         return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
       }).join('');
       return `<td><div>${prodCards}<button class="pa-btn" onclick="PLAN.addProd('${dept}',${di})">+ เพิ่ม Product</button></div></td>`;
@@ -1882,13 +1883,17 @@ const PLAN={
     D.saveVolume(vol);
     if(S.sys==='proc')this.updateMixingSummary();
   },
-  setVolProd(dept,di,prodName,v){
+  setVolProd(dept,di,prodName,v,labelEl,ml){
     const vol=D.getVolume();
     if(!vol[dept])vol[dept]={};
     if(typeof vol[dept][di]!=='object'||vol[dept][di]===null)vol[dept][di]={};
-    vol[dept][di][prodName]=parseInt(v)||0;
+    const boxes=parseInt(v)||0;
+    vol[dept][di][prodName]=boxes;
     D.saveVolume(vol);
-    this.render();
+    // อัปเดต label ลิตรโดยไม่ re-render ทั้งหน้า
+    if(labelEl&&ml>0){
+      labelEl.textContent=boxes>0?'กล่อง = '+Math.round(boxes*ml/1000).toLocaleString()+' ล.':'กล่อง';
+    }
   },
   setCount(dept,di,ii,v){if(!this.plan[dept])this.plan[dept]={};if(!this.plan[dept][di])this.plan[dept][di]=[];if(this.plan[dept][di][ii])this.plan[dept][di][ii].count=parseInt(v)||1;},
   delProd(dept,di,ii){if(!this.plan[dept]||!this.plan[dept][di])return;this.plan[dept][di].splice(ii,1);D.savePlan(this.plan);this.render();},
@@ -3196,6 +3201,7 @@ const SCHED={
     const di=parseInt(el.dataset.di);const sh=el.dataset.sh;
     if(S.user?.isAdmin||S.user?.emp?.name===ne)this.openW(ne,dept,di,sh);
   },
+  addWData(el,name,dept,di,sh){this.addW(name,dept,di,sh);},
   render(){
     const wk=wKey(S.wkStart);const ws=S.wkStart;
     const all=D.getSched();const sched=all[wk]||{};
@@ -3232,8 +3238,12 @@ const SCHED={
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;dS=String(shStartH).padStart(2,'0')+':00';dE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
             const timeStr=w.ot?dS+'-'+dE:'';
             const oc=readOnly?'':('SCHED.chkOpenW(this)');
-            return'<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+'" onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'">'
+            const isSub=!!w.isSub;
+            const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
+            const subBadge=isSub?'<span style="display:block;font-size:8px;color:#ea580c;font-weight:900">⚠️ มือรอง</span>':'';
+            return'<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+'" onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" style="'+subStyle+'">'
               +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
+              +subBadge
               +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
               +(sg?'✅':(w.ot?'✍️':''))+'</span>';
           }).join('');
@@ -3403,21 +3413,47 @@ const SCHED={
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
     const emps=D.getEmps();const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     const already=new Set((sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).map(w=>w.name));
+    // จัดกลุ่ม: มือหลัก, มือรอง, อยู่แล้ว/พักไม่ครบ — ซ่อนคนที่ไม่เกี่ยวกับ dept นี้เลย
+    const classified=emps.map(e=>{
+      const em=e.mainDept||e.dept||'';
+      const isMain=em===dept;
+      const isSub=!isMain&&(e.sub1===dept||e.sub2===dept);
+      const isIn=already.has(e.name);
+      const ok=checkRest(e.name,di,sh,sched);
+      if(!isMain&&!isSub&&!isIn)return null; // ซ่อนคนที่ไม่เกี่ยว
+      return{e,isMain,isSub,isIn,ok};
+    }).filter(Boolean);
+    // เรียง: มือหลัก → มือรอง → อยู่แล้ว/พักไม่ครบ
+    classified.sort((a,b)=>{
+      const rank=x=>x.isMain?0:x.isSub?1:2;
+      return rank(a)-rank(b);
+    });
+    const renderEmp=({e,isMain,isSub,isIn,ok})=>{
+      const ne=e.name.replace(/'/g,"\\'");
+      const canAdd=!isIn&&ok;
+      const border=isIn?'var(--green)':!ok?'rgba(220,38,38,.4)':isSub?'rgba(234,88,12,.5)':'var(--border)';
+      const bg=isIn?'rgba(22,163,74,.1)':!ok?'rgba(220,38,38,.05)':isSub?'rgba(234,88,12,.08)':'var(--bg3)';
+      const statusColor=isIn?'var(--green2)':!ok?'var(--red2)':isSub?'#ea580c':'var(--blue2)';
+      const statusText=isIn?'\u2713 \u0e2d\u0e22\u0e39\u0e48\u0e41\u0e25\u0e49\u0e27':!ok?'\u0e1e\u0e31\u0e01\u0e44\u0e21\u0e48\u0e04\u0e23\u0e1a':isSub?'\u0e21\u0e37\u0e2d\u0e23\u0e2d\u0e07':'\u0e21\u0e37\u0e2d\u0e2b\u0e25\u0e31\u0e01';
+      const badge=isSub?'<span style="font-size:9px;color:#ea580c;font-weight:800"> \u26a0\ufe0f\u0e21\u0e37\u0e2d\u0e23\u0e2d\u0e07</span>'
+        :isMain?'<span style="font-size:9px;color:var(--blue2);font-weight:700"> \u2605\u0e21\u0e37\u0e2d\u0e2b\u0e25\u0e31\u0e01</span>':'';
+      const oc=canAdd?('SCHED.addWData(this,\'' +ne+ '\',\'' +dept+ '\',' +di+ ',\'' +sh+ '\')'):'';
+      return `<div onclick="${oc}" style="padding:8px;border-radius:8px;border:1px solid ${border};background:${bg};margin-bottom:3px;cursor:${canAdd?'pointer':'default'};opacity:${isIn||!ok?'.55':'1'};display:flex;align-items:center;gap:8px">`
+        +`<div class="${AV[(e.av||0)%8]} e-av" style="width:28px;height:28px;font-size:12px;flex-shrink:0">${e.name.charAt(0)}</div>`
+        +`<div style="flex:1"><div style="font-size:12px;font-weight:800">${e.name}${badge}</div><div style="font-size:10px;color:var(--text3)">${e.mainDept||e.dept||''}</div></div>`
+        +`<div style="font-size:10px;font-weight:700;color:${statusColor}">${statusText}</div>`
+        +'</div>';
+    };
     const mo=document.getElementById('mo-w');
-    mo.innerHTML=`<div class="md"><div class="md-handle"></div><div class="md-hdr"><div class="md-title">\u2795 \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e1e\u0e19\u0e31\u0e01\u0e07\u0e32\u0e19</div><button class="md-close" onclick="closeMo('mo-w')">\u2715</button></div><div class="md-body">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${dept} \u2014 ${SHTH[sh]} \u2014 ${DAYS[di]}</div>
-      <input type="search" class="fi" placeholder="\ud83d\udd0d \u0e04\u0e49\u0e19\u0e2b\u0e32..." id="aw-s" oninput="SCHED.filterAdd(this.value)" style="margin-bottom:8px">
-      <div id="aw-list" style="max-height:50vh;overflow-y:auto">
-        ${emps.map(e=>{
-          const isIn=already.has(e.name);const ok=checkRest(e.name,di,sh,sched);const ne=e.name.replace(/'/g,"\\'");
-          return `<div onclick="${!isIn&&ok?`SCHED.addW('${ne}','${dept}',${di},'${sh}')`:''}" style="padding:8px;border-radius:8px;border:1px solid ${isIn?'var(--green)':!ok?'var(--red)':'var(--border)'};background:${isIn?'rgba(22,163,74,.1)':!ok?'rgba(220,38,38,.05)':'var(--bg3)'};margin-bottom:3px;cursor:${!isIn&&ok?'pointer':'default'};opacity:${isIn||!ok?'.6':'1'};display:flex;align-items:center;gap:8px">
-            <div class="${AV[(e.av||0)%8]} e-av" style="width:28px;height:28px;font-size:12px;flex-shrink:0">${e.name.charAt(0)}</div>
-            <div style="flex:1"><div style="font-size:12px;font-weight:700">${e.name}</div><div style="font-size:10px;color:var(--text3)">${e.mainDept||e.dept||''}</div></div>
-            <div style="font-size:10px;font-weight:700;color:${isIn?'var(--green2)':!ok?'var(--red2)':'var(--text3)'}">${isIn?'\u2713 \u0e2d\u0e22\u0e39\u0e48\u0e41\u0e25\u0e49\u0e27':!ok?'\u0e1e\u0e31\u0e01\u0e44\u0e21\u0e48\u0e04\u0e23\u0e1a':''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div></div>`;
+    mo.innerHTML='<div class="md"><div class="md-handle"></div>'
+      +'<div class="md-hdr"><div class="md-title">➕ เพิ่มพนักงาน</div>'
+      +'<button class="md-close" onclick="closeMo(\'mo-w\')">✕</button></div>'
+      +'<div class="md-body">'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:8px">'+dept+' — '+SHTH[sh]+' — '+DAYS[di]+'</div>'
+      +'<input type="search" class="fi" placeholder="🔍 ค้นหา..." id="aw-s" oninput="SCHED.filterAdd(this.value)" style="margin-bottom:8px">'
+      +'<div id="aw-list" style="max-height:50vh;overflow-y:auto">'
+      +classified.map(renderEmp).join('')
+      +'</div></div></div>';
     mo.onclick=e=>{if(e.target===mo)closeMo('mo-w');};openMo('mo-w');
   },
   filterAdd(q){
@@ -3434,7 +3470,10 @@ const SCHED={
     const emp=D.getEmps().find(e=>e.name===name);if(!emp)return;
     if(!sched[dept])sched[dept]={};if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]};
     if(!sched[dept][di][sh])sched[dept][di][sh]=[];
-    if(!sched[dept][di][sh].find(w=>w.name===name))sched[dept][di][sh].push({name,ot:false,otHrs:4,av:emp.av||0});
+    // เช็คว่าเป็นมือรองหรือไม่ — ถ้า mainDept ไม่ตรงกับ dept ที่เพิ่มเข้าไป และมี sub1/sub2 ตรง → isSub:true
+    const empMain=emp.mainDept||emp.dept||'';
+    const isSub=empMain!==dept&&(emp.sub1===dept||emp.sub2===dept);
+    if(!sched[dept][di][sh].find(w=>w.name===name))sched[dept][di][sh].push({name,ot:false,otHrs:4,av:emp.av||0,isSub});
     all[wk]=sched;markUnsaved();D.saveSched(all);closeMo('mo-w');this.render();toast('\u2705 \u0e40\u0e1e\u0e34\u0e48\u0e21 '+name);
   },
   openAL(name){
