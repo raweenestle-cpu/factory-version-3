@@ -534,10 +534,12 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
           <span id="unsaved-dot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#EF4444;border-radius:50%;border:2px solid var(--bg2)"></span>
         </button>
         <button onclick="PRINT.openSched()" style="background:rgba(15,52,96,.9);color:#fff;border:1px solid rgba(6,182,212,.4)">🖨️ ตาราง</button>
+        <button onclick="OTBAL.openModal()" style="background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.4)">📊 OT Balance</button>
         <button onclick="PRINT.openOT()" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(245,158,11,.4)">🖨️ OT</button>
         <button onclick="SCHED.clearWk()" style="background:rgba(217,119,6,.2);color:var(--amber);border:1px solid rgba(217,119,6,.3)">🗑️ ล้าง</button>
       </div>
     </div>
+    <div id="save-info" style="font-size:9px;color:var(--text3);padding:2px 14px 2px;text-align:right"></div>
     <div class="sched-wrap"><table class="sched-tbl"><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
     <div class="al-sec"><h3>🏖️ AL — พนักงานลา</h3><div class="al-chips" id="alc"><span style="font-size:11px;color:var(--text3)">ไม่มี</span></div></div>
     <div style="background:rgba(37,99,235,.05);border-top:2px solid rgba(37,99,235,.3);padding:10px 14px;flex-shrink:0">
@@ -811,6 +813,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
   </div>
 </div>
 <div class="mo hide" id="mo-e"></div>
+<div class="mo hide" id="mo-otbal" style="align-items:flex-start;padding-top:20px"></div>
 <div class="mo hide" id="mo-pr"></div>
 <div class="mo hide" id="mo-or"></div>
 <div class="mo center hide" id="mo-cf"></div>
@@ -1037,6 +1040,11 @@ const D={
   getTarget(){return parseFloat(LS.get('ot_target',0))||0;},
   saveTarget(v){LS.set('ot_target',v);FB.set('config/ot_target',v);},
   getMaxOT(){return LS.get('max_ot',3);},
+  getSaveLog(){return LS.get('save_log',[]);},
+  saveSaveLog(v){LS.set('save_log',v);},
+  // OT Balance: {sys: {wk: {date_str: {total, distributed, entries:[{reason,hrs,ts}]}}}}
+  getOTBalance(sys){return LS.get('ot_balance_'+( sys||S.sys),{});},
+  saveOTBalance(v,sys){LS.set('ot_balance_'+(sys||S.sys),v);FB.set((sys||S.sys)+'/ot_balance',v);},
   saveMaxOT(v){LS.set('max_ot',v);FB.set('config/max_ot',v);},
   getPin(){return LS.get('admin_pin','123456');},
   savePin(p){LS.set('admin_pin',p);FB.set('config/admin_pin',p);},
@@ -1870,7 +1878,10 @@ const PLAN={
         const liters=ml>0?Math.round(boxes*ml/1000):0;
         const safePN=prodName.replace(/'/g,"\\'").replace(/"/g,'&quot;');
         const literId='lbl_'+dept.replace(/[^a-z0-9]/gi,'_')+'_'+di+'_'+ii;
-        const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง" oninput="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value,document.getElementById('${literId}'),${ml})" style="width:52px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
+        const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง"
+          oninput="document.getElementById('${literId}').textContent=this.value>0&&${ml}>0?'= '+Math.round(this.value*${ml}/1000).toLocaleString()+' ล.':'กล่อง'"
+          onchange="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value)"
+          style="width:62px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
         return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
       }).join('');
       return `<td><div>${prodCards}<button class="pa-btn" onclick="PLAN.addProd('${dept}',${di})">+ เพิ่ม Product</button></div></td>`;
@@ -1883,17 +1894,12 @@ const PLAN={
     D.saveVolume(vol);
     if(S.sys==='proc')this.updateMixingSummary();
   },
-  setVolProd(dept,di,prodName,v,labelEl,ml){
+  setVolProd(dept,di,prodName,v){
     const vol=D.getVolume();
     if(!vol[dept])vol[dept]={};
     if(typeof vol[dept][di]!=='object'||vol[dept][di]===null)vol[dept][di]={};
-    const boxes=parseInt(v)||0;
-    vol[dept][di][prodName]=boxes;
+    vol[dept][di][prodName]=parseInt(v)||0;
     D.saveVolume(vol);
-    // อัปเดต label ลิตรโดยไม่ re-render ทั้งหน้า
-    if(labelEl&&ml>0){
-      labelEl.textContent=boxes>0?'กล่อง = '+Math.round(boxes*ml/1000).toLocaleString()+' ล.':'กล่อง';
-    }
   },
   setCount(dept,di,ii,v){if(!this.plan[dept])this.plan[dept]={};if(!this.plan[dept][di])this.plan[dept][di]=[];if(this.plan[dept][di][ii])this.plan[dept][di][ii].count=parseInt(v)||1;},
   delProd(dept,di,ii){if(!this.plan[dept]||!this.plan[dept][di])return;this.plan[dept][di].splice(ii,1);D.savePlan(this.plan);this.render();},
@@ -3192,6 +3198,121 @@ function resetSessionTimer() {
 
 
 
+// ══ OT Balance System ══
+const OTBAL={
+  // คำนวณ OT รวมของแต่ละวันจาก sched
+  calcDayOT(sched,wk,di){
+    let total=0;
+    const depts=D.getDepts();
+    depts.forEach(dept=>{
+      SHS.forEach(sh=>{
+        (sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).forEach(w=>{
+          if(w.ot)total+=(w.otHrs||4);
+        });
+      });
+    });
+    return total;
+  },
+  // บันทึก OT ที่กระจายแล้วในวันนั้น
+  addEntry(dateStr,reason,hrs,wk){
+    const bal=D.getOTBalance();
+    if(!bal[wk])bal[wk]={};
+    if(!bal[wk][dateStr])bal[wk][dateStr]={total:0,distributed:0,entries:[]};
+    bal[wk][dateStr].entries.push({reason,hrs:parseInt(hrs)||0,ts:new Date().toISOString()});
+    bal[wk][dateStr].distributed=(bal[wk][dateStr].entries.reduce((a,e)=>a+(e.hrs||0),0));
+    D.saveOTBalance(bal);
+    return bal[wk][dateStr];
+  },
+  // อัปเดต total OT ของวันนั้น (เรียกหลัง save sched)
+  updateTotal(sched,wk,di){
+    const ws=S.wkStart;const d2=new Date(ws);d2.setDate(ws.getDate()+di);
+    const dateStr=d2.toISOString().slice(0,10);
+    const total=this.calcDayOT(sched,wk,di);
+    const bal=D.getOTBalance();
+    if(!bal[wk])bal[wk]={};
+    if(!bal[wk][dateStr])bal[wk][dateStr]={total:0,distributed:0,entries:[]};
+    bal[wk][dateStr].total=total;
+    D.saveOTBalance(bal);
+  },
+  // ดึง OT คงเหลือที่ยังไม่ได้กระจาย ข้ามวันได้
+  getPending(wk){
+    const bal=D.getOTBalance();const weekBal=bal[wk]||{};
+    const pending=[];
+    Object.entries(weekBal).forEach(([dateStr,day])=>{
+      const rem=(day.total||0)-(day.distributed||0);
+      if(rem>0)pending.push({dateStr,total:day.total,distributed:day.distributed,remaining:rem,entries:day.entries||[]});
+    });
+    return pending.sort((a,b)=>a.dateStr.localeCompare(b.dateStr));
+  },
+  // เปิด modal OT Balance
+  openModal(){
+    const wk=wKey(S.wkStart);
+    const pending=this.getPending(wk);
+    const bal=D.getOTBalance();const weekBal=bal[wk]||{};
+    const reasons=D.getReasons()||[];
+    const mo=document.getElementById('mo-otbal');if(!mo)return;
+    const totalPending=pending.reduce((a,p)=>a+p.remaining,0);
+    let html='<div class="md"><div class="md-handle"></div>'
+      +'<div class="md-hdr"><div class="md-title">📊 OT Balance สัปดาห์นี้</div>'
+      +'<button class="md-close" onclick="closeMo(\'mo-otbal\')">✕</button></div>'
+      +'<div class="md-body">';
+    if(totalPending>0){
+      html+='<div style="background:rgba(245,158,11,.15);border:1.5px solid rgba(245,158,11,.4);border-radius:10px;padding:10px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:900;color:var(--amber)">⚠️ OT คงเหลือที่ยังไม่ได้กระจาย: '+totalPending+' ชม.</div></div>';
+    }
+    // แสดงทุกวันที่มี OT
+    Object.entries(weekBal).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([dateStr,day])=>{
+      if(!day.total&&!day.distributed)return;
+      const rem=(day.total||0)-(day.distributed||0);
+      const d=new Date(dateStr);
+      const dLabel=d.toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short'});
+      html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<div style="font-size:12px;font-weight:800">'+dLabel+'</div>'
+        +'<div style="font-size:11px;color:var(--text2)">รวม '+day.total+' ชม. | กระจาย '+(day.distributed||0)+' ชม. | <b style="color:'+(rem>0?'var(--amber)':'var(--green2)')+'">คงเหลือ '+rem+' ชม.</b></div>'
+        +'</div>';
+      if(day.entries?.length){
+        html+='<div style="font-size:10px;color:var(--text3);margin-bottom:6px">';
+        day.entries.forEach(e=>{
+          const t=new Date(e.ts);
+          html+='<div>• '+e.reason+' '+e.hrs+' ชม. ('+t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+')</div>';
+        });
+        html+='</div>';
+      }
+      if(rem>0){
+        html+='<div style="display:flex;gap:6px;margin-top:4px">'
+          +'<select id="otbal-reason-'+dateStr+'" style="flex:2;padding:5px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-family:Sarabun,sans-serif">'
+          +reasons.map(r=>'<option value="'+r+'">'+r+'</option>').join('')
+          +'<option value="__other__">อื่นๆ</option>'
+          +'</select>'
+          +'<input type="number" id="otbal-hrs-'+dateStr+'" min="1" max="'+rem+'" value="'+rem+'" style="width:52px;padding:5px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;text-align:center;font-family:Sarabun,sans-serif"> ชม.'
+          +'<button onclick="OTBAL.distribute(this)" data-date="'+dateStr+'" data-wk="'+wk+'" style="padding:5px 10px;background:var(--blue);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:800;font-family:Sarabun,sans-serif;cursor:pointer">✅ กระจาย</button>'
+          +'</div>';
+      }
+      html+='</div>';
+    });
+    if(!Object.keys(weekBal).length){
+      html+='<div style="text-align:center;color:var(--text3);padding:20px">ยังไม่มีข้อมูล OT สัปดาห์นี้</div>';
+    }
+    html+='</div></div>';
+    mo.innerHTML=html;
+    mo.onclick=e=>{if(e.target===mo)closeMo('mo-otbal');};
+    openMo('mo-otbal');
+  },
+  distribute(el){
+    const dateStr=el.dataset.date;const wk=el.dataset.wk;
+    const reasonSel=document.getElementById('otbal-reason-'+dateStr);
+    const hrsInput=document.getElementById('otbal-hrs-'+dateStr);
+    const reason=reasonSel?.value||'ไม่ระบุ';
+    const hrs=parseInt(hrsInput?.value)||0;
+    if(hrs<=0){toast('❌ ระบุชั่วโมงที่ต้องการกระจาย');return;}
+    const entry=this.addEntry(dateStr,reason,hrs,wk);
+    const rem=entry.total-entry.distributed;
+    toast('✅ กระจาย OT '+hrs+' ชม. แล้ว'+(rem>0?' | คงเหลือ '+rem+' ชม.':''));
+    this.openModal(); // refresh modal
+  },
+};
+
 const SCHED={
   curDi:0,
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
@@ -3294,9 +3415,9 @@ const SCHED={
       if(w.ot){
         if(sh==='afternoon'){
           html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
-            <option value="14-22" ${(w.sr||'14-22')==='14-22'?'selected':''}>14:00-22:00 (OT 4\u0e0a\u0e21.)</option>
-            <option value="10-22" ${w.sr==='10-22'?'selected':''}>10:00-22:00 (OT 8\u0e0a\u0e21.)</option>
-            <option value="14-02" ${w.sr==='14-02'?'selected':''}>14:00-02:00 (OT 8\u0e0a\u0e21.)</option>
+            <option value="14-22" ${(w.sr||'14-22')==='14-22'?'selected':''}>14:00-22:00 (ปกติ ไม่ OT)</option>
+            <option value="10-22" ${w.sr==='10-22'?'selected':''}>10:00-22:00 (OT ก่อนงาน 4ชม.)</option>
+            <option value="14-02" ${w.sr==='14-02'?'selected':''}>14:00-02:00 (OT หลังงาน 4ชม.)</option>
           </select>`;
         }else if(sh==='morning'){
           html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
@@ -3370,15 +3491,16 @@ const SCHED={
     else{['morning','afternoon','night'].forEach(s=>{if(!w){const ws=sched[dept]?.[di]?.[s]||sched[dept]?.[String(di)]?.[s]||[];const found=ws.find(x=>x.name===name);if(found){w=found;foundSh=s;}}});}
     if(w){
       w.sr=range;
-      // ถ้าเลือก range ปกติ (ไม่ OT) → ปิด OT
-      const normalRanges=['14-22','06-14','22-06'];
-      w.ot=!normalRanges.includes(range);
-      if(w.ot){
-        const sp=range.split('-');const h1=parseInt(sp[0]);const h2=parseInt(sp[1]);
-        const totalHrs=h2>h1?(h2-h1):(24-h1+h2);
-        // OT = ส่วนที่เกินจากกะปกติ (8ชม.)
-        w.otHrs=Math.max(totalHrs-8,0)||4;
-      }
+      // ตาราง OT ที่ถูกต้องตามช่วงเวลาจริง
+      // กะบ่าย: 14-22=ปกติ(0OT), 10-22=OTก่อน4ชม., 14-02=OTหลัง4ชม.
+      // กะเช้า: 06-14=ปกติ(0OT), 06-18=OTหลัง4ชม.
+      // กะดึก: 22-06=ปกติ(0OT), 18-06=OTก่อน4ชม.
+      const otMap={'14-22':0,'06-14':0,'22-06':0,'10-22':4,'14-02':4,'06-18':4,'18-06':4};
+      const otBefMap={'10-22':true,'18-06':true}; // OT ก่อนเริ่มกะ
+      const otHrsCalc=otMap[range]??4;
+      w.ot=otHrsCalc>0;
+      w.otHrs=otHrsCalc;
+      w.otBefore=!!otBefMap[range];
       all[wk]=sched;markUnsaved();D.saveSched(all);this.render();closeMo('mo-w');toast('✅ อัพเดทเวลาแล้ว');
     }
   },
@@ -3505,7 +3627,24 @@ const SCHED={
     let tH=0,oH=0;
     D.getDepts().forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
         const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*100):0;
-    const doSave=()=>{D.saveSched(all);FB.set(S.sys+'/sched/'+wk,sched);markSaved();toast('\u2705 \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08');DASH.render();};
+    const doSave=()=>{
+      // บันทึก Timestamp + ชื่อผู้จัดกะ
+      const saveLog=D.getSaveLog()||[];
+      const now=new Date();
+      const who=S.user?.isAdmin?'Admin':(S.user?.emp?.name||'Unknown');
+      const dateStr=now.toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'});
+      const timeStr=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      saveLog.unshift({who,date:dateStr,time:timeStr,wk,sys:S.sys,ts:now.toISOString()});
+      if(saveLog.length>50)saveLog.length=50; // เก็บแค่ 50 รายการล่าสุด
+      D.saveSaveLog(saveLog);
+      // อัปเดต label ใต้ปุ่ม Save
+      const saveInfo=document.getElementById('save-info');
+      if(saveInfo)saveInfo.textContent='บันทึกโดย '+who+' | '+dateStr+' '+timeStr;
+      D.saveSched(all);FB.set(S.sys+'/sched/'+wk,sched);FB.set('save_log',saveLog.slice(0,10));
+      // อัปเดต OT Balance ทุกวันในสัปดาห์นี้
+      for(let di=0;di<6;di++)OTBAL.updateTotal(sched,wk,di);
+      markSaved();toast('✅ บันทึกสำเร็จ — '+who+' '+timeStr);DASH.render();
+    };
     if(oH>0){this.showOTReason(pct,tgt,oH,doSave);}
     else{doSave();}
   },
