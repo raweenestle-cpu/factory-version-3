@@ -9,7 +9,73 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Factory v3">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" id="pwa-manifest">
+<script>
+// Inline manifest — ไม่ต้องพึ่งไฟล์ manifest.json ภายนอก
+(function(){
+  const manifest={
+    name:'Factory Scheduling',
+    short_name:'FactorySched',
+    description:'ระบบจัดตารางกะโรงงาน',
+    start_url:'./',
+    display:'standalone',
+    background_color:'#0f172a',
+    theme_color:'#1e3a5f',
+    orientation:'any',
+    icons:[
+      {src:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%231e3a5f"/><text y=".9em" font-size="80" x="10">🏭</text></svg>',sizes:'any',type:'image/svg+xml',purpose:'any maskable'}
+    ]
+  };
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  document.getElementById('pwa-manifest').href=url;
+})();
+// PWA Install
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_deferredPrompt=e;
+  const banner=document.getElementById('pwa-banner');
+  if(banner)banner.style.display='flex';
+});
+window.addEventListener('appinstalled',()=>{
+  _deferredPrompt=null;
+  const banner=document.getElementById('pwa-banner');
+  if(banner)banner.style.display='none';
+});
+function installPWA(){
+  if(_deferredPrompt){
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(r=>{
+      if(r.outcome==='accepted'){
+        const banner=document.getElementById('pwa-banner');
+        if(banner)banner.style.display='none';
+      }
+      _deferredPrompt=null;
+    });
+  } else {
+    // iOS — แสดงคำแนะนำ
+    alert('บน iPhone:\n1. กด Share (แชร์) ที่แถบด้านล่าง\n2. เลือก "Add to Home Screen"\n3. กด "Add"\n\nแอปจะปรากฏที่หน้าจอหลักของคุณ');
+  }
+}
+// Service Worker สำหรับ offline support
+if('serviceWorker' in navigator){
+  const swCode=`
+    const CACHE='factory-sched-v1';
+    self.addEventListener('install',e=>e.waitUntil(
+      caches.open(CACHE).then(c=>c.addAll(['./',location.href]))
+    ));
+    self.addEventListener('fetch',e=>e.respondWith(
+      caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+        if(res.ok){const cl=res.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));}
+        return res;
+      }).catch(()=>caches.match(e.request)))
+    ));
+  `;
+  const swBlob=new Blob([swCode],{type:'application/javascript'});
+  const swUrl=URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+</script>
 <title>Factory Scheduling v3</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
@@ -470,6 +536,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <div class="dash-card" onclick="DASH.openChart('lsvc')" style="--accent:var(--amber)">
         <div class="dc-val ot-none" id="lsp">-</div>
         <div class="dc-label">Line Service OT%</div>
+        <div class="dc-sub" id="lsc">0 คน</div>
         <div class="dc-chart"><div id="lschart" style="flex:1;position:relative;overflow:hidden;height:60px"></div></div>
       </div>
       <div class="dash-card full" style="--accent:var(--teal)" onclick="DASH.openChart('total')">
@@ -1642,6 +1709,17 @@ const DASH={
     const cur=data[curIdx];
     pe.textContent=cur!=null?cur+'%':'-';
     pe.className='dc-val'+(cur==null?' ot-none':cur>tgt?' ot-hi':' ot-ok');
+    // แสดงจำนวนพนักงาน Line Service ในการ์ด
+    if(type==='lsvc'){
+      const lscEl=document.getElementById('lsc');
+      if(lscEl){
+        const wk=wKey(S.wkStart);
+        const lsvcData=LS.get('lsvc_data',{});
+        const wkData=lsvcData[wk];
+        const count=wkData?.total||0;
+        lscEl.textContent=count>0?count+' คน':'—';
+      }
+    }
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1)*1.15;
     const BAR_H=54; // px ความสูงพื้นที่แท่ง
     ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:54px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
