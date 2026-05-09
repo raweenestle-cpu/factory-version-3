@@ -1641,7 +1641,6 @@ const DASH={
     tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:7px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 3px;border-radius:3px">Target ${tgt}%</span>`;
     ce.appendChild(tl);
     }catch(e){console.log('renderChart error',e.message);}
-  }
   },
   openChart(type){
     const MONTHS_FULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -1666,6 +1665,7 @@ const DASH={
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1);
     const title={proc:'Process OT%',fill:'Filling OT%',total:'รวม OT%'}[type];
     const now=new Date();const curMo=now.getFullYear()===yr?now.getMonth():-1;
+    const curIdx=curMo;
 
     const bars=data.map((v,mi)=>{
       const isCur=mi===curIdx;
