@@ -1173,7 +1173,7 @@ const LSVC={
     const wk=wKey(ws);
     const data=LS.get('lsvc_data',{});
     const cur=data[wk]||{total:0,otCount:0,otHrs:0,workHrs:0,reasons:[]};
-    const pct=cur.total>0?Math.round(cur.otCount/cur.total*100):0;
+    const pct=(cur.workHrs+cur.otHrs)>0?Math.round(cur.otHrs/(cur.workHrs+cur.otHrs)*100):0;
 
     // ประวัติย้อนหลัง — แสดงทุก key ที่มีข้อมูล
     const tgt2=D.getTarget()||0;
@@ -1230,18 +1230,11 @@ const LSVC={
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div>
             <label class="fl">พนักงานทั้งหมด (คน)</label>
-            <input class="fs" type="number" id="lsvc-total" value="${cur.total}" min="0" style="width:100%">
+            <input class="fs" type="number" id="lsvc-total" value="${cur.total}" min="0" style="width:100%" oninput="document.getElementById('lsvc-workhrs-display').textContent=(parseInt(this.value)||0)*8+' ชม.'">
+            <div style="font-size:11px;color:var(--text2);margin-top:3px">ชั่วโมงปกติ: <span id="lsvc-workhrs-display">${(cur.total||0)*8} ชม.</span></div>
           </div>
           <div>
-            <label class="fl">จำนวนคนที่ทำ OT</label>
-            <input class="fs" type="number" id="lsvc-otcount" value="${cur.otCount}" min="0" style="width:100%">
-          </div>
-          <div>
-            <label class="fl">ชั่วโมงทำงานปกติ</label>
-            <input class="fs" type="number" id="lsvc-workhrs" value="${cur.workHrs}" min="0" style="width:100%">
-          </div>
-          <div>
-            <label class="fl">ชั่วโมง OT รวม</label>
+            <label class="fl">ชั่วโมง OT รวม (ชม.)</label>
             <input class="fs" type="number" id="lsvc-othrs" value="${cur.otHrs}" min="0" style="width:100%">
           </div>
         </div>
@@ -1258,15 +1251,13 @@ const LSVC={
 
   save(){
     const total=parseInt(document.getElementById('lsvc-total')?.value||0);
-    const otCount=parseInt(document.getElementById('lsvc-otcount')?.value||0);
-    const workHrs=parseInt(document.getElementById('lsvc-workhrs')?.value||0);
+    const workHrs=total*8; // คำนวณอัตโนมัติ
     const otHrs=parseInt(document.getElementById('lsvc-othrs')?.value||0);
-    if(otCount>total){toast('❌ จำนวนคน OT มากกว่าพนักงานทั้งหมด');return;}
     if(otHrs<1){
-      this._doSave(total,otCount,workHrs,otHrs,[]);
+      this._doSave(total,0,workHrs,otHrs,[]);
       return;
     }
-    this._pending={total,otCount,workHrs,otHrs};
+    this._pending={total,otCount:0,workHrs,otHrs};
     this._openDistrib(otHrs);
   },
 
@@ -2967,12 +2958,13 @@ const PRINT={
     const isFill=sys==='fill';
 
     const buildTable=(depts2,sched2,di,showHeader=true)=>{
-      const head=showHeader?`<thead><tr>
+      // หัวตารางแสดงเสมอ ติดกับวันนั้น
+      const head=`<thead><tr>
         <th style="border:${bd};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
         <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
         <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
         <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
-      </tr></thead>`:'';
+      </tr></thead>`;
       let rows='<tbody>';
       depts2.forEach((dept,ri)=>{
         const bg=ri%2===0?'#fff':'#f8faff';
@@ -3057,8 +3049,9 @@ const PRINT={
     doc.write('.day-block{margin-bottom:3px;}');
     doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
     doc.write('.day-page:first-of-type{page-break-before:auto;break-before:auto;}');
-    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;}');
+    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
     doc.write('thead{display:table-header-group;}');
+    doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
     doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;}');
     doc.write('td{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;color:#000;vertical-align:top;}');
     doc.write('tr:nth-child(even) td{background:#f8faff;}');
