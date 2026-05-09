@@ -1611,7 +1611,7 @@ const DASH={
     pe.className='dc-val'+(cur==null?' ot-none':cur>tgt?' ot-hi':' ot-ok');
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1);
     const BAR_H=54; // px ความสูงพื้นที่แท่ง
-    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:70px;width:100%;padding-bottom:16px;position:relative;overflow:visible;cursor:pointer';
+    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:54px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
     ce.onclick=()=>this.openChart(type);
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
@@ -1628,7 +1628,7 @@ const DASH={
     // target line — คำนวณจาก px
     const tl=document.createElement('div');
     const tgtPx=Math.min(Math.round(tgt/mx*BAR_H),BAR_H);
-    tl.style.cssText=`position:absolute;left:0;right:0;bottom:calc(${tgtPx}px + 18px);border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
+    tl.style.cssText=`position:absolute;left:0;right:0;bottom:${tgtPx}px;border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
     tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:7px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 3px;border-radius:3px">Target ${tgt}%</span>`;
     ce.appendChild(tl);
     }catch(e){console.log('renderChart error',e.message);}
