@@ -75,8 +75,8 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .dc-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
 .dc-val{font-size:28px;font-weight:900;margin:4px 0;line-height:1}
 .dc-sub{font-size:11px;color:var(--text2)}
-.dc-chart{margin-top:10px;height:60px;position:relative}
-.mini-bars{display:flex;align-items:flex-end;gap:2px;height:100%}
+.dc-chart{margin-top:10px;position:relative;overflow:visible}
+.mini-bars{display:block;width:100%;overflow:visible}
 .mini-bar{flex:1;border-radius:2px 2px 0 0;min-height:2px}
 .mini-bar.over{background:var(--red2)}
 .mini-bar.ok{background:var(--green2)}
@@ -1020,8 +1020,8 @@ const D={
     const obj={};clean.forEach(emp=>{obj[emp.name.replace(/[.#$\[\]]/g,'_')]=emp;});
     FB.set(sys+'/emps',obj);
   },
-  getTarget(sys=S.sys){return LS.get('target_'+sys,null)||null;},
-  saveTarget(v,sys=S.sys){LS.set('target_'+sys,v);FB.set(sys+'/target',v);},
+  getTarget(){return parseFloat(LS.get('ot_target',0))||0;},
+  saveTarget(v){LS.set('ot_target',v);FB.set('config/ot_target',v);},
   getMaxOT(){return LS.get('max_ot',3);},
   saveMaxOT(v){LS.set('max_ot',v);FB.set('config/max_ot',v);},
   getPin(){return LS.get('admin_pin','123456');},
@@ -1386,14 +1386,15 @@ const APP={
     ];
     renders.forEach(fn=>{try{fn();}catch(e){console.log('render error:',e.message);}});
     // re-render หลัง Firebase sync เสร็จ
-    setTimeout(function(){try{SCHED.render();DASH.render();EMP.render();}catch(e){}},2000);
+    setTimeout(function(){try{SCHED.render();DASH.render();EMP.render();LSVC.render();}catch(e){}},2000);
+    setTimeout(function(){try{LSVC.render();DASH.render();}catch(e){}},4000);
   },
   syncFB(){
     const wk=wKey(S.wkStart);
     ['proc','fill'].forEach(sys=>{
       FB.on(sys+'/emps',v=>{if(v){const arr=(Array.isArray(v)?v:Object.values(v)).filter(e=>e&&e.name);if(arr.length){LS.set('emps_'+sys,arr);if(sys===S.sys)EMP.render();updEmpCnt();}}});
       FB.on(sys+'/depts',v=>{if(v&&v.length){LS.set('depts_'+sys,v);if(sys===S.sys){SCHED.render();SET.render();}PROD.render();PLAN.render();}});
-      FB.on(sys+'/target',v=>{if(v!=null){LS.set('target_'+sys,v);DASH.render();}});
+      // target ใช้ตัวเดียว
       FB.on(sys+'/products',v=>{if(v){LS.set('prods_'+sys,v);if(sys===S.sys){PLAN.render();SET.render();}}});
       FB.on(sys+'/plan',v=>{if(v){LS.set('plan_'+sys,v);if(sys===S.sys)PLAN.render();}});
       FB.on(sys+'/sched',v=>{
@@ -1414,12 +1415,15 @@ const APP={
     FB.on('config/mixing_cfg',v=>{if(v)LS.set('mixing_cfg',v);});
     FB.on('config/mix_stock',v=>{if(v!=null)LS.set('mix_stock',v);});
     FB.on('config/prod_display',v=>{if(v)LS.set('prod_display',v);});
+    FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
+    FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
+    FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
     FB.on('config/admin_pin',v=>{if(v)LS.set('admin_pin',v);});
     FB.on('config/max_ot',v=>{if(v)LS.set('max_ot',v);});
     FB.on('config/ot_reasons',v=>{if(v&&v.length)LS.set('ot_reasons',v);});
     FB.on('team_cfg',v=>{if(v)LS.set('team_cfg',v);});
     FB.on('leave_req',v=>{if(v){LS.set('leave_req',v);LEAVE.render();LEAVE.updBadge();}});
-    FB.on('lsvc_data',v=>{if(v){LS.set('lsvc_data',v);LSVC.render();DASH.render();}});
+    FB.on('lsvc/data',v=>{if(v){LS.set('lsvc_data',v);LSVC.render();DASH.render();}});
     FB.on('leave_hist',v=>{if(v)LS.set('leave_hist',v);});
   },
   setSys(sys){
@@ -1559,9 +1563,7 @@ const DASH={
     const _tmo=this.getTargetMo();
     const yr=_tmo.getFullYear();
     const curMo=_tmo.getMonth();
-    const _t1=parseFloat(LS.get('target_proc',0))||0;
-    const _t2=parseFloat(LS.get('target_fill',0))||0;
-    const tgt=type==='total'?Math.round((_t1+_t2)/2):type==='proc'?_t1:type==='fill'?_t2:type==='lsvc'?_t1:0;
+    const tgt=D.getTarget();
     const ids={proc:'pp',fill:'fp',lsvc:'lsp',total:'tp'};
     const cids={proc:'pch',fill:'fch',lsvc:'lschart',total:'tch'};
     const pe=document.getElementById(ids[type]);if(!pe)return;
@@ -1615,28 +1617,22 @@ const DASH={
       }
     }
     const cur=data[curIdx];
-    pe.textContent=cur!=null?cur+'%':'-';if(document.getElementById('dbg-tgt-'+type))document.getElementById('dbg-tgt-'+type).textContent='tgt='+tgt;
+    pe.textContent=cur!=null?cur+'%':'-';
     pe.className='dc-val'+(cur==null?' ot-none':cur>tgt?' ot-hi':' ot-ok');
-    const mx=Math.max(...data.filter(v=>v!=null),tgt,1);
-    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:70px;width:100%;padding-bottom:16px;position:relative;overflow:visible;cursor:pointer';
-    ce.onclick=()=>this.openChart(type);
+    ce.style.cssText='width:100%;display:flex;gap:3px;align-items:stretch;margin-top:8px';
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
-      const col=v==null?'var(--border)':v>tgt?'var(--red2)':'var(--green2)';
-      const h=v==null?4:Math.max(v/mx*90,4);
+      const col=v==null?'#475569':v>tgt?'#EF4444':'#22C55E';
+      const bg=isCur?(v==null?'rgba(59,130,246,.2)':v>tgt?'rgba(239,68,68,.2)':'rgba(34,197,94,.2)'):'rgba(255,255,255,.04)';
+      const border=isCur?(v==null?'#3B82F6':v>tgt?'#EF4444':'#22C55E'):'rgba(255,255,255,.08)';
       const label=labels[mi]||MONTHS[mi]||mi;
-      return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0;position:relative;min-width:0">
-        ${v!=null?`<div style="font-size:7px;font-weight:800;color:${col};margin-bottom:1px;white-space:nowrap">${v}%</div>`:'<div style="font-size:7px;color:transparent">0</div>'}
-        <div style="width:100%;height:${h}%;background:${col};border-radius:2px 2px 0 0;min-height:3px;${isCur?'box-shadow:0 0 4px '+col:''};transition:height .3s"></div>
-        <div style="position:absolute;bottom:-16px;font-size:6.5px;color:${isCur?'var(--blue2)':'var(--text3)'};font-weight:${isCur?'900':'600'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
+      return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 1px;background:${bg};border:1.5px solid ${border};border-radius:6px;gap:1px">
+        <div style="font-size:${isCur?'11':'9'}px;font-weight:900;color:${col};line-height:1">${v!=null?v+'%':'-'}</div>
+        <div style="font-size:6px;color:${isCur?'#93C5FD':'#64748B'};font-weight:700;line-height:1">${label}</div>
       </div>`;
     }).join('');
-    // target line
-    const tl=document.createElement('div');
-    tl.style.cssText=`position:absolute;left:0;right:0;bottom:calc(${Math.min(tgt/mx*90,90)}% + 18px);border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
-    tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:7px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 3px;border-radius:3px">Target ${tgt}%</span>`;
-    ce.appendChild(tl);
     }catch(e){console.log('renderChart error',e.message);}
+  }
   },
   openChart(type){
     const MONTHS_FULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -1657,7 +1653,7 @@ const DASH={
         return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
       });
     }
-    const tgt=type==='total'?Math.round((D.getTarget('proc')+D.getTarget('fill'))/2):D.getTarget(type==='proc'?'proc':'fill');
+    const tgt=D.getTarget();
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1);
     const title={proc:'Process OT%',fill:'Filling OT%',total:'รวม OT%'}[type];
     const now=new Date();const curMo=now.getFullYear()===yr?now.getMonth():-1;
@@ -1696,7 +1692,7 @@ const DASH={
         <div style="display:flex;gap:8px;align-items:flex-end;flex:1;min-height:300px;position:relative;padding-bottom:4px">
           ${bars}
           <!-- target line -->
-          <div style="position:absolute;left:0;right:0;bottom:calc(${Math.min(tgt/mx*100,100)}%);border-top:2px dashed var(--amber);pointer-events:none;z-index:2">
+          <div style="position:absolute;left:0;right:0;bottom:calc(${Math.min(tgt/mx*100,80)}%);border-top:2px dashed var(--amber);pointer-events:none;z-index:2">
             <span style="position:absolute;right:4px;top:-18px;font-size:11px;font-weight:900;color:var(--amber);background:var(--bg2);padding:2px 8px;border-radius:6px;border:1px solid rgba(245,158,11,.4)">🎯 Target ${tgt}%</span>
           </div>
         </div>
@@ -2225,60 +2221,256 @@ const PLAN={
       if(!this._dayData){doneLoad(false,'โหลดแผน Filling ก่อน');toast('⚠️ กรุณากดปุ่ม 📥 โหลดแผน Filling ก่อนครับ');return;}
       const wk2=wKey(S.wkStart);
       const allSched2=D.getSched();
-      allSched2[wk2]={};
+      if(!allSched2[wk2])allSched2[wk2]={};
       const sched2=allSched2[wk2];
+
       const procDepts=D.getDepts('proc').filter(d=>d!==AL);
       const leaveData2=D.getLeave();
       const teamShifts=TEAM.getCurShifts();
       const shMap={morning:'morning',afternoon:'afternoon',night:'night'};
-      // dedup emps
-      const _rawProc=D.getEmps('proc').filter(e=>e&&e.name);
-      const _seenP=new Set();
-      const procEmps=_rawProc.filter(e=>{if(_seenP.has(e.name))return false;_seenP.add(e.name);return true;});
-      if(!procEmps.some(e=>e.team)){doneLoad(false,'ยังไม่ได้กำหนดทีม');alert2('⚠️ กรุณาไปที่หน้า 🔄 ทีม แล้วกำหนดทีม A/B/C ก่อนครับ','❌');return;}
-      // init
-      procDepts.forEach(dept=>{sched2[dept]={};for(let di=0;di<6;di++)sched2[dept][di]={morning:[],afternoon:[],night:[]};});
-      sched2[AL]={};
-      for(let di=0;di<6;di++)sched2[AL][di]={morning:[],afternoon:[],night:[]};
-      // โหลดตามทีม
-      for(let di=0;di<6;di++){
+
+      // init structure
+      procDepts.forEach(dept=>{
+        sched2[dept]={};
+        for(let di=0;di<6;di++) sched2[dept][di]={morning:[],afternoon:[],night:[]};
+      });
+      if(!sched2[AL])sched2[AL]={};
+      for(let di=0;di<6;di++) if(!sched2[AL][di])sched2[AL][di]={morning:[],afternoon:[],night:[]};
+
+      // กรองเฉพาะ proc emps
+      const procEmps=emps.filter(e=>(e.sys||'proc')==='proc');
+
+      this._dayData.forEach(dayInfo=>{
+        const di=dayInfo.di;
         const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
-        const leaveApproved=leaveData2[dk]||[];
-        const usedToday=new Set();
+        const hoursNeeded=dayInfo.hoursNeeded||0;
+        const units=dayInfo.units||0;
+
+        // คนที่ลาวันนี้ → AL
         procEmps.forEach(e=>{
-          if(usedToday.has(e.name))return;
-          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-          const dept=procDepts.includes(e.mainDept)?e.mainDept:procDepts[0];
-          if(!dept||!sched2[dept])return;
-          usedToday.add(e.name);
-          if(leaveApproved.includes(e.name)){
-            sched2[AL][di][sh].push({name:e.name,ot:false,leaveStatus:'approved'});
-          } else {
-            sched2[dept][di][sh].push({name:e.name,ot:false});
+          if((leaveData2[e.name]||[]).includes(dk)){
+            const empSh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+            if(!sched2[AL][di][empSh].find(w=>w.name===e.name))
+              sched2[AL][di][empSh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isLeave:true});
           }
         });
-      }
-      // dedup sched
-      Object.keys(sched2).forEach(dept=>{
-        for(let di=0;di<6;di++){
-          const seen=new Set();
-          ['morning','afternoon','night'].forEach(sh=>{
-            if(!sched2[dept]?.[di])return;
-            sched2[dept][di][sh]=(sched2[dept][di][sh]||[]).filter(w=>{
-              if(seen.has(w.name))return false;
-              seen.add(w.name);return true;
+
+        if(units===0)return; // ไม่ต้องผลิตวันนี้
+
+        // pool คนที่ไม่ลา
+        const avail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk));
+
+        // เช็คว่าวันนี้มีแผนผลิต Oreo ใน Laser หรือ Extru 3 ไหม
+        const fillPlan2=D.getPlan?D.getPlan('fill'):{};
+        const oreoLines=['Glacé','Glace','Extrud 3','Extru 3'];
+        const hasOreoToday=oreoLines.some(line=>{
+          const items=(fillPlan2[line]||{})[di]||(fillPlan2[line]||{})[String(di)]||[];
+          return items.length>0;
+        });
+        // ถ้าไม่มี Oreo วันนี้ → คน Oreo Coating ให้ใช้ sub1 เป็น mainDept แทน
+        const effectiveDept=e=>{
+          const dept=e.mainDept||e.dept;
+          if(!hasOreoToday&&dept==='Oreo Coating'&&e.sub1&&procDepts.includes(e.sub1))return e.sub1;
+          return dept;
+        };
+
+        // จำนวนคนที่ต้องการ (ไม่นับ Oreo Coating ซึ่งมีคนประจำ)
+        const nonOreoDepts=procDepts.filter(d=>d!=='Oreo Coating');
+        const cfg2=D.getMixingCfg?D.getMixingCfg():{};
+        const pplPerShift=units>=2?(cfg2.mix2people||9):(cfg2.mix1people||6);
+        const needPpl=pplPerShift; // กะละ pplPerShift คน ทุกกะ
+        const nightPpl=pplPerShift; // กะดึกใช้จำนวนเดียวกัน
+
+        // แยกตามกะที่ถูกกำหนด
+        const byShift={morning:[],afternoon:[],night:[]};
+        avail.forEach(e=>{
+          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+          if(byShift[sh])byShift[sh].push(e);
+        });
+
+        // usedEmps: ป้องกัน 1 คน เข้าหลายกะ
+        const usedEmps=new Set();
+
+        // 1. กะดึก → 9 คน (non-Oreo ก่อน)
+        const nightPool=[...byShift.night];
+        const nightAssigned=[];
+        nonOreoDepts.forEach(dept=>{
+          const deptNight=nightPool.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          deptNight.forEach(e=>{
+            if(nightAssigned.length<nightPpl){
+              sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
+              nightAssigned.push(e);usedEmps.add(e.name);
+            }
+          });
+        });
+
+        // 2. กะเช้า → needPpl คน (non-Oreo)
+        const morningPool=[...byShift.morning];
+        const morningAssigned=[];
+        nonOreoDepts.forEach(dept=>{
+          const deptMorn=morningPool.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          deptMorn.forEach(e=>{
+            if(morningAssigned.length<needPpl&&!usedEmps.has(e.name)){
+              sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
+              morningAssigned.push(e);usedEmps.add(e.name);
+            }
+          });
+        });
+
+        // 2.5 ถ้าเปิด 2 ชุด และเช้าไม่พอ → ดึงกะบ่าย pre-OT
+        const preOTFromAfternoon=new Set();
+        if(units>=2&&morningAssigned.length<needPpl){
+          const shortfall=needPpl-morningAssigned.length;
+          let preOTCount=0;
+          nonOreoDepts.forEach(dept=>{
+            const deptAfPre=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+            deptAfPre.forEach(e=>{
+              if(preOTCount>=shortfall)return;
+              sched2[dept][di].morning.push({name:e.name,ot:true,otHrs:4,otBefore:true,av:e.av||0});
+              morningAssigned.push(e);preOTFromAfternoon.add(e.name);
+              usedEmps.add(e.name);preOTCount++;
             });
           });
         }
+
+        // 3. กะบ่าย → ที่เหลือ (non-Oreo)
+        const afternoonAssigned=[];
+        nonOreoDepts.forEach(dept=>{
+          const deptAfter=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          deptAfter.forEach(e=>{
+            sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
+            afternoonAssigned.push(e);usedEmps.add(e.name);
+          });
+        });
+
+        // Oreo assign แยก (ไม่นับใน needPpl) — ต้องมีครบ 3 กะถ้ามีแผน Oreo
+        // pool ทั้งหมด (ไม่จำกัดแค่ byShift เพื่อดึง OT ได้)
+        const oreoAllEmps=avail; // คนที่ไม่ลาวันนี้
+        if(hasOreoToday&&sched2['Oreo Coating']){
+          const oreoUsed=new Set(); // ป้องกัน 1 คนอยู่หลายกะ Oreo
+          SHS.forEach(sh=>{
+            // 1. หาจาก byShift ของกะนั้นก่อน
+            const oreoMain=byShift[sh].filter(e=>(e.mainDept||e.dept)==='Oreo Coating'&&!usedEmps.has(e.name)&&!oreoUsed.has(e.name));
+            const oreoSub=byShift[sh].filter(e=>(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating')&&!usedEmps.has(e.name)&&!oreoUsed.has(e.name)&&(e.mainDept||e.dept)!=='Oreo Coating');
+            // ถ้าหาจาก byShift ของกะนั้นได้ → assign ปกติ ไม่มี OT
+            if([...oreoMain,...oreoSub][0]){
+              const oreo=[...oreoMain,...oreoSub][0];
+              sched2['Oreo Coating'][di][sh].push({name:oreo.name,ot:false,otHrs:4,av:oreo.av||0,
+                isSub:!oreoMain.find(m=>m.name===oreo.name)});
+              usedEmps.add(oreo.name);
+              oreoUsed.add(oreo.name);
+            } else {
+              // หาจาก pool ทั้งหมดที่ยังว่าง (ไม่ใช้ usedEmps เพราะยอมให้ทำงาน 2 กะได้ถ้าจำเป็น)
+              const fallback=oreoAllEmps.filter(e=>{
+                if(oreoUsed.has(e.name))return false;
+                return (e.mainDept||e.dept)==='Oreo Coating'||(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating');
+              })[0];
+              if(fallback){
+                // ตรวจว่า fallback อยู่กะไหนแล้ว
+                const alreadyNight=sched2['Oreo Coating'][di]['night']?.find(w=>w.name===fallback.name);
+                const alreadyMorn=sched2['Oreo Coating'][di]['morning']?.find(w=>w.name===fallback.name);
+                const alreadyAftn=sched2['Oreo Coating'][di]['afternoon']?.find(w=>w.name===fallback.name);
+                if(!alreadyNight&&!alreadyMorn&&!alreadyAftn){
+                  // ยังไม่อยู่กะ Oreo ไหนเลย
+                  // ถ้าถูก assign dept อื่นกะเดียวกัน → ย้ายมา Oreo (ลบออกจาก dept เดิม)
+                  nonOreoDepts.forEach(function(d){
+                    if(sched2[d]&&sched2[d][di]&&sched2[d][di][sh]){
+                      sched2[d][di][sh]=sched2[d][di][sh].filter(function(w){return w.name!==fallback.name;});
+                    }
+                  });
+                  sched2['Oreo Coating'][di][sh].push({name:fallback.name,ot:false,otHrs:4,av:fallback.av||0,isSub:true});
+                  oreoUsed.add(fallback.name);
+                  usedEmps.add(fallback.name); // ป้องกันถูก assign ซ้ำอีก
+                }
+              }
+            }
+          });
+        }
+
+        // 4. คำนวณ OT ถ้าต้องผลิตเกิน 14:00 (กะเช้าหมด)
+        // hoursNeeded คือชั่วโมงที่ต้องผลิต เริ่มจาก 6:00
+        // กะเช้า cover 6:00-14:00 = 8 ชม.
+        // ถ้า hoursNeeded > 8 → ต้องมีคนต่อ
+
+        // ===== ช่วง 18:00-22:00: ดึงกะดึก pre-OT มาเสริมกะบ่าย =====
+        // กะบ่ายทำถึง 22:00 แต่อาจไม่พอ needPpl คน
+        // ดึงกะดึก pre-OT = needPpl - บ่ายที่มีอยู่ คน (save OT ให้มากที่สุด)
+        {
+          const aftnCount=afternoonAssigned.filter(e=>effectiveDept(e)!=='Oreo Coating').length;
+          const needExtra=Math.max(0,needPpl-aftnCount);
+          if(needExtra>0){
+            const maxOTDays=D.getMaxOT()||3;
+            const otLog=D.getOTLog(S.sys)||[];
+            const wk2str=wKey(S.wkStart);
+            const canOT=(name)=>{
+              const otDays=otLog.filter(l=>l.name===name&&l.wk===wk2str).length;
+              return otDays<maxOTDays;
+            };
+            let preOTCount=0;
+            nightAssigned.forEach(e=>{
+              if(preOTCount>=needExtra)return;
+              if(!canOT(e.name))return;
+              const dept=effectiveDept(e);
+              if(!dept||!nonOreoDepts.includes(dept))return;
+              const w=sched2[dept][di].night.find(x=>x.name===e.name);
+              if(w&&!w.ot){
+                w.ot=true;w.otBefore=true;w.otHrs=4;
+                preOTCount++;
+              }
+            });
+          }
+        }
       });
+
+      // ตรวจ Oreo Coating: ถ้ามีแผน Oreo ต้องมีคนครบ 3 กะ
+      if(this._dayData){
+        this._dayData.forEach(dayInfo2=>{
+          const di2=dayInfo2.di;
+          const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
+          const dk2=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+          const fp=D.getPlan?D.getPlan('fill'):{};
+          const oreoLns=['Glacé','Glace','Extrud 3','Extru 3'];
+          const hasOreo2=oreoLns.some(ln=>{
+            const its=(fp[ln]||{})[di2]||(fp[ln]||{})[String(di2)]||[];
+            return its.length>0;
+          });
+          if(!hasOreo2)return;
+          if(!sched2['Oreo Coating'])return;
+          SHS.forEach(sh2=>{
+            const existing=(sched2['Oreo Coating'][di2]||{})[sh2]||[];
+            if(existing.length>=1)return; // มีคนอยู่แล้ว (ต้องการแค่ 1 คน/กะ)
+            // หาคนที่มี sub1=Oreo Coating หรือ sub2=Oreo Coating มาเพิ่ม
+            const allAvail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk2));
+            const subForOreo=allAvail.find(e=>{
+              if((sched2['Oreo Coating'][di2]||{})[sh2]?.find(w=>w.name===e.name))return false;
+              const alreadyInSched=procDepts.some(d=>SHS.some(s=>(sched2[d]?.[di2]?.[s]||[]).find(w=>w.name===e.name&&!w.ot)));
+              if(alreadyInSched)return false;
+              return e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating';
+            });
+            if(subForOreo){
+              if(!sched2['Oreo Coating'][di2])sched2['Oreo Coating'][di2]={morning:[],afternoon:[],night:[]};
+              sched2['Oreo Coating'][di2][sh2].push({name:subForOreo.name,ot:false,otHrs:4,av:subForOreo.av||0,isSub:true});
+            }
+          });
+        });
+      }
+
       allSched2[wk2]=sched2;
       D.saveSched(allSched2);
       FB.set(S.sys+'/sched/'+wKey(S.wkStart),sched2);
-      markUnsaved();SCHED.render();DASH.render();
-      doneLoad(true);
+      markUnsaved();SCHED.render();DASH.render();doneLoad(true);
+      return;
     }
-        const fillDepts=D.getDepts('fill').filter(d=>d!==AL&&d!=='__IDLE__');
+
+    // ========== Filling autoLoad ==========
+    const wk=wKey(S.wkStart);
+    const allSched=D.getSched();
+    if(!allSched[wk])allSched[wk]={};
+    const sched=allSched[wk];
+    Object.keys(sched).forEach(k=>delete sched[k]);
+
+    const fillDepts=D.getDepts('fill').filter(d=>d!==AL&&d!=='__IDLE__');
     const leaveData=D.getLeave();
     const teamShifts=TEAM.getCurShifts(); // {A:'morning',B:'afternoon',C:'night'}
     const shMap={morning:'morning',afternoon:'afternoon',night:'night'};
@@ -2311,22 +2503,18 @@ const PLAN={
       emps.forEach(e=>{
         if((leaveData[e.name]||[]).includes(dk)){
           const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-          if(!sched[AL][di][sh].find(w=>w.name===e.name)&&!usedEmps.has(e.name)){
-            sched[AL][di][sh].push({name:e.name,ot:false,av:e.av||0,isLeave:true});
-            usedEmps.add(e.name);}
+          if(!sched[AL][di][sh].find(w=>w.name===e.name))
+            sched[AL][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isLeave:true});
         }
       });
 
       // usedEmps: 1 คน 1 กะ ต่อวัน
       const usedEmps=new Set();
 
-      // แยกพนักงานตามกะ — dedup
+      // แยกพนักงานตามกะ (กรอง AL และลา)
       const byShift={morning:[],afternoon:[],night:[]};
-      const _seenShift=new Set();
       emps.forEach(e=>{
         if((leaveData[e.name]||[]).includes(dk))return;
-        if(_seenShift.has(e.name))return;
-        _seenShift.add(e.name);
         const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
         if(byShift[sh])byShift[sh].push(e);
       });
@@ -2350,12 +2538,19 @@ const PLAN={
             (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
           );
 
-          const pool=[...mainPool];
+          // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
+          const subPool=byShift[sh].filter(e=>
+            (e.sub1===dept||e.sub2===dept)&&!usedEmps.has(e.name)&&
+            !(e.mainDept===dept||e.dept===dept)
+          );
+
+          // รวม pool: คนหลักก่อน มือสำรองตาม
+          const pool=[...mainPool,...subPool];
           let assigned=0;
           pool.forEach(e=>{
             if(assigned>=need)return;
-            if(usedEmps.has(e.name))return;
-            sched[dept][di][sh].push({name:e.name,ot:false,av:e.av||0,isSub:false});
+            sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,
+              isSub:!mainPool.find(m=>m.name===e.name)});
             usedEmps.add(e.name);
             assigned++;
           });
@@ -2364,19 +2559,6 @@ const PLAN={
     }
 
     allSched[wk]=sched;
-    // dedup fill
-    Object.keys(sched).forEach(dept=>{
-      for(let di=0;di<6;di++){
-        const seen=new Set();
-        ['morning','afternoon','night'].forEach(sh=>{
-          if(!sched[dept]?.[di])return;
-          sched[dept][di][sh]=(sched[dept][di][sh]||[]).filter(w=>{
-            if(seen.has(w.name))return false;
-            seen.add(w.name);return true;
-          });
-        });
-      }
-    });
     D.saveSched(allSched);
     FB.set(S.sys+'/sched/'+wk,sched);
     markUnsaved();SCHED.render();DASH.render();
@@ -2434,9 +2616,9 @@ const SET={
       </div>`:''}
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:800;margin-bottom:10px">⚡ OT Settings</div>
-        <div class="fg"><label class="fl">OT Target (%)</label>
-          <input type="number" class="fi" value="${tgt}" min="0" max="50"
-            onchange="D.saveTarget(parseInt(this.value)||0);DASH.render();toast('✅')"></div>
+        <div class="fg"><label class="fl">🎯 OT Target (%) — ใช้ทุกระบบ</label>
+          <input type="number" class="fi" value="${D.getTarget()}" min="0" max="50"
+            onchange="D.saveTarget(parseInt(this.value)||0);DASH.render();toast('✅ Target '+this.value+'%')"></div>
         <div class="fg"><label class="fl">OT สูงสุด/คน (ครั้ง/สัปดาห์)</label>
           <input type="number" class="fi" value="${maxOT}" min="1" max="7"
             onchange="D.saveMaxOT(parseInt(this.value)||3);toast('✅')"></div>
@@ -2864,8 +3046,8 @@ const PRINT={
     doc.write('html,body{width:289mm;font-family:Sarabun,sans-serif;font-size:6.5pt;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
     doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
-    doc.write('.day-page{margin-bottom:8px;page-break-inside:avoid;break-inside:avoid;}');
-    
+    doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
+    doc.write('.day-page:first-of-type{page-break-before:auto;break-before:auto;}');
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;}');
@@ -4059,7 +4241,9 @@ function checkRest(name,di,sh,sched){
 
 document.addEventListener('DOMContentLoaded',()=>{
   // รอ Firebase SDK โหลดครบก่อน
-  function tryInit(retry=0){
+  function migrateTarget(){const ex=localStorage.getItem('fv2_ot_target');if(!ex||ex==='0'||ex==='null'){const o1=parseFloat(localStorage.getItem('fv2_target_proc'))||0;const o2=parseFloat(localStorage.getItem('fv2_target_fill'))||0;localStorage.setItem('fv2_ot_target',JSON.stringify(o1||o2||15));}}
+function migrateTarget(){const ex=localStorage.getItem('fv2_ot_target');if(!ex||ex==='0'||ex==='null'){const o1=parseFloat(localStorage.getItem('fv2_target_proc'))||0;const o2=parseFloat(localStorage.getItem('fv2_target_fill'))||0;localStorage.setItem('fv2_ot_target',JSON.stringify(o1||o2||15));}}
+function tryInit(retry=0){
     if(typeof firebase==='undefined'||!firebase.initializeApp){
       if(retry<10){setTimeout(()=>tryInit(retry+1),300);}
       else{console.log('Firebase SDK not loaded');}
@@ -4075,6 +4259,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     LEAVE.archivePast();
     resetSessionTimer();
   }
+  migrateTarget();
+  migrateTarget();
   tryInit();
 });
 
