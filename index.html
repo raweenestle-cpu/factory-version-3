@@ -3002,13 +3002,49 @@ const PRINT={
       const ds2=DAYTH_FULL[di]+'ที่ '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
 
       if(isFill){
-        // Filling: วันละหน้า มี Process + Filling รวมกัน
+        // Filling: วันละหน้า มี Process + Filling รวมในตารางเดียว
+        const bd2='1px solid #8090b0';
+        const head=`<thead><tr>
+          <th style="border:${bd2};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
+          <th style="border:${bd2};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+          <th style="border:${bd2};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+          <th style="border:${bd2};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        </tr></thead>`;
+
+        const buildRows=(depts2,sched2,sectionLabel,labelBg,labelColor)=>{
+          let rows=`<tr><td colspan="4" style="border:${bd2};padding:1px 4px;font-size:6pt;font-weight:900;color:${labelColor};background:${labelBg}">${sectionLabel}</td></tr>`;
+          depts2.forEach((dept,ri)=>{
+            const bg=ri%2===0?'#fff':'#f8faff';
+            rows+=`<tr style="background:${bg}">`;
+            rows+=`<td style="border:${bd2};padding:1px 3px;font-weight:700">${dept}</td>`;
+            SHS.forEach(sh=>{
+              const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
+              const names=ws2.map(w=>{
+                if(!w.ot)return`<div style="white-space:nowrap">${w.name}</div>`;
+                const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
+                const otHrs=Math.round(w.otHrs||4);
+                let tS,tE;
+                if(w.sr){const sp=w.sr.split('-');tS=String(sp[0]).padStart(2,'0')+':00';tE=String(sp[1]).padStart(2,'0')+':00';}
+                else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
+                else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
+                else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
+                return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
+              }).join('');
+              rows+=`<td style="border:${bd2};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+            });
+            rows+='</tr>';
+          });
+          return rows;
+        };
+
+        const combinedTable=`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:auto">${head}<tbody>`
+          +buildRows(procDepts,procSched,'🔧 Process','#dbeafe','#1e40af')
+          +buildRows(fillDepts,fillSched,'🏭 Filling','#fef3c7','#92400e')
+          +`</tbody></table>`;
+
         body+=`<div class="day-page">`;
         body+=`<div class="day-header">${ds2}</div>`;
-        body+=`<div style="font-size:6pt;font-weight:900;color:#1e3a5f;padding:1px 4px;background:#dbeafe;margin-bottom:1px">🔧 Process</div>`;
-        body+=buildTable(procDepts,procSched,di);
-        body+=`<div style="font-size:6pt;font-weight:800;color:#92400e;padding:1px 4px;background:#fef3c7;margin:3px 0 1px">🏭 Filling</div>`;
-        body+=buildTable(fillDepts,fillSched,di,false);
+        body+=combinedTable;
         body+='</div>';
       } else {
         // Process: รวมทุกวันในหน้าเดียว
@@ -3048,7 +3084,7 @@ const PRINT={
     doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
     doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
-    doc.write('.day-page:first-of-type{page-break-before:auto;break-before:auto;}');
+    doc.write('.day-page:first-child{page-break-before:auto;break-before:auto;}');
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
