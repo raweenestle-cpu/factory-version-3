@@ -3580,7 +3580,11 @@ const SCHED={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let tH=0,oH=0;
     D.getDepts().forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-        const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*100):0;
+    const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*100):0;
+    // หัก OT ที่กระจายไปแล้วในสัปดาห์นี้ออก — เพื่อให้กรอกเฉพาะส่วนที่เพิ่มใหม่
+    const log=D.getOTLog(S.sys)||[];
+    const alreadyLogged=log.filter(l=>l.wk===wk).reduce((a,l)=>a+(l.hrs||0),0);
+    const newOH=Math.max(0,oH-alreadyLogged);
     const doSave=()=>{
       // บันทึก Timestamp + ชื่อผู้จัดกะ
       const saveLog=D.getSaveLog()||[];
@@ -3597,7 +3601,7 @@ const SCHED={
       D.saveSched(all);FB.set(S.sys+'/sched/'+wk,sched);FB.set('save_log',saveLog.slice(0,10));
       markSaved();toast('✅ บันทึกสำเร็จ — '+who+' '+timeStr);DASH.render();
     };
-    if(oH>0){this.showOTReason(pct,tgt,oH,doSave);}
+    if(newOH>0){this.showOTReason(pct,tgt,newOH,doSave);}else if(oH>0){doSave();}  // oH>0 แต่ทุกชั่วโมงกระจายแล้ว → บันทึกได้เลย
     else{doSave();}
   },
   showOTReason(pct,tgt,totalOTHrs,onSave){
