@@ -590,51 +590,26 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <h2 style="font-size:15px;font-weight:900;flex:1">👥 ระบบทีม A/B/C</h2>
       <button onclick="TEAM.autoLoadAll()" style="padding:8px 14px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif">⚡ โหลดทุกทีม</button>
     </div>
-    <!-- Team config: auto/manual mode -->
+    <!-- Team config: auto/manual -->
     <div style="padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
-      <!-- Mode toggle -->
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
         <span style="font-size:11px;font-weight:700;color:var(--text2)">โหมด:</span>
-        <button id="team-mode-auto" onclick="TEAM.setMode('auto')"
-          style="padding:4px 12px;border:none;border-radius:6px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;background:var(--blue);color:#fff;cursor:pointer">🔄 Auto</button>
-        <button id="team-mode-manual" onclick="TEAM.setMode('manual')"
-          style="padding:4px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;background:transparent;color:var(--text3);cursor:pointer">✋ Manual</button>
+        <button id="team-mode-auto" onclick="TEAM.setMode('auto')" style="padding:4px 12px;border:none;border-radius:6px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;background:var(--blue);color:#fff;cursor:pointer">🔄 Auto</button>
+        <button id="team-mode-manual" onclick="TEAM.setMode('manual')" style="padding:4px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;background:transparent;color:var(--text3);cursor:pointer">✋ Manual</button>
         <div id="team-cur-label" style="font-size:10px;color:var(--green2);font-weight:700;flex:1;text-align:right"></div>
       </div>
-      <!-- Auto config -->
       <div id="team-auto-cfg" style="display:flex;align-items:center;gap:6px">
         <span style="font-size:11px;font-weight:700;color:var(--text2)">หมุนทุก</span>
-        <input type="number" min="1" max="52" id="team-rotate-wk" value="2"
-          style="width:44px;padding:4px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"
-          onchange="TEAM.saveRotate(this.value)">
+        <input type="number" min="1" max="52" id="team-rotate-wk" value="2" style="width:44px;padding:4px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif" onchange="TEAM.saveRotate(this.value)">
         <span style="font-size:11px;font-weight:700;color:var(--text2)">สัปดาห์</span>
         <button onclick="TEAM.setStartWk()" style="padding:4px 10px;background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.3);border-radius:6px;color:var(--blue2);font-size:10px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">📌 เริ่มสัปดาห์นี้</button>
       </div>
-      <!-- Manual config -->
-      <div id="team-manual-cfg" style="display:none;gap:8px;align-items:center">
+      <div id="team-manual-cfg" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
         <span style="font-size:11px;font-weight:700;color:var(--amber)">กำหนดกะสัปดาห์นี้:</span>
         <div style="display:flex;gap:6px">
-          <div style="display:flex;align-items:center;gap:3px">
-            <span style="font-size:12px;font-weight:900;color:var(--blue2)">A</span>
-            <select id="team-shift-A" onchange="TEAM.saveManualShift('A',this.value)"
-              style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif">
-              <option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option>
-            </select>
-          </div>
-          <div style="display:flex;align-items:center;gap:3px">
-            <span style="font-size:12px;font-weight:900;color:var(--teal)">B</span>
-            <select id="team-shift-B" onchange="TEAM.saveManualShift('B',this.value)"
-              style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif">
-              <option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option>
-            </select>
-          </div>
-          <div style="display:flex;align-items:center;gap:3px">
-            <span style="font-size:12px;font-weight:900;color:var(--purple)">C</span>
-            <select id="team-shift-C" onchange="TEAM.saveManualShift('C',this.value)"
-              style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif">
-              <option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option>
-            </select>
-          </div>
+          <div style="display:flex;align-items:center;gap:3px"><span style="font-size:12px;font-weight:900;color:var(--blue2)">A</span><select id="team-shift-A" onchange="TEAM.saveManualShift('A',this.value)" style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif"><option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option></select></div>
+          <div style="display:flex;align-items:center;gap:3px"><span style="font-size:12px;font-weight:900;color:var(--teal)">B</span><select id="team-shift-B" onchange="TEAM.saveManualShift('B',this.value)" style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif"><option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option></select></div>
+          <div style="display:flex;align-items:center;gap:3px"><span style="font-size:12px;font-weight:900;color:var(--purple)">C</span><select id="team-shift-C" onchange="TEAM.saveManualShift('C',this.value)" style="padding:3px 5px;background:var(--bg3);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif"><option value="morning">เช้า</option><option value="afternoon">บ่าย</option><option value="night">ดึก</option></select></div>
         </div>
       </div>
     </div>
@@ -1885,13 +1860,19 @@ const PLAN={
     if(!depts.length){tbEl.innerHTML='<tr><td style="padding:20px;color:var(--text3)">ยังไม่มีข้อมูลแผนก</td></tr>';return;}
     tbEl.innerHTML=depts.map(dept=>`<tr><td class="dn">${dept}</td>${Array.from({length:6},(_,di)=>{
       const items=(this.plan[dept]||{})[di]||[];
-      const dkey=dept.replace(/[\s/]/g,'_');
-      const curVolKey=dept.replace(/[\s/]/g,'_');
-      const curVol=(vol[dept]||{})[di]||0;
-      const volInput=isFill?`<input type="number" min="0" value="${curVol}" placeholder="กล่อง/วัน"
-        oninput="PLAN.setVol('${dept}',${di},this.value)"
-        style="width:100%;padding:3px 6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:5px;color:var(--amber);font-size:11px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif;margin-bottom:4px">`:'' ;
-      return `<td><div>${volInput}${items.map((item,ii)=>`<div class="pp"><div class="pp-name">${getProdLabel(typeof item==='object'?item.product:item)}</div><button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`).join('')}<button class="pa-btn" onclick="PLAN.addProd('${dept}',${di})">+ เพิ่ม Product</button></div></td>`;
+      const prodCards=items.map((item,ii)=>{
+        const prodName=typeof item==='object'?item.product:item;
+        const volDay=(vol[dept]||{})[di];
+        const boxes=isFill?(typeof volDay==='object'&&volDay!==null?(volDay[prodName]||0):(typeof volDay==='number'?volDay:0)):0;
+        const master2=D.getProductMaster();
+        const pm=master2.find(m=>m.name===prodName&&m.line===dept)||master2.find(m=>m.name===prodName);
+        const ml=parseFloat(pm?.ml)||0;
+        const liters=ml>0?Math.round(boxes*ml/1000):0;
+        const safePN=prodName.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง" oninput="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value)" style="width:52px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
+        return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
+      }).join('');
+      return `<td><div>${prodCards}<button class="pa-btn" onclick="PLAN.addProd('${dept}',${di})">+ เพิ่ม Product</button></div></td>`;
     }).join('')}</tr>`).join('');
   },
   setVol(dept,di,v){
@@ -1901,14 +1882,19 @@ const PLAN={
     D.saveVolume(vol);
     if(S.sys==='proc')this.updateMixingSummary();
   },
+  setVolProd(dept,di,prodName,v){
+    const vol=D.getVolume();
+    if(!vol[dept])vol[dept]={};
+    if(typeof vol[dept][di]!=='object'||vol[dept][di]===null)vol[dept][di]={};
+    vol[dept][di][prodName]=parseInt(v)||0;
+    D.saveVolume(vol);
+    this.render();
+  },
   setCount(dept,di,ii,v){if(!this.plan[dept])this.plan[dept]={};if(!this.plan[dept][di])this.plan[dept][di]=[];if(this.plan[dept][di][ii])this.plan[dept][di][ii].count=parseInt(v)||1;},
   delProd(dept,di,ii){if(!this.plan[dept]||!this.plan[dept][di])return;this.plan[dept][di].splice(ii,1);D.savePlan(this.plan);this.render();},
   addProd(dept,di){
     const master=D.getProductMaster();
     const dp=master.filter(m=>m.line===dept).map(m=>({name:m.name,count:m.count||1,mat:m.mat||'',ml:m.ml||0}));
-    const isFill=S.sys==='fill';
-    const vol=D.getVolume();
-    const curBoxes=(vol[dept]||{})[di]||0;
     const mo=document.getElementById('mo-pr');
     mo.innerHTML=`<div class="md">
       <div class="md-handle"></div>
@@ -1926,12 +1912,7 @@ const PLAN={
               : `<option value="">ยังไม่มี Product ใน ${dept} — ไปเพิ่มที่ 📦 Product Master</option>`}
           </select>
         </div>
-        ${isFill?`<div class="fg">
-          <label class="fl" style="color:var(--amber)">📦 ยอดกล่อง/วัน</label>
-          <input type="number" class="fi" id="pw-boxes" min="0" value="${curBoxes}" placeholder="0"
-            style="font-size:16px;font-weight:800;color:var(--amber);text-align:center">
-          <div id="pw-liter" style="font-size:11px;color:var(--text2);margin-top:3px;text-align:right"></div>
-        </div>`:''}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">💡 ใส่ยอดกล่องได้ในตารางหลังเพิ่มแล้ว</div>
       </div>
       <div class="md-foot">
         <button class="btn-cancel" onclick="closeMo('mo-pr')">ยกเลิก</button>
@@ -1939,21 +1920,6 @@ const PLAN={
       </div>
     </div>`;
     mo.onclick=e=>{if(e.target===mo)closeMo('mo-pr');};
-    // แสดงลิตรเมื่อกรอกกล่อง
-    if(isFill){
-      const boxInput=document.getElementById('pw-boxes');
-      const literDiv=document.getElementById('pw-liter');
-      const calcLiter=()=>{
-        const sel=document.getElementById('ps-sel');
-        const prod=dp.find(p=>p.name===sel?.value);
-        const ml=prod?.ml||0;
-        const boxes=parseInt(boxInput?.value)||0;
-        const liters=Math.round(boxes*ml/1000);
-        if(literDiv)literDiv.textContent=ml>0?boxes.toLocaleString()+' กล่อง × '+ml+' มล. = '+liters.toLocaleString()+' ลิตร':'';
-      };
-      boxInput?.addEventListener('input',calcLiter);
-      document.getElementById('ps-sel')?.addEventListener('change',calcLiter);
-    }
     openMo('mo-pr');
   },
 
@@ -1974,16 +1940,6 @@ const PLAN={
     }
     this.plan[dept][di].push({product:prod,count:cnt});
     D.savePlan(this.plan);
-    // บันทึก boxes/วัน ถ้าเป็น Filling
-    if(S.sys==='fill'){
-      const boxes=parseInt(document.getElementById('pw-boxes')?.value)||0;
-      if(boxes>0){
-        const vol=D.getVolume();
-        if(!vol[dept])vol[dept]={};
-        vol[dept][di]=boxes;
-        D.saveVolume(vol);
-      }
-    }
     closeMo('mo-pr');this.render();
     toast('✅ เพิ่ม '+prod+' แล้ว');
   },
@@ -2017,10 +1973,11 @@ const PLAN={
       const dayData=Array.from({length:6},(_,di)=>{
         let totalLiter=0;let hasOreo=false;
         depts.forEach(dept=>{
-          const boxes=(fillVol[dept]||{})[di]||(fillVol[dept]||{})[String(di)]||0;
+          const volDay=(fillVol[dept]||{})[di]||(fillVol[dept]||{})[String(di)]||{};
           const items=(fillPlan[dept]||{})[di]||(fillPlan[dept]||{})[String(di)]||[];
           items.forEach(item=>{
             const name=typeof item==='object'?item.product:item;
+            const boxes=typeof volDay==='object'&&volDay!==null?(volDay[name]||0):(typeof volDay==='number'?volDay:0);
             const pm=master.find(m=>m.name===name&&(m.line===dept||m.line?.trim().toLowerCase()===dept.trim().toLowerCase()))||master.find(m=>m.name===name);
             const ml=parseFloat(pm?.ml)||0;
             totalLiter+=Math.round(boxes*ml/1000);
@@ -3041,14 +2998,42 @@ const PRINT={
       const ds2=DAYTH_FULL[di]+'ที่ '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
 
       if(isFill){
-        // Filling: วันละหน้า มี Process + Filling รวมกัน
-        body+=`<div class="day-page">`;
-        body+=`<div class="day-header">${ds2}</div>`;
-        body+=`<div style="font-size:6pt;font-weight:900;color:#1e3a5f;padding:1px 4px;background:#dbeafe;margin-bottom:1px">🔧 Process</div>`;
-        body+=buildTable(procDepts,procSched,di);
-        body+=`<div style="font-size:6pt;font-weight:800;color:#92400e;padding:1px 4px;background:#fef3c7;margin:3px 0 1px">🏭 Filling</div>`;
-        body+=buildTable(fillDepts,fillSched,di,false);
-        body+='</div>';
+        const bd2='1px solid #8090b0';
+        const head2=`<thead><tr>
+          <th style="border:${bd2};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
+          <th style="border:${bd2};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+          <th style="border:${bd2};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+          <th style="border:${bd2};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        </tr></thead>`;
+        const buildRows2=(depts2,sched2,label,lbg,lcolor)=>{
+          let rows=`<tr><td colspan="4" style="border:${bd2};padding:1px 4px;font-size:6pt;font-weight:900;color:${lcolor};background:${lbg}">${label}</td></tr>`;
+          depts2.forEach((dept,ri)=>{
+            const bg=ri%2===0?'#fff':'#f8faff';
+            rows+=`<tr style="background:${bg}"><td style="border:${bd2};padding:1px 3px;font-weight:700">${dept}</td>`;
+            SHS.forEach(sh=>{
+              const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
+              const names=ws2.map(w=>{
+                if(!w.ot)return`<div style="white-space:nowrap">${w.name}</div>`;
+                const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
+                const otHrs=Math.round(w.otHrs||4);
+                let tS,tE;
+                if(w.sr){const sp=w.sr.split('-');tS=String(sp[0]).padStart(2,'0')+':00';tE=String(sp[1]).padStart(2,'0')+':00';}
+                else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
+                else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
+                else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
+                return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}-${tE}</span></div>`;
+              }).join('');
+              rows+=`<td style="border:${bd2};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+            });
+            rows+='</tr>';
+          });
+          return rows;
+        };
+        const combinedTbl=`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:auto">${head2}<tbody>`
+          +buildRows2(procDepts,procSched,'🔧 Process','#dbeafe','#1e40af')
+          +buildRows2(fillDepts,fillSched,'🏭 Filling','#fef3c7','#92400e')
+          +'</tbody></table>';
+        body+=`<div class="day-page"><div class="day-header">${ds2}</div>${combinedTbl}</div>`;
       } else {
         // Process: รวมทุกวันในหน้าเดียว
         body+=`<div class="day-block">`;
@@ -3087,7 +3072,7 @@ const PRINT={
     doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
     doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
-    doc.write('.day-page:first-of-type{page-break-before:auto;break-before:auto;}');
+    doc.write('.day-page:first-child{page-break-before:auto;break-before:auto;}');
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
@@ -3206,6 +3191,11 @@ const SCHED={
   curDi:0,
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
   nextDay(){this.curDi=Math.min(5,this.curDi+1);this.render();},
+  chkOpenW(el){
+    const ne=el.dataset.ne;const dept=el.dataset.dept;
+    const di=parseInt(el.dataset.di);const sh=el.dataset.sh;
+    if(S.user?.isAdmin||S.user?.emp?.name===ne)this.openW(ne,dept,di,sh);
+  },
   render(){
     const wk=wKey(S.wkStart);const ws=S.wkStart;
     const all=D.getSched();const sched=all[wk]||{};
@@ -3223,9 +3213,8 @@ const SCHED={
         +DAYS.map(()=>SHS.map(sh=>`<th style="font-size:9px;font-weight:700;padding:4px 2px;color:${sh==='morning'?'var(--blue2)':sh==='afternoon'?'var(--amber)':'var(--text3)'}">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
     }
-    // ฟังก์ชันสร้าง cell สำหรับ 1 dept
-    const makeCells=(dept,sc,readOnly)=>{
-      let row=`<tr><td class="sc" style="${readOnly?'opacity:.6;font-style:italic':''}">${dept}</td>`;
+    const makeRow=(dept,sc,readOnly)=>{
+      let row=`<tr><td class="sc" style="${readOnly?'opacity:.55;font-style:italic':''}">${dept}</td>`;
       DAYS.forEach((d,di)=>{
         SHS.forEach(sh=>{
           const ws2raw=sc[dept]?.[di]?.[sh]||sc[dept]?.[String(di)]?.[sh]||[];
@@ -3233,37 +3222,35 @@ const SCHED={
           const ws2=ws2raw.filter(w=>{if(seenW.has(w.name))return false;seenW.add(w.name);return true;});
           const cells=ws2.map(w=>{
             const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh);
-            const ne=w.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const ne=w.name.replace(/'/g,"\'");
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const isPreOT=w.otBefore;const otHrs=Math.round(w.otHrs||4);
-            let displayStart,displayEnd;
-            if(w.sr){const sp=w.sr.split('-');displayStart=String(sp[0]).padStart(2,'0')+':00';displayEnd=String(sp[1]).padStart(2,'0')+':00';}
-            else if(sh==='night'&&w.ot){displayStart=String((22-otHrs+24)%24).padStart(2,'0')+':00';displayEnd='06:00';}
-            else if(isPreOT&&sh==='morning'){displayStart='06:00';displayEnd='18:00';}
-            else{const effEndH={morning:14,afternoon:22,night:30}[sh]||14;displayStart=String(shStartH).padStart(2,'0')+':00';displayEnd=String(Math.round(effEndH+otHrs)%24).padStart(2,'0')+':00';}
-            const timeStr=w.ot?displayStart+'-'+displayEnd:'';
-            const clickFn=readOnly?'':'onclick="if(S.user?.isAdmin||S.user?.emp?.name===\''+ne+'\')SCHED.openW(\''+ne+'\',\''+dept+'\','+di+',\''+sh+'\')"';
-            return`<span class="wc ${w.ot?'ot':''} ${sg?'sg':''}" ${clickFn}>`
-              +`<span style="font-size:11px;font-weight:800">${w.name}</span>`
-              +(w.ot?`<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">${timeStr}</span>`:'')
-              +(sg?'✅':(w.ot?'✍️':''))
-              +'</span>';
+            let dS,dE;
+            if(w.sr){const sp=w.sr.split('-');dS=String(sp[0]).padStart(2,'0')+':00';dE=String(sp[1]).padStart(2,'0')+':00';}
+            else if(sh==='night'&&w.ot){dS=String((22-otHrs+24)%24).padStart(2,'0')+':00';dE='06:00';}
+            else if(isPreOT&&sh==='morning'){dS='06:00';dE='18:00';}
+            else{const eH={morning:14,afternoon:22,night:30}[sh]||14;dS=String(shStartH).padStart(2,'0')+':00';dE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
+            const timeStr=w.ot?dS+'-'+dE:'';
+            const oc=readOnly?'':('SCHED.chkOpenW(this)');
+            return'<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+'" onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'">'
+              +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
+              +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
+              +(sg?'✅':(w.ot?'✍️':''))+'</span>';
           }).join('');
-          const addBtn=(S.user?.isAdmin&&!readOnly)?`<button class="aw-btn" onclick="SCHED.openAdd('${dept}',${di},'${sh}')">+</button>`:'';
-          row+=`<td style="min-width:52px;vertical-align:top;padding:3px">${cells}${addBtn}</td>`;
+          const addBtn=(S.user?.isAdmin&&!readOnly)?('<button class="aw-btn" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" onclick="SCHED.openAdd(this.dataset.dept,parseInt(this.dataset.di),this.dataset.sh)">+</button>'):'';
+          row+='<td style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
         });
       });
       row+='</tr>';
       return row;
     };
-
     let html='';
     if(isFill&&procDepts.length){
-      html+=`<tr><td colspan="${colSpan}" style="background:rgba(37,99,235,.12);border:1px solid var(--border);padding:3px 10px;font-size:10px;font-weight:900;color:var(--blue2)">🔧 Process (ดูอย่างเดียว)</td></tr>`;
-      procDepts.forEach(dept=>{ html+=makeCells(dept,procSched,true); });
-      html+=`<tr><td colspan="${colSpan}" style="background:rgba(245,158,11,.12);border:1px solid var(--border);padding:3px 10px;font-size:10px;font-weight:900;color:var(--amber)">🏭 Filling</td></tr>`;
+      html+='<tr><td colspan="'+colSpan+'" style="background:rgba(37,99,235,.12);border:1px solid var(--border);padding:3px 10px;font-size:10px;font-weight:900;color:var(--blue2)">🔧 Process (ดูอย่างเดียว)</td></tr>';
+      procDepts.forEach(dept=>{html+=makeRow(dept,procSched,true);});
+      html+='<tr><td colspan="'+colSpan+'" style="background:rgba(245,158,11,.12);border:1px solid var(--border);padding:3px 10px;font-size:10px;font-weight:900;color:var(--amber)">🏭 Filling</td></tr>';
     }
-    depts.forEach(dept=>{ html+=makeCells(dept,sched,false); });
+    depts.forEach(dept=>{html+=makeRow(dept,sched,false);});
     tb.innerHTML=html;
     this.renderAL(sched,wk);
   },
@@ -4169,42 +4156,25 @@ const TEAM={
   saveConfig(cfg){LS.set('team_cfg',cfg);FB.set('team_cfg',cfg);},
   saveRotate(v){const cfg=this.getConfig();cfg.rotateSW=parseInt(v)||2;this.saveConfig(cfg);this.render();toast('✅ หมุนทุก '+v+' สัปดาห์');},
   setStartWk(){const cfg=this.getConfig();cfg.startWk=wNum(S.wkStart);this.saveConfig(cfg);this.render();toast('📌 เริ่มนับสัปดาห์ที่ '+cfg.startWk+' แล้ว');},
-  setMode(mode){
-    const cfg=this.getConfig();cfg.mode=mode;this.saveConfig(cfg);this.render();
-    toast(mode==='auto'?'🔄 กลับ Auto แล้ว':'✋ เข้าโหมด Manual สัปดาห์นี้');
+  setMode(mode){const cfg=this.getConfig();cfg.mode=mode;this.saveConfig(cfg);this.render();toast(mode==='auto'?'🔄 Auto แล้ว':'✋ Manual สัปดาห์นี้');},
+  _autoShifts(){
+    const cfg=this.getConfig();const wn=wNum(S.wkStart);
+    const rot=Math.floor((wn-(cfg.startWk||wn))/(cfg.rotateSW||2));
+    return{A:['morning','afternoon','night'][((rot%3)+3)%3],B:['afternoon','night','morning'][((rot%3)+3)%3],C:['night','morning','afternoon'][((rot%3)+3)%3]};
   },
   getManualShifts(){
-    const wk=wKey(S.wkStart);
-    const all=LS.get('team_manual_shifts',{});
-    return all[wk]||null;
+    const wk=wKey(S.wkStart);const all=LS.get('team_manual_shifts',{});return all[wk]||null;
   },
   saveManualShift(team,shift){
-    const wk=wKey(S.wkStart);
-    const all=LS.get('team_manual_shifts',{});
-    // เริ่มจาก auto shifts ของสัปดาห์นี้เป็น base ถ้ายังไม่มี manual
+    const wk=wKey(S.wkStart);const all=LS.get('team_manual_shifts',{});
     if(!all[wk])all[wk]={...this._autoShifts()};
-    all[wk][team]=shift;
-    LS.set('team_manual_shifts',all);
-    FB.set('team_manual_shifts/'+wk,all[wk]);
-    const shLabel={morning:'กะเช้า',afternoon:'กะบ่าย',night:'กะดึก'};
-    toast('✅ ทีม '+team+' → '+shLabel[shift]);
-  },
-  _autoShifts(){
-    const cfg=this.getConfig();
-    const wn=wNum(S.wkStart);
-    const rot=Math.floor((wn-(cfg.startWk||wn))/(cfg.rotateSW||2));
-    return{
-      A:['morning','afternoon','night'][((rot%3)+3)%3],
-      B:['afternoon','night','morning'][((rot%3)+3)%3],
-      C:['night','morning','afternoon'][((rot%3)+3)%3],
-    };
+    all[wk][team]=shift;LS.set('team_manual_shifts',all);FB.set('team_manual_shifts/'+wk,all[wk]);
+    const lbl={morning:'กะเช้า',afternoon:'กะบ่าย',night:'กะดึก'};
+    toast('✅ ทีม '+team+' → '+lbl[shift]);
   },
   getCurShifts(){
     const cfg=this.getConfig();
-    if(cfg.mode==='manual'){
-      const manual=this.getManualShifts();
-      if(manual)return manual;
-    }
+    if(cfg.mode==='manual'){const m=this.getManualShifts();if(m)return m;}
     return this._autoShifts();
   },
 
@@ -4213,28 +4183,18 @@ const TEAM={
     const emps=D.getEmps();
     const shifts=this.getCurShifts();
     const cfg=this.getConfig();
-    // sync UI mode buttons
-    const cfg2=this.getConfig();
-    const mode=cfg2.mode||'auto';
-    const btnAuto=document.getElementById('team-mode-auto');
-    const btnManual=document.getElementById('team-mode-manual');
-    const autoCfg=document.getElementById('team-auto-cfg');
-    const manualCfg=document.getElementById('team-manual-cfg');
-    if(btnAuto){btnAuto.style.background=mode==='auto'?'var(--blue)':'transparent';btnAuto.style.color=mode==='auto'?'#fff':'var(--text3)';btnAuto.style.border=mode==='auto'?'none':'1.5px solid var(--border)';}
-    if(btnManual){btnManual.style.background=mode==='manual'?'var(--amber)':'transparent';btnManual.style.color=mode==='manual'?'#000':'var(--text3)';btnManual.style.border=mode==='manual'?'none':'1.5px solid var(--border)';}
-    if(autoCfg)autoCfg.style.display=mode==='auto'?'flex':'none';
-    if(manualCfg)manualCfg.style.display=mode==='manual'?'flex':'none';
-    const ri=document.getElementById('team-rotate-wk');
-    if(ri)ri.value=cfg2.rotateSW||2;
-    // sync manual dropdowns ให้ตรงกับค่าปัจจุบัน
-    const shLabel2={morning:'เช้า',afternoon:'บ่าย',night:'ดึก'};
-    ['A','B','C'].forEach(t=>{
-      const sel=document.getElementById('team-shift-'+t);
-      if(sel)sel.value=shifts[t]||'morning';
-    });
+    const cfg2=this.getConfig();const mode2=cfg2.mode||'auto';
+    const bA=document.getElementById('team-mode-auto');const bM=document.getElementById('team-mode-manual');
+    const aCfg=document.getElementById('team-auto-cfg');const mCfg=document.getElementById('team-manual-cfg');
+    if(bA){bA.style.background=mode2==='auto'?'var(--blue)':'transparent';bA.style.color=mode2==='auto'?'#fff':'var(--text3)';bA.style.border=mode2==='auto'?'none':'1.5px solid var(--border)';}
+    if(bM){bM.style.background=mode2==='manual'?'var(--amber)':'transparent';bM.style.color=mode2==='manual'?'#000':'var(--text3)';bM.style.border=mode2==='manual'?'none':'1.5px solid var(--border)';}
+    if(aCfg)aCfg.style.display=mode2==='auto'?'flex':'none';
+    if(mCfg)mCfg.style.display=mode2==='manual'?'flex':'none';
+    const ri=document.getElementById('team-rotate-wk');if(ri)ri.value=cfg2.rotateSW||2;
+    const shLbl={morning:'เช้า',afternoon:'บ่าย',night:'ดึก'};
+    ['A','B','C'].forEach(t=>{const s=document.getElementById('team-shift-'+t);if(s)s.value=shifts[t]||'morning';});
     const lbl=document.getElementById('team-cur-label');
-    const modeTag=mode==='manual'?'✋':'🔄';
-    if(lbl)lbl.textContent=modeTag+` A=${shLabel2[shifts.A]||shifts.A} B=${shLabel2[shifts.B]||shifts.B} C=${shLabel2[shifts.C]||shifts.C}`;
+    if(lbl)lbl.textContent=(mode2==='manual'?'✋':'🔄')+' A='+shLbl[shifts.A]+' B='+shLbl[shifts.B]+' C='+shLbl[shifts.C];
 
     const teams={A:[],B:[],C:[],none:[]};
     emps.forEach(e=>{if(e.team&&teams[e.team])teams[e.team].push(e);else teams.none.push(e);});
