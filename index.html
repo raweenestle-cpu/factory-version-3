@@ -625,11 +625,15 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     </div>
     <!-- Tabs -->
     <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="ot-stab" id="lv-tab-req" onclick="LEAVE.setTab('req')">📅 ขอลา</button>
       <button class="ot-stab active" id="lv-tab-pending" onclick="LEAVE.setTab('pending')">🟡 รออนุมัติ</button>
       <button class="ot-stab" id="lv-tab-approved" onclick="LEAVE.setTab('approved')">✅ อนุมัติแล้ว</button>
       <button class="ot-stab" id="lv-tab-all" onclick="LEAVE.setTab('all')">📋 ทั้งหมด</button>
     </div>
-    <div style="overflow-y:auto;flex:1;padding:14px" id="leave-list"></div>
+    <!-- Calendar section — ไม่ถูก destroy เมื่อ switch tab -->
+    <div id="lv-cal-section" style="display:none;overflow-y:auto;flex:1;padding:14px"></div>
+    <!-- List section -->
+    <div id="lv-list-section" style="overflow-y:auto;flex:1;padding:14px"></div>
   </div>
 
   <!-- LEAVE HISTORY PAGE -->
@@ -3019,7 +3023,8 @@ const PRINT={
             SHS.forEach(sh=>{
               const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
               const names=ws2.map(w=>{
-                if(!w.ot)return`<div style="white-space:nowrap">${w.name}</div>`;
+                const subBadge=w.isSub?'<span style="font-size:5.5pt;color:#ea580c;font-weight:900">⚠️มือรอง</span>':'';
+                if(!w.ot)return`<div style="white-space:nowrap">${w.name}${subBadge}</div>`;
                 const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
                 const otHrs=Math.round(w.otHrs||4);
                 let tS,tE;
@@ -3027,7 +3032,7 @@ const PRINT={
                 else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
                 else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
                 else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-                return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}-${tE}</span></div>`;
+                return`<div style="white-space:nowrap"><b>${w.name}</b>${subBadge} <span style="color:#b45309">OT ${tS}-${tE}</span></div>`;
               }).join('');
               rows+=`<td style="border:${bd2};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
             });
@@ -3077,11 +3082,11 @@ const PRINT={
     doc.write('html,body{width:289mm;font-family:Sarabun,sans-serif;font-size:6.5pt;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
     doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
-    doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
+    doc.write('.day-page{display:block;margin-bottom:3px;page-break-before:always;break-before:always;page-break-inside:avoid;break-inside:avoid;}');
     doc.write('.day-page:first-child{page-break-before:auto;break-before:auto;}');
-    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
+    doc.write('.day-header{page-break-after:avoid;break-after:avoid;}');
+    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;}');
     doc.write('thead{display:table-header-group;}');
-    doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
     doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;}');
     doc.write('td{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;color:#000;vertical-align:top;}');
     doc.write('tr:nth-child(even) td{background:#f8faff;}');
@@ -4072,7 +4077,17 @@ const LEAVE={
       const b=document.getElementById('lv-tab-'+x);
       if(b)b.classList.toggle('active',x===t);
     });
-    this.render();
+    // ถ้ากลับมา tab req — ไม่ render ใหม่ แค่แสดง calendar section เดิม
+    // ป้องกัน selDates และ calendar state โดน reset
+    const calSection=document.getElementById('lv-cal-section');
+    const listSection=document.getElementById('lv-list-section');
+    if(calSection&&listSection){
+      calSection.style.display=t==='req'?'block':'none';
+      listSection.style.display=t!=='req'?'block':'none';
+      if(t!=='req')this.renderList(); // render เฉพาะ list tabs
+    } else {
+      this.render(); // fallback
+    }
   },
   updBadge(){
     const myEmps=new Set(D.getEmps().map(e=>e.name));
@@ -4108,68 +4123,71 @@ const LEAVE={
     toast('✅ ยื่นขอลาแล้ว รอ Admin อนุมัติ — ดูสถานะที่ปฏิทิน (สีเขียว=อนุมัติ, สีเหลือง=รออนุมัติ)');
   },
   render(){
-    const el=document.getElementById('leave-list');if(!el)return;
+    // เรียกครั้งแรก — render ทั้ง calendar และ list ตาม tab ปัจจุบัน
+    this.renderCal();
+    const calSection=document.getElementById('lv-cal-section');
+    const listSection=document.getElementById('lv-list-section');
+    if(calSection&&listSection){
+      calSection.style.display=this.tab==='req'?'block':'none';
+      listSection.style.display=this.tab!=='req'?'block':'none';
+    }
+    if(this.tab!=='req')this.renderList();
+  },
+  renderCal(){
+    const el=document.getElementById('lv-cal-section');if(!el)return;
+    const reqs=D.getLeaveReq();
+    const userName=S.user?.name||S.user?.email||'';
+    const yr=this.calYr,mo=this.calMo;
+    const moNames=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const firstDay=new Date(yr,mo,1).getDay();
+    const daysInMo=new Date(yr,mo+1,0).getDate();
+    const today=new Date();
+    const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    const approvedDates=new Set(reqs.filter(r=>r.name===userName&&r.status==='approved').flatMap(r=>r.dates));
+    const pendingDates=new Set(reqs.filter(r=>r.name===userName&&r.status==='pending').flatMap(r=>r.dates));
+    const cal=`<div style="padding:4px 0 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button onclick="LEAVE.prevMo()" style="padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer">◀</button>
+        <div style="font-size:15px;font-weight:900;color:var(--text)">${moNames[mo]} ${yr}</div>
+        <button onclick="LEAVE.nextMo()" style="padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer">▶</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center">
+        ${['อา','จ','อ','พ','พฤ','ศ','ส'].map(d=>'<div style="font-size:10px;font-weight:800;color:var(--text3);padding:4px 0">'+d+'</div>').join('')}
+        ${Array(firstDay).fill('<div></div>').join('')}
+        ${Array.from({length:daysInMo},(_,i)=>{
+          const day=i+1;
+          const ds=yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+          const isPast=ds<todayStr;
+          const isApproved=approvedDates.has(ds);
+          const isPending=pendingDates.has(ds);
+          const isSel=this.selDates.has(ds);
+          const isToday=ds===todayStr;
+          let bg='var(--bg3)',color='var(--text)',border='transparent',fw='600';
+          if(isApproved){bg='rgba(16,163,74,.25)';color='var(--green2)';border='var(--green2)';}
+          else if(isPending){bg='rgba(245,158,11,.2)';color='var(--amber)';border='var(--amber)';}
+          else if(isSel){bg='var(--blue)';color='#fff';border='var(--blue)';fw='800';}
+          else if(isToday){border='var(--blue2)';}
+          const click=(!isPast&&!isApproved&&!isPending)?('onclick="LEAVE.toggleDate(\''+ds+'\')"'):'';
+          const opacity=isPast?'.4':'1';
+          return'<div '+click+' style="padding:8px 2px;border-radius:8px;background:'+bg+';color:'+color+';border:1.5px solid '+border+';font-size:13px;font-weight:'+fw+';cursor:'+(!isPast&&!isApproved&&!isPending?'pointer':'default')+';opacity:'+opacity+'">'+day+'</div>';
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px">
+        <span style="color:var(--blue2)">■ เลือกแล้ว</span>
+        <span style="color:var(--amber)">■ รออนุมัติ</span>
+        <span style="color:var(--green2)">■ อนุมัติแล้ว</span>
+      </div>
+      ${this.selDates.size>0?'<div style="margin-top:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px"><div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:8px">วันที่เลือก: '+this.selDates.size+' วัน</div><div style="font-size:11px;color:var(--text3);margin-bottom:10px">'
+        +[...this.selDates].sort().join(', ')
+        +'</div><input id="lv-reason" type="text" placeholder="เหตุผล (ระบุหรือไม่ก็ได้)" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:\'Sarabun\',sans-serif;box-sizing:border-box;margin-bottom:8px"><button onclick="LEAVE.submitLeave()" style="width:100%;padding:10px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:\'Sarabun\',sans-serif;cursor:pointer">📩 ยื่นขอลา</button></div>':''}
+    </div>`;
+    el.innerHTML=cal;
+  },
+  renderList(){
+    const el=document.getElementById('lv-list-section');if(!el)return;
     const reqs=D.getLeaveReq();
     const myEmps=new Set(D.getEmps().map(e=>e.name));
     const isAdmin=S.user?.isAdmin;
-
-    if(this.tab==='req'){
-      // ปฏิทิน
-      const yr=this.calYr,mo=this.calMo;
-      const moNames=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-      const firstDay=new Date(yr,mo,1).getDay();
-      const daysInMo=new Date(yr,mo+1,0).getDate();
-      const today=new Date();
-      const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-      // วันที่ approved แล้ว
-      const userName=S.user?.name||S.user?.email||'';
-      const approvedDates=new Set(reqs.filter(r=>r.name===userName&&r.status==='approved').flatMap(r=>r.dates));
-      const pendingDates=new Set(reqs.filter(r=>r.name===userName&&r.status==='pending').flatMap(r=>r.dates));
-      let cal=`
-      <div style="padding:4px 0 12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <button onclick="LEAVE.prevMo()" style="padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer">◀</button>
-          <div style="font-size:15px;font-weight:900;color:var(--text)">${moNames[mo]} ${yr}</div>
-          <button onclick="LEAVE.nextMo()" style="padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer">▶</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center">
-          ${['อา','จ','อ','พ','พฤ','ศ','ส'].map(d=>`<div style="font-size:10px;font-weight:800;color:var(--text3);padding:4px 0">${d}</div>`).join('')}
-          ${Array(firstDay).fill('<div></div>').join('')}
-          ${Array.from({length:daysInMo},(_,i)=>{
-            const day=i+1;
-            const ds=yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-            const isPast=ds<todayStr;
-            const isApproved=approvedDates.has(ds);
-            const isPending=pendingDates.has(ds);
-            const isSel=this.selDates.has(ds);
-            const isToday=ds===todayStr;
-            let bg='var(--bg3)',color='var(--text)',border='transparent',fw='600';
-            if(isApproved){bg='rgba(16,163,74,.25)';color='var(--green2)';border='var(--green2)';}
-            else if(isPending){bg='rgba(245,158,11,.2)';color='var(--amber)';border='var(--amber)';}
-            else if(isSel){bg='var(--blue)';color='#fff';border='var(--blue)';fw='800';}
-            else if(isToday){border='var(--blue2)';}
-            const click=(!isPast&&!isApproved&&!isPending)?`onclick="LEAVE.toggleDate('${ds}')"`:'';
-            const opacity=isPast?'.4':'1';
-            return`<div ${click} style="padding:8px 2px;border-radius:8px;background:${bg};color:${color};border:1.5px solid ${border};font-size:13px;font-weight:${fw};cursor:${(!isPast&&!isApproved&&!isPending)?'pointer':'default'};opacity:${opacity}">${day}</div>`;
-          }).join('')}
-        </div>
-        <!-- Legend -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px">
-          <span style="color:var(--blue2)">■ เลือกแล้ว</span>
-          <span style="color:var(--amber)">■ รออนุมัติ</span>
-          <span style="color:var(--green2)">■ อนุมัติแล้ว</span>
-        </div>
-        ${this.selDates.size>0?`
-        <div style="margin-top:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">
-          <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:8px">วันที่เลือก: ${this.selDates.size} วัน</div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">${[...this.selDates].sort().join(', ')}</div>
-          <input id="lv-reason" type="text" placeholder="เหตุผล (ระบุหรือไม่ก็ได้)" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;box-sizing:border-box;margin-bottom:8px">
-          <button onclick="LEAVE.submitLeave()" style="width:100%;padding:10px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">📩 ยื่นขอลา</button>
-        </div>`:''}
-      </div>`;
-      el.innerHTML=cal;return;
-    }
-
     // Tab อื่นๆ
     let list=reqs;
     if(this.tab==='pending') list=reqs.filter(r=>(r.status==='pending'||r.status==='cancel_req')&&(isAdmin?myEmps.has(r.name):r.name===(S.user?.name||'')));
