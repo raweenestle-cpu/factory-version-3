@@ -4426,9 +4426,11 @@ const EMP={
         return{x:(touch.clientX-rect.left)*(canvas.width/rect.width),
                y:(touch.clientY-rect.top)*(canvas.height/rect.height)};
       };
-      canvas.onpointerdown=e=>{this._signDrawing=true;const p=getPos(e);this._signLast=p;ctx.beginPath();ctx.moveTo(p.x,p.y);};
-      canvas.onpointermove=e=>{if(!this._signDrawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);this._signLast=p;};
-      canvas.onpointerup=()=>{this._signDrawing=false;};
+      canvas.style.touchAction='none'; // ป้องกัน scroll ขณะเซ็น
+      canvas.onpointerdown=e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);this._signDrawing=true;const p=getPos(e);this._signLast=p;ctx.beginPath();ctx.moveTo(p.x,p.y);};
+      canvas.onpointermove=e=>{e.preventDefault();if(!this._signDrawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);this._signLast=p;};
+      canvas.onpointerup=e=>{e.preventDefault();this._signDrawing=false;};
+      canvas.onpointercancel=e=>{this._signDrawing=false;};
       canvas.onpointerleave=()=>{this._signDrawing=false;};
     },300);
   },
