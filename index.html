@@ -2561,6 +2561,7 @@ const PLAN={
     }
 
     // ========== Filling autoLoad ==========
+    try{
     const wk=wKey(S.wkStart);
     const allSched=D.getSched();
     if(!allSched[wk])allSched[wk]={};
@@ -2694,7 +2695,8 @@ const PLAN={
     }
     const idleEl2=document.getElementById('idle-chips');
     if(idleEl2)idleEl2.innerHTML=idleSet.size>0?[...idleSet].map(n=>`<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${n}</div>`).join(''):'<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
-    markUnsaved();SCHED.render();DASH.render();
+    markUnsaved();SCHED.render();DASH.render();doneLoad(true);
+    }catch(err){console.error('Filling load error:',err);toast('❌ โหลดผิดพลาด: '+err.message);doneLoad(false,'error: '+err.message);}
   },
   openSched(){
     this.updateSchedPreview();
