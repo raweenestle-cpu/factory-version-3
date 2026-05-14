@@ -1638,14 +1638,14 @@ const DASH={
         SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));
       }
     });
-    return tH>0?Math.round(oH/tH*100):null;
+    return tH>0?Math.round(oH/tH*10000)/100:null;
   },
   getLSVCOTWeek(wkKey){
     const data=LS.get('lsvc_data',{});
     const v=data[wkKey];if(!v||!v.total)return null;
     const tH=(v.workHrs||0)+(v.otHrs||0);
     const oH=v.otHrs||0;
-    return tH>0?Math.round(oH/tH*100):null;
+    return tH>0?Math.round(oH/tH*10000)/100:null;
   },
   getOT(sys,yr,mi){
     const depts=D.getDepts(sys);if(!depts||!depts.length)return null;
@@ -1653,9 +1653,21 @@ const DASH={
     let tH=0,oH=0;
     Object.entries(all).forEach(([wk,wd])=>{
       if(!wd)return;
-      const wp=wk.split('-');if(wp.length<3)return;
-      const rd=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));
-      const dw=rd.getDay();const mn=new Date(rd);mn.setDate(rd.getDate()-(dw===0?6:dw-1));
+      // wkKey format: "2025-W20" หรือ "2025-05-11"
+      let mn;
+      if(/^\d{4}-W\d+$/.test(wk)){
+        // format ใหม่ YYYY-Wnn
+        const yr2=parseInt(wk.split('-')[0]);
+        const wn=parseInt(wk.split('-W')[1]);
+        // หาวันจันทร์ของสัปดาห์นั้น
+        const jan4=new Date(yr2,0,4);
+        const jan4Day=jan4.getDay()||7;
+        mn=new Date(jan4);mn.setDate(jan4.getDate()-(jan4Day-1)+(wn-1)*7);
+      } else {
+        const wp=wk.split('-');if(wp.length<3)return;
+        const rd=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));
+        const dw=rd.getDay();mn=new Date(rd);mn.setDate(rd.getDate()-(dw===0?6:dw-1));
+      }
       let inM=false;
       for(let dd=0;dd<6;dd++){const d2=new Date(mn);d2.setDate(mn.getDate()+dd);if(d2.getFullYear()===yr&&d2.getMonth()===mi){inM=true;break;}}
       if(!inM)return;
@@ -1669,7 +1681,7 @@ const DASH={
       });
       if(wo>0){tH+=wt;oH+=wo;}
     });
-    return tH>0?Math.round(oH/tH*100):null;
+    return tH>0?Math.round(oH/tH*10000)/100:null;
   },
   render(){
     updEmpCnt();
@@ -2491,7 +2503,7 @@ const PLAN={
         // assign กะดึก — exact match แบบ version เดิม
         const nightPool=[...byShift.night];
         nonOreoDepts.forEach(dept=>{
-          const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
+          const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(b.priority||0)-(a.priority||0));
           pool.slice(0,pplPerShift).forEach(e=>{
             sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
@@ -2501,7 +2513,7 @@ const PLAN={
         // assign กะเช้า
         const morningPool=[...byShift.morning];
         nonOreoDepts.forEach(dept=>{
-          const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
+          const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(b.priority||0)-(a.priority||0));
           pool.slice(0,pplPerShift).forEach(e=>{
             sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
@@ -2654,7 +2666,7 @@ const PLAN={
           // 1. หาคนหลัก (mainDept === dept)
           const mainPool=byShift[sh].filter(e=>
             (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
-          );
+          ).sort((a,b)=>(b.priority||0)-(a.priority||0)); // priority สูงขึ้นก่อน
 
           // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
           const subPool=byShift[sh].filter(e=>
@@ -2867,7 +2879,7 @@ const PLAN={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};const depts=D.getDepts();const tgt=D.getTarget();
     let tH=0,oH=0;
     depts.forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-    const pct=tH>0?Math.round(oH/tH*100):0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
+    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
     const rows=[];
     for(let di=0;di<6;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
       SHS.forEach(sh=>depts.forEach(dept=>(sched[dept]?.[di]?.[sh]||[]).forEach(w=>{if(!w.ot)return;
@@ -3465,7 +3477,7 @@ const PRINT={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};const depts=D.getDepts();const tgt=D.getTarget();
     let tH=0,oH=0;
     depts.forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-    const pct=tH>0?Math.round(oH/tH*100):0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
+    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
     const rows=[];
     for(let di=0;di<6;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
       SHS.forEach(sh=>depts.forEach(dept=>(sched[dept]?.[di]?.[sh]||[]).forEach(w=>{if(!w.ot)return;
@@ -3999,7 +4011,7 @@ const SCHED={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let tH=0,oH=0;
     D.getDepts().forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-    const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*100):0;
+    const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*10000)/100:0;
     // หัก OT ที่กระจายไปแล้วในสัปดาห์นี้ออก — เพื่อให้กรอกเฉพาะส่วนที่เพิ่มใหม่
     const log=D.getOTLog(S.sys)||[];
     const alreadyLogged=log.filter(l=>l.wk===wk).reduce((a,l)=>a+(l.hrs||0),0);
@@ -4132,7 +4144,7 @@ const OT={
         }
       });
     }
-    return{oH,tH,pct:tH>0?Math.round(oH/tH*100):0};
+    return{oH,tH,pct:tH>0?Math.round(oH/tH*10000)/100:0};
   },
   render(){this.updNav();if(this.sub==='ov')this.renderOv();else if(this.sub==='pe')this.renderPe();else this.renderRp();},
   setSub(s){this.sub=s;['ov','pe','rp'].forEach(x=>document.getElementById('os-'+x)?.classList.toggle('active',x===s));
@@ -4224,6 +4236,8 @@ const EMP={
       if(e.sub1&&!allSubs.includes(e.sub1))allSubs.push(e.sub1);
       if(e.sub2&&!allSubs.includes(e.sub2))allSubs.push(e.sub2);
       allSubs.filter(Boolean).forEach((s,si)=>tags.push({l:'รอง'+(si+1)+': '+s,c:'sub'}));
+      if(e.priority===1)tags.push({l:'★ หัวหน้าหลัก',c:'main'});
+      else if(e.priority===2)tags.push({l:'★ หัวหน้ารอง',c:'sub'});
       if(e.lockShift)tags.push({l:'\ud83d\udd12 '+SHTH[e.lockShift],c:'lk'});
       return `<div class="emp-card">
         <div class="e-av ${AV[(e.av||0)%8]}" ${e.photo?'style="background:transparent"':''}>${e.photo?`<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:e.name.charAt(0)}</div>
@@ -4338,7 +4352,8 @@ const EMP={
         <button type="button" onclick="EMP.addSub()" style="padding:5px 12px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:8px;color:var(--blue2);font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">+ เพิ่มแผนก</button>
       </div>
       <div class="fg"><label class="fl">ทีม</label><select class="fs" id="ef-tm"><option value="" ${!emp?.team?'selected':''}>-- ไม่ระบุ --</option><option value="A" ${emp?.team==='A'?'selected':''}>ทีม A (เช้า)</option><option value="B" ${emp?.team==='B'?'selected':''}>ทีม B (บ่าย)</option><option value="C" ${emp?.team==='C'?'selected':''}>ทีม C (ดึก)</option></select></div>
-      <div class="fg"><label class="fl">Lock \u0e01\u0e30</label><select class="fs" id="ef-lk"><option value="">-- \u0e2b\u0e21\u0e38\u0e19\u0e1b\u0e01\u0e15\u0e34 --</option><option value="morning" ${emp?.lockShift==='morning'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e40\u0e0a\u0e49\u0e32\u0e15\u0e25\u0e2d\u0e14</option><option value="afternoon" ${emp?.lockShift==='afternoon'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e1a\u0e48\u0e32\u0e22\u0e15\u0e25\u0e2d\u0e14</option><option value="night" ${emp?.lockShift==='night'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e14\u0e36\u0e01\u0e15\u0e25\u0e2d\u0e14</option></select></div>
+      <div class="fg"><label class="fl">ลำดับความสำคัญ <span style="font-size:9px;color:var(--text3);font-weight:400">(1=หัวหน้าสูงสุด, 0=พนักงานทั่วไป)</span></label><select class="fs" id="ef-pri"><option value="0" ${(!emp?.priority||emp?.priority===0)?'selected':''}>0 — พนักงานทั่วไป</option><option value="2" ${emp?.priority===2?'selected':''}>2 — หัวหน้ากะรอง</option><option value="1" ${emp?.priority===1?'selected':''}>1 — หัวหน้ากะหลัก</option></select></div>
+      <div class="fg"><label class="fl">Lock กะ</label><select class="fs" id="ef-lk"><option value="">-- \u0e2b\u0e21\u0e38\u0e19\u0e1b\u0e01\u0e15\u0e34 --</option><option value="morning" ${emp?.lockShift==='morning'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e40\u0e0a\u0e49\u0e32\u0e15\u0e25\u0e2d\u0e14</option><option value="afternoon" ${emp?.lockShift==='afternoon'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e1a\u0e48\u0e32\u0e22\u0e15\u0e25\u0e2d\u0e14</option><option value="night" ${emp?.lockShift==='night'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e14\u0e36\u0e01\u0e15\u0e25\u0e2d\u0e14</option></select></div>
       <div class="fg" style="grid-column:1/-1">
         <label class="fl">รูปโปรไฟล์</label>
         <div style="display:flex;align-items:center;gap:6px">
@@ -4395,6 +4410,8 @@ const EMP={
     if(!emp.sub1)delete emp.sub1;
     if(!emp.sub2)delete emp.sub2;
     if(lk)emp.lockShift=lk;else delete emp.lockShift;
+    const pri=parseInt(document.getElementById('ef-pri')?.value||0);
+    emp.priority=pri;
     const tm=document.getElementById('ef-tm')?.value||'';
     if(tm)emp.team=tm;else delete emp.team;
     const siEl=document.getElementById('ef-sv');
