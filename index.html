@@ -1998,7 +1998,7 @@ const PLAN={
       const items=(this.plan[dept]||{})[di]||[];
       const prodCards=items.map((item,ii)=>{
         const prodName=typeof item==='object'?item.product:item;
-        const volDay=(vol[dept]||{})[di];
+        const volDay=(vol[dept]||{})[di]||(vol[dept]||{})[String(di)];
         const boxes=isFill?(typeof volDay==='object'&&volDay!==null?(volDay[prodName]||0):(typeof volDay==='number'?volDay:0)):0;
         const master2=D.getProductMaster();
         const pm=master2.find(m=>m.name===prodName&&m.line===dept)||master2.find(m=>m.name===prodName);
@@ -3032,13 +3032,17 @@ const SET={
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:800;margin-bottom:10px">🏭 แผนก ${isFill?'Filling':'Process'}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-          ${depts.filter(d=>d!==AL).map((d,i)=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 8px">
-            <span id="dept-lbl-${i}" style="font-size:12px">${d}</span>
-            <input id="dept-inp-${i}" value="${d}" style="display:none;font-size:12px;padding:2px 4px;background:var(--bg2);border:1px solid var(--blue);border-radius:4px;color:var(--text);width:90px;font-family:'Sarabun',sans-serif" onblur="SET.updDept(${i},this.value)">
-            <button onclick="SET.editMat(${i})" style="background:none;border:none;color:var(--blue2);font-size:12px;cursor:pointer;padding:0 2px">✏️</button>
-            <button onclick="SET.delMat(${i})" style="background:none;border:none;color:var(--red2);font-size:14px;cursor:pointer;padding:0 2px">✕</button>
-          </div>`).join('')}
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+          ${depts.filter(d=>d!==AL).map((d,i)=>{const realIdx=depts.indexOf(d);return`<div style="display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px">
+            <div style="display:flex;flex-direction:column;gap:1px;margin-right:4px">
+              <button onclick="SET.moveDept(${realIdx},-1)" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:1" ${i===0?'disabled':''}>▲</button>
+              <button onclick="SET.moveDept(${realIdx},1)" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:1" ${i===depts.filter(d2=>d2!==AL).length-1?'disabled':''}>▼</button>
+            </div>
+            <span id="dept-lbl-${realIdx}" style="font-size:12px;flex:1">${d}</span>
+            <input id="dept-inp-${realIdx}" value="${d}" style="display:none;font-size:12px;padding:2px 4px;background:var(--bg2);border:1px solid var(--blue);border-radius:4px;color:var(--text);width:90px;font-family:'Sarabun',sans-serif" onblur="SET.updDept(${realIdx},this.value)">
+            <button onclick="SET.editMat(${realIdx})" style="background:none;border:none;color:var(--blue2);font-size:12px;cursor:pointer;padding:0 2px">✏️</button>
+            <button onclick="SET.delMat(${realIdx})" style="background:none;border:none;color:var(--red2);font-size:14px;cursor:pointer;padding:0 2px">✕</button>
+          </div>`;}).join('')}
         </div>
         <div style="display:flex;gap:6px">
           <input type="text" class="fi" id="new-mat-name" placeholder="ชื่อแผนกใหม่" style="flex:1">
@@ -3070,6 +3074,20 @@ const SET={
     SCHED.render();DASH.render();DASH.renderPareto();LSVC.render();
     toast('✅ ล้างตารางกะและ Line Service แล้ว');
   });},
+  moveDept(i,dir){
+    const d=D.getDepts();
+    const alIdx=d.indexOf(AL);
+    const nonAL=d.filter(x=>x!==AL);
+    const j=i; // i คือ index ใน depts รวม AL
+    const newJ=j+dir;
+    // ห้ามข้าม AL
+    if(newJ<0||newJ>=d.length)return;
+    if(d[newJ]===AL||d[j]===AL)return;
+    // swap
+    [d[j],d[newJ]]=[d[newJ],d[j]];
+    D.saveDepts(d);
+    SET.render();
+  },
   addDept(){
     const inp=document.getElementById('new-mat-name');
     const name=inp?.value.trim();
@@ -3129,12 +3147,15 @@ const SET={
 
 const PRINT={
   openOT(){
-    // ตั้งค่า default
-    const now=new Date();
-    const wk=wKey(S.wkStart);
-    document.getElementById('pr-week-date').value=wk;
-    document.getElementById('pr-month-val').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    this.updateOTPreview();
+    try{
+      const now=new Date();
+      const wk=wKey(S.wkStart);
+      const wd=document.getElementById('pr-week-date');
+      const mv=document.getElementById('pr-month-val');
+      if(wd)wd.value=wk;
+      if(mv)mv.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+      this.updateOTPreview();
+    }catch(e){console.log('openOT error:',e);}
     openMo('mo-print-ot');
   },
   updateOTPreview(){
@@ -4212,6 +4233,7 @@ const EMP={
         <div class="e-acts">
           <button class="e-btn" onclick="EMP.toggleLock(${ri})" style="border-color:${e.lockShift?'var(--green)':'var(--border)'};color:${e.lockShift?'var(--green2)':'var(--text3)'}">\ud83d\udd12</button>
           <button class="e-btn" onclick="EMP.openEdit(${ri})">\u270f\ufe0f</button>
+          <button class="e-btn" onclick="EMP.resetPin(${ri})" style="color:var(--amber)">🔑</button>
           <button class="e-btn" onclick="EMP.del(${ri})" style="color:var(--red2)">\u2715</button>
         </div>
       </div>`;
@@ -4278,7 +4300,11 @@ const EMP={
     const mo=document.getElementById('mo-e');
     mo.innerHTML=`<div class="md"><div class="md-handle"></div><div class="md-hdr"><div class="md-title">${emp?'\u0e41\u0e01\u0e49\u0e44\u0e02':'\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e1e\u0e19\u0e31\u0e01\u0e07\u0e32\u0e19'}</div><button class="md-close" onclick="closeMo('mo-e')">\u2715</button></div><div class="md-body">
       <div class="fg"><label class="fl">\u0e0a\u0e37\u0e48\u0e2d-\u0e19\u0e32\u0e21\u0e2a\u0e01\u0e38\u0e25 *</label><input type="text" class="fi" id="ef-n" value="${emp?.name||''}" placeholder="\u0e0a\u0e37\u0e48\u0e2d..."></div>
-      <div class="fg"><label class="fl">PIN ${emp?'(\u0e27\u0e48\u0e32\u0e07=\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19)':'* (4 \u0e2b\u0e25\u0e31\u0e01)'}</label><input type="password" class="fi" id="ef-p" maxlength="4" inputmode="numeric" placeholder="${emp?'\u0e27\u0e48\u0e32\u0e07=\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19':'PIN 4 \u0e2b\u0e25\u0e31\u0e01'}" style="letter-spacing:4px;text-align:center"></div>
+      ${(()=>{
+        const _isSelf=!emp||(S.user?.emp?.name===emp.name);
+        if(!_isSelf)return'<div class="fg"><label class="fl">PIN</label><div class="fi" style="color:var(--text3);font-size:12px">🔒 เปลี่ยนได้เฉพาะตัวเองเท่านั้น</div></div>';
+        return'<div class="fg"><label class="fl">PIN '+(emp?'(ว่าง=ไม่เปลี่ยน)':'* (4 หลัก)')+'</label><input type="password" class="fi" id="ef-p" maxlength="4" inputmode="numeric" placeholder="'+(emp?'ว่าง=ไม่เปลี่ยน':'PIN 4 หลัก')+'" value="'+(emp?.pin||'')+'" style="letter-spacing:4px;text-align:center"></div>';
+      })()}
       <div class="fg" style="grid-column:1/-1">
         <label class="fl">แผนกหลัก * <span style="font-size:9px;color:var(--text3);font-weight:400">(ลำดับ 1 = สำคัญสุด ใช้ตอน autoLoad)</span></label>
         <div id="ef-mains-wrap" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px">
@@ -4374,12 +4400,47 @@ const EMP={
     const siEl=document.getElementById('ef-sv');
     const sigData=siEl?.dataset?.sign||siEl?.querySelector('img')?.src||'';
     if(sigData&&sigData.startsWith('data:'))emp.signature=sigData;
-    if(pin)emp.pin=pin;
+    // PIN เปลี่ยนได้เฉพาะเจ้าของเท่านั้น ไม่ใช่ Admin แทน
+    if(pin){
+      const isSelf=S.user?.emp?.name===emp.name||idx<0; // เจ้าของหรือพนักงานใหม่
+      if(isSelf){emp.pin=pin;}
+      else{toast('❌ เปลี่ยน PIN ได้เฉพาะตัวเองเท่านั้น');return;}
+    }
     if(this._photo)emp.photo=this._photo;
     if(idx>=0)emps[idx]=emp;else emps.push(emp);
     D.saveEmps(emps);closeMo('mo-e');this.render();toast('\u2705 '+(idx>=0?'\u0e41\u0e01\u0e49\u0e44\u0e02':'\u0e40\u0e1e\u0e34\u0e48\u0e21')+name);
   },
   del(i){const emps=D.getEmps();confirm2('\u0e25\u0e1a '+emps[i].name+'?',()=>{emps.splice(i,1);D.saveEmps(emps);this.render();toast('\ud83d\uddd1\ufe0f \u0e25\u0e1a\u0e41\u0e25\u0e49\u0e27');});},
+  resetPin(i){
+    if(!S.user?.isAdmin){toast('\u274c \u0e40\u0e09\u0e1e\u0e32\u0e30 Admin');return;}
+    const emps=D.getEmps();const emp=emps[i];if(!emp)return;
+    const mo=document.getElementById('mo-e');if(!mo)return;
+    mo.innerHTML='<div class="md"><div class="md-handle"></div>'
+      +'<div class="md-hdr"><div class="md-title">\uD83D\uDD11 \u0e23\u0e35\u0e40\u0e0b\u0e47\u0e15 PIN \u2014 '+emp.name+'</div>'
+      +'<button class="md-close" onclick="closeMo(\'mo-e\')">\u2715</button></div>'
+      +'<div class="md-body">'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:12px">\u0e15\u0e31\u0e49\u0e07 PIN \u0e43\u0e2b\u0e21\u0e48 (4 \u0e2b\u0e25\u0e31\u0e01)</div>'
+      +'<div class="fg"><label class="fl">PIN \u0e43\u0e2b\u0e21\u0e48 *</label>'
+      +'<input type="password" class="fi" id="rp-pin" maxlength="4" inputmode="numeric" style="letter-spacing:4px;text-align:center;font-size:20px"></div>'
+      +'<div class="fg"><label class="fl">\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19</label>'
+      +'<input type="password" class="fi" id="rp-pin2" maxlength="4" inputmode="numeric" style="letter-spacing:4px;text-align:center;font-size:20px"></div>'
+      +'</div><div class="md-foot">'
+      +'<button class="btn-cancel" onclick="closeMo(\'mo-e\')">\u0e22\u0e01\u0e40\u0e25\u0e34\u0e01</button>'
+      +'<button class="btn-confirm" onclick="EMP.confirmResetPin('+i+')">\uD83D\uDD11 \u0e22\u0e37\u0e19\u0e22\u0e31\u0e19</button>'
+      +'</div></div>';
+    openMo('mo-e');setTimeout(()=>document.getElementById('rp-pin')?.focus(),300);
+  },
+  confirmResetPin(i){
+    const p1=document.getElementById('rp-pin')?.value.trim();
+    const p2=document.getElementById('rp-pin2')?.value.trim();
+    if(!p1||p1.length!==4){toast('\u274c PIN \u0e15\u0e49\u0e2d\u0e07 4 \u0e2b\u0e25\u0e31\u0e01');return;}
+    if(p1!==p2){toast('\u274c PIN \u0e44\u0e21\u0e48\u0e15\u0e23\u0e07\u0e01\u0e31\u0e19');return;}
+    const emps=D.getEmps();
+    if(emps.find((e,j)=>e.pin===p1&&j!==i)){toast('\u274c PIN \u0e19\u0e35\u0e49\u0e16\u0e39\u0e01\u0e43\u0e0a\u0e49\u0e41\u0e25\u0e49\u0e27');return;}
+    const name=emps[i].name;emps[i].pin=p1;
+    D.saveEmps(emps);closeMo('mo-e');this.render();
+    toast('\u2705 \u0e23\u0e35\u0e40\u0e0b\u0e47\u0e15 PIN '+name+' \u0e41\u0e25\u0e49\u0e27');
+  },
   openLeave(idx){
     const emps=D.getEmps();
     const emp=typeof idx==='number'?emps[idx]:emps.find(e=>e.name===idx);
