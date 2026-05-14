@@ -569,7 +569,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <!-- Filling buttons -->
       <button id="plan-load-emp-fill-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Filling</button>
       <!-- Process buttons -->
-      <button id="plan-load-fill-btn" class="btn-p" style="background:var(--purple);color:#fff;display:none" onclick="PLAN.loadFromFilling()">📥 คำนวณ Mixing</button>
+
       <button id="plan-load-emp-proc-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Process</button>
       <button class="btn-p btn-green" onclick="PLAN.save()">💾 บันทึก</button>
       <button class="btn-p" style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.4);color:var(--red2)" onclick="PLAN.clearPlan()">🗑️ ล้างแผน</button>
@@ -581,13 +581,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <span id="plan-team-b" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;background:rgba(13,148,136,.3);color:var(--teal)">ทีม B: -</span>
       <span id="plan-team-c" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;background:rgba(124,58,237,.3);color:#A78BFA">ทีม C: -</span>
     </div>
-    <div id="mixing-summary" style="display:none;background:var(--navy);border-bottom:1px solid var(--border);flex-shrink:0">
-      <div style="display:flex;align-items:center;padding:6px 14px;cursor:pointer;user-select:none" onclick="PLAN.toggleMixSummary()">
-        <span style="font-size:11px;font-weight:800;color:var(--text2);flex:1">📊 สรุปแผน Mixing (Process)</span>
-        <span id="mix-sum-arrow" style="color:var(--text3);font-size:12px">▲</span>
-      </div>
-      <div id="mix-sum-body" style="padding:0 14px 10px;overflow:hidden"></div>
-    </div>
+
     <div class="plan-wrap"><table class="plan-tbl"><thead id="pth"></thead><tbody id="ptb"></tbody></table></div>
   </div>
 
@@ -1971,8 +1965,6 @@ const PLAN={
     const teamBar=document.getElementById('plan-team-bar');
     // plan table แสดงทุก sys
     if(planWrap)planWrap.style.display='';
-    // mixing summary แสดงเมื่อเป็น Filling และมี _dayData
-    if(mixSum)mixSum.style.display=S.sys==='fill'&&this._dayData?'block':'none';
     // team bar แสดงทุก sys
     if(teamBar)teamBar.style.display='';
     // แสดงปุ่มตาม sys
@@ -1981,8 +1973,7 @@ const PLAN={
     const procEmpBtn=document.getElementById('plan-load-emp-proc-btn');
     const isFillSys=S.sys==='fill';
     const isProcSys=S.sys==='proc';
-    // "📥 โหลดแผน Filling" → แสดงเมื่ออยู่ Filling
-    if(procLoadBtn) procLoadBtn.style.display=isFillSys?'inline-flex':'none';
+    // plan-load-fill-btn ถูกลบออกแล้ว
     // "⚡ โหลดพนักงาน Filling" → แสดงเมื่ออยู่ Filling
     if(fillEmpBtn) fillEmpBtn.style.display=isFillSys?'inline-flex':'none';
     // "⚡ โหลดพนักงาน Process" → แสดงเมื่ออยู่ Process
@@ -2619,8 +2610,32 @@ const PLAN={
       });
 
       // ตรวจ Oreo Coating: ถ้ามีแผน Oreo ต้องมีคนครบ 3 กะ
-      if(this._dayData){
-        this._dayData.forEach(dayInfo2=>{
+      // คำนวณ dayData จาก Filling plan โดยตรง (ไม่ต้องกดปุ่มก่อน)
+      const _fillPlanRaw2=LS.get('plan_fill',{});
+      const _wkKey3=wKey(S.wkStart);
+      const _fillPlan3=_fillPlanRaw2[_wkKey3]||_fillPlanRaw2;
+      const _fillVol3=D.getVolume();
+      const _fillMaster3=D.getProductMaster();
+      const _fillDepts3=D.getDepts('fill').filter(d=>d!=='AL');
+      const _computedDayData=Array.from({length:6},(_,di3)=>{
+        let totalLiter3=0;
+        _fillDepts3.forEach(dept3=>{
+          const volDay3=(_fillVol3[dept3]||{})[di3]||(_fillVol3[dept3]||{})[String(di3)]||{};
+          const items3=(_fillPlan3[dept3]||{})[di3]||(_fillPlan3[dept3]||{})[String(di3)]||[];
+          items3.forEach(item3=>{
+            const n3=typeof item3==='object'?item3.product:item3;
+            const boxes3=typeof volDay3==='object'&&volDay3!==null?(volDay3[n3]||0):(typeof volDay3==='number'?volDay3:0);
+            const pm3=_fillMaster3.find(m=>m.name===n3&&m.line===dept3)||_fillMaster3.find(m=>m.name===n3);
+            const ml3=parseFloat(pm3?.ml)||0;
+            if(boxes3>0&&ml3>0)totalLiter3+=Math.round(boxes3*ml3/1000);
+          });
+        });
+        const units3=totalLiter3>8000?2:totalLiter3>0?1:0;
+        return{di:di3,totalLiter:totalLiter3,units:units3,hoursNeeded:units3>0?8:0,
+          shiftPeople:{morning:units3>0?6:0,afternoon:units3>0?6:0,night:units3>0?6:0}};
+      });
+      {const _dd=_computedDayData;
+        _dd.forEach(dayInfo2=>{
           const di2=dayInfo2.di;
           const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
           const dk2=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
