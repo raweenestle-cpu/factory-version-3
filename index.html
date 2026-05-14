@@ -569,7 +569,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <!-- Filling buttons -->
       <button id="plan-load-emp-fill-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Filling</button>
       <!-- Process buttons -->
-      <button id="plan-load-fill-btn" class="btn-p" style="background:var(--purple);color:#fff;display:none" onclick="PLAN.loadFromFilling()">📥 โหลดแผน Filling</button>
+      <button id="plan-load-fill-btn" class="btn-p" style="background:var(--purple);color:#fff;display:none" onclick="PLAN.loadFromFilling()">📥 คำนวณ Mixing</button>
       <button id="plan-load-emp-proc-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Process</button>
       <button class="btn-p btn-green" onclick="PLAN.save()">💾 บันทึก</button>
       <button class="btn-p" style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.4);color:var(--red2)" onclick="PLAN.clearPlan()">🗑️ ล้างแผน</button>
@@ -1969,17 +1969,23 @@ const PLAN={
     const planWrap=document.querySelector('.plan-wrap');
     const mixSum=document.getElementById('mixing-summary');
     const teamBar=document.getElementById('plan-team-bar');
-    if(planWrap)planWrap.style.display=S.sys==='proc'?'none':'';
-    if(mixSum)mixSum.style.display=S.sys==='proc'&&this._dayData?'block':'none';
-    if(teamBar)teamBar.style.display=S.sys==='proc'?'none':'';
+    // plan table แสดงทุก sys
+    if(planWrap)planWrap.style.display='';
+    // mixing summary แสดงเมื่อเป็น Filling และมี _dayData
+    if(mixSum)mixSum.style.display=S.sys==='fill'&&this._dayData?'block':'none';
+    // team bar แสดงทุก sys
+    if(teamBar)teamBar.style.display='';
     // แสดงปุ่มตาม sys
     const procLoadBtn=document.getElementById('plan-load-fill-btn');
     const fillEmpBtn=document.getElementById('plan-load-emp-fill-btn');
     const procEmpBtn=document.getElementById('plan-load-emp-proc-btn');
     const isFillSys=S.sys==='fill';
     const isProcSys=S.sys==='proc';
-    if(procLoadBtn) procLoadBtn.style.display=isProcSys?'inline-flex':'none';
+    // "📥 โหลดแผน Filling" → แสดงเมื่ออยู่ Filling
+    if(procLoadBtn) procLoadBtn.style.display=isFillSys?'inline-flex':'none';
+    // "⚡ โหลดพนักงาน Filling" → แสดงเมื่ออยู่ Filling
     if(fillEmpBtn) fillEmpBtn.style.display=isFillSys?'inline-flex':'none';
+    // "⚡ โหลดพนักงาน Process" → แสดงเมื่ออยู่ Process
     if(procEmpBtn) procEmpBtn.style.display=isProcSys?'inline-flex':'none';
     // อัพเดท team bar
     try{
@@ -2009,9 +2015,11 @@ const PLAN={
         const liters=ml>0?Math.round(boxes*ml/1000):0;
         const safePN=prodName.replace(/'/g,"\\'").replace(/"/g,'&quot;');
         const literId='lbl_'+dept.replace(/[^a-z0-9]/gi,'_')+'_'+di+'_'+ii;
+        // ใช้ data-* แทน inline params เพื่อหลีกเลี่ยง quote/special char issues
         const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง"
-          oninput="(function(el){document.getElementById('${literId}').textContent=el.value>0&&${ml}>0?'= '+Math.round(el.value*${ml}/1000).toLocaleString()+' ล.':'กล่อง';clearTimeout(el._t);el._t=setTimeout(()=>PLAN.setVolProd('${dept}',${di},'${safePN}',el.value),400);})(this)"
-          onchange="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value)"
+          data-dept="${dept.replace(/"/g,'&quot;')}" data-di="${di}" data-pn="${prodName.replace(/"/g,'&quot;')}" data-ml="${ml}" data-lid="${literId}"
+          oninput="PLAN.onVolInput(this)"
+          onblur="PLAN.onVolBlur(this)"
           style="width:62px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
         return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
       }).join('');
@@ -2031,6 +2039,24 @@ const PLAN={
     if(typeof vol[dept][di]!=='object'||vol[dept][di]===null)vol[dept][di]={};
     vol[dept][di][prodName]=parseInt(v)||0;
     D.saveVolume(vol);
+  },
+  onVolInput(el){
+    // อัปเดต label ลิตรทันที
+    const ml=parseFloat(el.dataset.ml)||0;
+    const lid=el.dataset.lid;
+    const lbl=lid?document.getElementById(lid):null;
+    if(lbl)lbl.textContent=el.value>0&&ml>0?'= '+Math.round(el.value*ml/1000).toLocaleString()+' ล.':'กล่อง';
+    // debounce save
+    clearTimeout(el._t);
+    el._t=setTimeout(()=>this.onVolBlur(el),600);
+  },
+  onVolBlur(el){
+    // บันทึกทันที
+    const dept=el.dataset.dept;
+    const di=parseInt(el.dataset.di);
+    const prodName=el.dataset.pn;
+    const v=el.value;
+    if(dept&&prodName!==undefined&&di>=0)this.setVolProd(dept,di,prodName,v);
   },
   setCount(dept,di,ii,v){if(!this.plan[dept])this.plan[dept]={};if(!this.plan[dept][di])this.plan[dept][di]=[];if(this.plan[dept][di][ii])this.plan[dept][di][ii].count=parseInt(v)||1;},
   delProd(dept,di,ii){if(!this.plan[dept]||!this.plan[dept][di])return;this.plan[dept][di].splice(ii,1);D.savePlan(this.plan);this.render();},
@@ -2688,17 +2714,24 @@ const PLAN={
         if(byShift[sh])byShift[sh].push(e);
       });
 
-      // assign แต่ละ LINE แต่ละกะ ตาม shiftPeople
+      // ดึง master สำหรับ lookup count
+      const fillMaster=D.getProductMaster();
+      const fillPlanNow=D.getPlan('fill',wKey(S.wkStart));
+
+      // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
         fillDepts.forEach(dept=>{
-          // จำนวนคนที่ต้องการ LINE นี้ กะนี้
-          // ดูจาก _dayData ถ้ามี หรือ default 1 คน
-          let need=1;
-          if(this._dayData){
-            const dayInfo=this._dayData.find(d=>d.di===di);
-            if(dayInfo&&dayInfo.shiftPeople&&typeof dayInfo.shiftPeople[sh]==='number')
-              need=dayInfo.shiftPeople[sh];
-            else if(dayInfo&&dayInfo.units===0) need=0;
+          // จำนวนคนที่ต้องการ = ดูจาก product ที่วางแผนไว้วันนั้นใน LINE นี้
+          // ถ้ามีหลาย product ใช้ค่าสูงสุด
+          const planItems=(fillPlanNow[dept]||{})[di]||(fillPlanNow[dept]||{})[String(di)]||[];
+          let need=1; // default 1 ถ้าไม่มีข้อมูล
+          if(planItems.length>0){
+            const counts=planItems.map(item=>{
+              const pName=typeof item==='object'?item.product:item;
+              const pm=fillMaster.find(m=>m.name===pName&&m.line===dept)||fillMaster.find(m=>m.name===pName);
+              return parseInt(pm?.count)||1;
+            });
+            need=Math.max(...counts); // ใช้ค่าสูงสุดของ product ในวันนั้น
           }
           if(need<=0)return;
 
@@ -2729,6 +2762,35 @@ const PLAN={
           });
         });
       });
+    }
+
+    // คนที่ยังไม่ถูก assign (usedEmps ไม่ครอบคลุม) → ว่าง
+    // รวมคนว่างทุกวันเข้าด้วยกัน
+    const idleSet=new Set();
+    for(let di2=0;di2<6;di2++){
+      const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
+      const dk3=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+      emps.forEach(e=>{
+        if((leaveData[e.name]||[]).includes(dk3))return; // คนลา ไม่นับว่าง
+        const sh3=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+        // ตรวจว่าถูก assign ในวันนี้กะนี้ไหม
+        const assigned=fillDepts.some(dept=>
+          (sched[dept]?.[di2]?.[sh3]||[]).find(w=>w.name===e.name)
+        );
+        const inAL=(sched[AL]?.[di2]?.[sh3]||[]).find(w=>w.name===e.name);
+        if(!assigned&&!inAL)idleSet.add(e.name);
+      });
+    }
+    // แสดงใน idle-chips
+    const idleEl=document.getElementById('idle-chips');
+    if(idleEl){
+      if(idleSet.size>0){
+        idleEl.innerHTML=[...idleSet].map(name=>
+          `<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`
+        ).join('');
+      } else {
+        idleEl.innerHTML='<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
+      }
     }
 
     allSched[wk]=sched;
