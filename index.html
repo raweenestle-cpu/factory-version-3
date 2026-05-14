@@ -600,8 +600,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
           💾 บันทึก
           <span id="unsaved-dot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#EF4444;border-radius:50%;border:2px solid var(--bg2)"></span>
         </button>
-        <button onclick="PRINT.openSched()" style="background:rgba(15,52,96,.9);color:#fff;border:1px solid rgba(6,182,212,.4)">🖨️ ตาราง</button>
-        <button onclick="PRINT.openOT()" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(245,158,11,.4)">🖨️ OT</button>
+        <button onclick="PLAN.openSched()" style="background:rgba(15,52,96,.9);color:#fff;border:1px solid rgba(6,182,212,.4)">🖨️ ตาราง</button>
+        <button onclick="PLAN.openOT()" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(245,158,11,.4)">🖨️ OT</button>
         <button onclick="SCHED.clearWk()" style="background:rgba(217,119,6,.2);color:var(--amber);border:1px solid rgba(217,119,6,.3)">🗑️ ล้าง</button>
       </div>
     </div>
@@ -823,22 +823,22 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px">
           <label class="fl">ช่วงเวลา</label>
-          <select class="fs" id="pr-mode" onchange="PRINT.updateOTPreview()">
+          <select class="fs" id="pr-mode" onchange="PLAN.updateOTPreview()">
             <option value="week">สัปดาห์นี้</option>
             <option value="month">เดือนนี้</option>
           </select>
         </div>
         <div style="flex:1;min-width:120px" id="pr-week-sel">
           <label class="fl">เลือกสัปดาห์</label>
-          <input type="date" class="fi" id="pr-week-date" onchange="PRINT.updateOTPreview()">
+          <input type="date" class="fi" id="pr-week-date" onchange="PLAN.updateOTPreview()">
         </div>
         <div style="flex:1;min-width:120px" id="pr-month-sel" style="display:none">
           <label class="fl">เดือน</label>
-          <input type="month" class="fi" id="pr-month-val" onchange="PRINT.updateOTPreview()">
+          <input type="month" class="fi" id="pr-month-val" onchange="PLAN.updateOTPreview()">
         </div>
         <div style="flex:1;min-width:120px">
           <label class="fl">ระบบ</label>
-          <select class="fs" id="pr-sys" onchange="PRINT.updateOTPreview()">
+          <select class="fs" id="pr-sys" onchange="PLAN.updateOTPreview()">
             <option value="both">ทั้งหมด</option>
             <option value="proc">Process</option>
             <option value="fill">Filling</option>
@@ -850,7 +850,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     </div>
     <div class="md-foot">
       <button class="btn-cancel" onclick="closeMo('mo-print-ot')">ยกเลิก</button>
-      <button class="btn-confirm" onclick="PRINT.confirmOT()">🖨️ พิมพ์</button>
+      <button class="btn-confirm" onclick="PLAN.confirmOT()">🖨️ พิมพ์</button>
     </div>
   </div>
 </div>
@@ -867,19 +867,19 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <div style="margin-bottom:12px">
         <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:8px">เลือกวันที่จะพิมพ์</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button onclick="PRINT.toggleAllDays()" style="padding:5px 10px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer">เลือกทั้งหมด</button>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-0" checked onchange="PRINT.updateSchedPreview()"> จันทร์</label>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-1" checked onchange="PRINT.updateSchedPreview()"> อังคาร</label>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-2" checked onchange="PRINT.updateSchedPreview()"> พุธ</label>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-3" checked onchange="PRINT.updateSchedPreview()"> พฤหัส</label>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-4" checked onchange="PRINT.updateSchedPreview()"> ศุกร์</label>
-          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-5" checked onchange="PRINT.updateSchedPreview()"> เสาร์</label>
+          <button onclick="PLAN.toggleAllDays()" style="padding:5px 10px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer">เลือกทั้งหมด</button>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-0" checked onchange="PLAN.updateSchedPreview()"> จันทร์</label>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-1" checked onchange="PLAN.updateSchedPreview()"> อังคาร</label>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-2" checked onchange="PLAN.updateSchedPreview()"> พุธ</label>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-3" checked onchange="PLAN.updateSchedPreview()"> พฤหัส</label>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-4" checked onchange="PLAN.updateSchedPreview()"> ศุกร์</label>
+          <label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="prs-day-5" checked onchange="PLAN.updateSchedPreview()"> เสาร์</label>
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <div style="flex:1">
           <label class="fl">ระบบ</label>
-          <select class="fs" id="prs-sys" onchange="PRINT.updateSchedPreview()">
+          <select class="fs" id="prs-sys" onchange="PLAN.updateSchedPreview()">
             <option value="current">ระบบปัจจุบัน</option>
             <option value="proc">Process</option>
             <option value="fill">Filling</option>
@@ -890,7 +890,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     </div>
     <div class="md-foot">
       <button class="btn-cancel" onclick="closeMo('mo-print-sched')">ยกเลิก</button>
-      <button class="btn-confirm" onclick="PRINT.confirmSched()">🖨️ พิมพ์</button>
+      <button class="btn-confirm" onclick="PLAN.confirmSched()">🖨️ พิมพ์</button>
     </div>
   </div>
 </div>
@@ -1596,12 +1596,7 @@ const APP={
     const pg=id.replace('pg-','');const sb=document.getElementById('side-'+pg);if(sb)sb.classList.add('active');
     if(adminOnly&&!S.user?.isAdmin){toast('❌ เฉพาะ Admin เท่านั้น');return;}
     // เตือนถ้ายังไม่ได้ Save ตารางกะ
-    if(_unsaved&&id!=='pg-sched'&&!force){
-      confirm2('⚠️ ยังไม่ได้บันทึกตารางกะ ออกเลยไหม?',()=>{
-        APP.goPage(id,adminOnly,true);
-      });
-      return;
-    }
+    // _unsaved check ถูกปิดชั่วคราว — กดเปลี่ยนหน้าได้เลย
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.getElementById(id)?.classList.add('active');
@@ -2556,7 +2551,7 @@ const PLAN={
           ?[...procIdleSet].map(name=>`<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`).join('')
           :'<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
       }
-      markUnsaved();SCHED.render();DASH.render();doneLoad(true);
+      SCHED.render();DASH.render();doneLoad(true);
       return;
     }
 
@@ -2685,7 +2680,7 @@ const PLAN={
     allSched[wk]=sched;
     D.saveSched(allSched);
     FB.set(S.sys+'/sched/'+wk,sched);
-    markUnsaved();SCHED.render();DASH.render();doneLoad(true);
+    SCHED.render();DASH.render();doneLoad(true);
     }catch(err){console.error('Filling load error:',err);toast('❌ '+err.message);doneLoad(false,err.message);}
   },
   openSched(){
@@ -3540,8 +3535,8 @@ const SCHED={
       const wk=wKey(S.wkStart);const all=D.getSched();delete all[wk];D.saveSched(all);FB.remove(S.sys+'/sched/'+wk);this.render();toast('\ud83d\uddd1\ufe0f \u0e25\u0e49\u0e32\u0e07\u0e41\u0e25\u0e49\u0e27');
     });
   },
-  printSched(){PRINT.sched();},
-  printOT(){PRINT.ot();}
+  printSched(){PLAN.confirmSched();},
+  printOT(){PLAN.confirmOT();}
 };
 const OT={
   sub:'ov',per:'wk',wkOff:0,mo:new Date().getMonth(),yr2:new Date().getFullYear(),
