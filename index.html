@@ -938,6 +938,9 @@ const MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.
 const PDEPT=['Oreo Coating','Mixing','Flavor','CIP Man','Transfer Rework','AL'];
 const FDEPT=['Polo 12A','Polo 12B','Comet','Mach','Sandwich','Hoyer','Extrud 3','Glacé','Scooping','Curve','ห้องน้ำยา','AL'];
 const LOCK_D=[];
+// แผนกที่ต้องโหลดพนักงานทุกวันเสมอ ไม่ว่าแผนผลิตจะมีหรือเปล่า
+const ALWAYS_PROC=['Leadman','CIP Man','Flavor','Transfer Rework'];
+const ALWAYS_FILL=['CIP Filling','Leadman'];
 const AL='AL';
 const SHST={morning:6*60,afternoon:14*60,night:22*60};
 const SHEN={morning:14*60,afternoon:22*60,night:30*60};
@@ -2422,18 +2425,44 @@ const PLAN={
           }
         });
 
-        if(units===0)return; // ไม่ต้องผลิตวันนี้
-
-        // pool คนที่ไม่ลา
+        // pool คนที่ไม่ลา (ใช้ทุกกรณี)
         const avail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk));
+        const byShiftAlways={morning:[],afternoon:[],night:[]};
+        avail.forEach(e=>{
+          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+          if(byShiftAlways[sh])byShiftAlways[sh].push(e);
+        });
+        const usedAlways=new Set();
+
+        // โหลดแผนกถาวรก่อนเสมอ ไม่ขึ้นกับแผนผลิต
+        ALWAYS_PROC.forEach(dept=>{
+          if(!sched2[dept])return;
+          SHS.forEach(sh=>{
+            const pool=byShiftAlways[sh].filter(e=>
+              (D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept)
+              &&!usedAlways.has(e.name)
+            );
+            pool.forEach(e=>{
+              sched2[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+              usedAlways.add(e.name);
+            });
+          });
+        });
+
+        if(units===0){
+          // วันไม่ผลิต — คนที่เหลือ (ไม่ใช่แผนกถาวร) ไม่ต้องลง
+          return;
+        }
 
         // เช็คว่าวันนี้มีแผนผลิต Oreo จริงๆ ใน Glacé หรือ Extrud 3
         // เช็คจากชื่อ product ที่มี keyword "oreo" (case-insensitive)
-        const fillPlan2=D.getPlan?D.getPlan('fill'):{};
+        // เช็คแผน Oreo — รองรับ format เก่าและใหม่
+        const _fpRaw=LS.get('plan_fill',{});
+        const _fpWk=wKey(S.wkStart);
+        const fillPlan2=_fpRaw[_fpWk]||_fpRaw;
         const oreoLines=['Glacé','Glace','Extrud 3','Extru 3','Glacier','Extrude3','Extrude 3'];
         const hasOreoToday=oreoLines.some(line=>{
           const items=(fillPlan2[line]||{})[di]||(fillPlan2[line]||{})[String(di)]||[];
-          // ต้องมี product ที่ชื่อมี keyword "oreo" จริงๆ ไม่ใช่แค่มีแผนผลิต
           return items.some(item=>{
             const name=typeof item==='object'?item.product:item;
             return name&&name.toLowerCase().includes('oreo');
@@ -2669,6 +2698,31 @@ const PLAN={
       allSched2[wk2]=sched2;
       D.saveSched(allSched2);
       FB.set(S.sys+'/sched/'+wKey(S.wkStart),sched2);
+      // แสดงคนว่าง Process (ไม่เอา Filling มาปน)
+      const procEmpsOnly=D.getEmps('proc');
+      const procDepts2=D.getDepts('proc').filter(d=>d!==AL);
+      const procIdleSet=new Set();
+      for(let _di=0;_di<6;_di++){
+        const _d=new Date(S.wkStart);_d.setDate(S.wkStart.getDate()+_di);
+        const _dk=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
+        procEmpsOnly.forEach(e=>{
+          if((leaveData2[e.name]||[]).includes(_dk))return;
+          const _sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+          const _assigned=procDepts2.some(dept=>(sched2[dept]?.[_di]?.[_sh]||[]).find(w=>w.name===e.name));
+          const _inAL=(sched2[AL]?.[_di]?.[_sh]||[]).find(w=>w.name===e.name);
+          if(!_assigned&&!_inAL)procIdleSet.add(e.name);
+        });
+      }
+      const _idleEl=document.getElementById('idle-chips');
+      if(_idleEl){
+        if(procIdleSet.size>0){
+          _idleEl.innerHTML=[...procIdleSet].map(name=>
+            `<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`
+          ).join('');
+        } else {
+          _idleEl.innerHTML='<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
+        }
+      }
       markUnsaved();SCHED.render();DASH.render();doneLoad(true);
       return;
     }
@@ -2737,9 +2791,34 @@ const PLAN={
       // ถ้ามี wk key → format ใหม่, ถ้าไม่มี → format เก่า flat
       const fillPlanNow=fillPlanRaw[wkKey2]||fillPlanRaw;
 
+      // โหลดแผนกถาวร Filling ก่อนเสมอ
+      const usedFillAlways=new Set();
+      ALWAYS_FILL.forEach(dept=>{
+        if(!sched[dept])return;
+        for(let di2=0;di2<6;di2++){
+          const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
+          const dk3=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+          SHS.forEach(sh=>{
+            const pool=emps.filter(e=>
+              !(leaveData[e.name]||[]).includes(dk3)&&
+              (D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept)
+              &&!usedFillAlways.has(e.name)
+            );
+            pool.forEach(e=>{
+              if(!sched[dept][di2])sched[dept][di2]={morning:[],afternoon:[],night:[]};
+              if(!sched[dept][di2][sh].find(w=>w.name===e.name)){
+                sched[dept][di2][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+                usedFillAlways.add(e.name);
+              }
+            });
+          });
+        }
+      });
+
       // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
         fillDepts.forEach(dept=>{
+          if(ALWAYS_FILL.includes(dept))return; // ข้ามแผนกถาวร (โหลดไปแล้ว)
           // จำนวนคนที่ต้องการ = ดูจาก product ที่วางแผนไว้วันนั้นใน LINE นี้
           // ถ้ามีหลาย product ใช้ค่าสูงสุด
           const planItems=(fillPlanNow[dept]||{})[di]||(fillPlanNow[dept]||{})[String(di)]||[];
@@ -2785,16 +2864,15 @@ const PLAN={
       });
     }
 
-    // คนที่ยังไม่ถูก assign (usedEmps ไม่ครอบคลุม) → ว่าง
-    // รวมคนว่างทุกวันเข้าด้วยกัน
+    // คนว่าง — เฉพาะพนักงาน Filling เท่านั้น ไม่เอา Process มาปน
+    const fillEmpsOnly=D.getEmps('fill'); // เฉพาะ sys=fill
     const idleSet=new Set();
     for(let di2=0;di2<6;di2++){
       const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
       const dk3=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
-      emps.forEach(e=>{
-        if((leaveData[e.name]||[]).includes(dk3))return; // คนลา ไม่นับว่าง
+      fillEmpsOnly.forEach(e=>{
+        if((leaveData[e.name]||[]).includes(dk3))return;
         const sh3=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-        // ตรวจว่าถูก assign ในวันนี้กะนี้ไหม
         const assigned=fillDepts.some(dept=>
           (sched[dept]?.[di2]?.[sh3]||[]).find(w=>w.name===e.name)
         );
