@@ -191,6 +191,8 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tbl th{background:var(--bg2);padding:7px 8px;font-size:10px;font-weight:800;color:var(--text2);border:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap}
 .sched-tbl th.sc{position:sticky;left:0;z-index:6;background:var(--navy);color:#fff;min-width:75px}
 .sched-tbl td{border:1px solid var(--border);padding:3px;vertical-align:top;width:auto;background:var(--bg)}
+@keyframes shortBlink{0%,100%{background:rgba(220,38,38,.05)}50%{background:rgba(220,38,38,.25)}}
+.sched-short{animation:shortBlink 1s ease-in-out infinite;border:1.5px dashed rgba(220,38,38,.6)!important}
 .sched-tbl td.sh-morning{background:rgba(37,99,235,.12);border-left:2px solid rgba(37,99,235,.3)}
 .sched-tbl td.sh-afternoon{background:rgba(245,158,11,.1);border-left:2px solid rgba(245,158,11,.35)}
 .sched-tbl td.sh-night{background:rgba(100,116,139,.1);border-left:2px solid rgba(100,116,139,.25)}
@@ -3707,7 +3709,25 @@ const SCHED={
           }).join('');
           const addBtn=(S.user?.isAdmin&&!readOnly)?('<button class="aw-btn" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" onclick="SCHED.openAdd(this.dataset.dept,parseInt(this.dataset.di),this.dataset.sh)">+</button>'):'';
           const tdDrop=(!readOnly&&S.user?.isAdmin)?(' ondragover="SCHED.onDragOver(event)" ondragleave="SCHED.onDragLeave(event)" ondrop="SCHED.onDropCell(this,event)" data-todept="'+dept+'" data-todi="'+di+'" data-tosh="'+sh+'"'):'';
-          row+='<td'+tdDrop+' class="sh-'+sh+'" style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
+          // เช็คว่าขาดคนไหม
+          const _fillPlanBlink=LS.get('plan_fill',{});
+          const _wkBlink=wKey(S.wkStart);
+          const _isWkBlink=Object.keys(_fillPlanBlink).some(k=>/^\d{4}-W\d+$/.test(k));
+          const _planBlink=_isWkBlink?(_fillPlanBlink[_wkBlink]||{}):_fillPlanBlink;
+          const _masterBlink=D.getProductMaster();
+          const _itemsBlink=(_planBlink[dept]||{})[di]||(_planBlink[dept]||{})[String(di)]||[];
+          let _needBlink=0;
+          if(_itemsBlink.length>0){
+            const _cnts=_itemsBlink.map(item=>{
+              const _pn=typeof item==='object'?item.product:item;
+              const _pm=_masterBlink.find(m=>m.name===_pn&&m.line===dept)||_masterBlink.find(m=>m.name===_pn);
+              return parseInt(_pm?.count)||0;
+            });
+            _needBlink=Math.max(..._cnts);
+          }
+          const _haveBlink=ws2.length;
+          const _shortClass=(!readOnly&&_needBlink>0&&_haveBlink<_needBlink)?'sched-short':'';
+          row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
         });
       });
       row+='</tr>';
