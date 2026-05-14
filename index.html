@@ -2041,16 +2041,15 @@ const PLAN={
     if(!vol[dept])vol[dept]={};
     if(typeof vol[dept][di]!=='object'||vol[dept][di]===null)vol[dept][di]={};
     vol[dept][di][prodName]=parseInt(v)||0;
-    D.saveVolume(vol);
+    // save LS เท่านั้น ไม่ sync Firebase (ป้องกัน listener trigger re-render)
+    LS.set('fill_volume',vol);
   },
   onVolInput(el){
-    // อัปเดต label ลิตรทันที
+    // อัปเดต label ลิตรเท่านั้น — ไม่ save (ป้องกัน re-render)
     const ml=parseFloat(el.dataset.ml)||0;
     const lid=el.dataset.lid;
     const lbl=lid?document.getElementById(lid):null;
     if(lbl)lbl.textContent=el.value>0&&ml>0?'= '+Math.round(el.value*ml/1000).toLocaleString()+' ล.':'กล่อง';
-    // save ทันที ไม่ debounce
-    PLAN.onVolSave(el);
   },
   onVolBlur(el){PLAN.onVolSave(el);},
   onVolSave(el){
@@ -2345,7 +2344,8 @@ const PLAN={
     this.loadFromFilling(); // recalculate
   },
   updateMixingSummary(){if(S.sys==='proc'&&this._dayData)this.renderMixSummary();},
-  save(){D.savePlan(this.plan);markSaved();toast('✅ บันทึกแผนการผลิต W'+wNum(S.wkStart));},
+  save(){D.savePlan(this.plan);// sync volume ไป Firebase ตอน save
+    FB.set('fill/volume',D.getVolume());markSaved();toast('✅ บันทึกแผนการผลิต W'+wNum(S.wkStart));},
   clearPlan(){
     const wkNow=wKey(S.wkStart);
     confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+'\nประวัติสัปดาห์อื่นยังคงอยู่)',()=>{
