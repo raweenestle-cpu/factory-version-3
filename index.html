@@ -1597,7 +1597,7 @@ const APP={
     if(adminOnly&&!S.user?.isAdmin){toast('❌ เฉพาะ Admin เท่านั้น');return;}
     // เตือนถ้ายังไม่ได้ Save ตารางกะ
     if(_unsaved&&id!=='pg-sched'&&!force){
-      showConfirm('⚠️ ยังไม่ได้บันทึกตารางกะ\n\nออกจากหน้านี้โดยไม่บันทึก?',()=>{
+      confirm2('⚠️ ยังไม่ได้บันทึกตารางกะ ออกเลยไหม?',()=>{
         APP.goPage(id,adminOnly,true);
       });
       return;
@@ -2561,6 +2561,7 @@ const PLAN={
     }
 
     // ========== Filling autoLoad ==========
+    try{
     const wk=wKey(S.wkStart);
     const allSched=D.getSched();
     if(!allSched[wk])allSched[wk]={};
@@ -2685,6 +2686,7 @@ const PLAN={
     D.saveSched(allSched);
     FB.set(S.sys+'/sched/'+wk,sched);
     markUnsaved();SCHED.render();DASH.render();doneLoad(true);
+    }catch(err){console.error('Filling load error:',err);toast('❌ '+err.message);doneLoad(false,err.message);}
   },
   openSched(){
     this.updateSchedPreview();
