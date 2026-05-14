@@ -2561,7 +2561,6 @@ const PLAN={
     }
 
     // ========== Filling autoLoad ==========
-    try{
     const wk=wKey(S.wkStart);
     const allSched=D.getSched();
     if(!allSched[wk])allSched[wk]={};
@@ -2593,26 +2592,6 @@ const PLAN={
       return otDays<maxOTDays;
     };
 
-    // โหลดแผนกถาวร Filling — CIP Filling, Leadman ทุกวัน
-    ALWAYS_FILL.forEach(dept=>{
-      if(!sched[dept])return;
-      for(let di=0;di<6;di++){
-        const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
-        const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
-        emps.forEach(e=>{
-          if((leaveData[e.name]||[]).includes(dk))return;
-          const _em2=e.mainDepts&&e.mainDepts.length?e.mainDepts.includes(dept):(e.mainDept||e.dept)===dept;
-          if(!_em2)return;
-          if(!e.team&&!e.lockShift)return;
-          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
-          if(!sh)return;
-          if(!sched[dept][di][sh].find(w=>w.name===e.name))
-            sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
-        });
-      }
-    });
-
-
     for(let di=0;di<6;di++){
       const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
       const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
@@ -2640,7 +2619,6 @@ const PLAN={
       // assign แต่ละ LINE แต่ละกะ ตาม shiftPeople
       SHS.forEach(sh=>{
         fillDepts.forEach(dept=>{
-          if(ALWAYS_FILL.includes(dept))return; // โหลดไปแล้ว
           // จำนวนคนที่ต้องการ LINE นี้ กะนี้
           // ดูจาก _dayData ถ้ามี หรือ default 1 คน
           let need=1;
@@ -2652,16 +2630,16 @@ const PLAN={
           }
           if(need<=0)return;
 
-          // 1. หาคนหลัก — รองรับ mainDepts array ใหม่ + mainDept/dept เดิม
-          const isMainDept=e=>
-            (e.mainDepts&&e.mainDepts.length?e.mainDepts.includes(dept):(e.mainDept||e.dept)===dept);
-          const mainPool=byShift[sh].filter(e=>isMainDept(e)&&!usedEmps.has(e.name));
-
-          // 2. หามือสำรอง — รองรับ subs array ใหม่ + sub1/sub2 เดิม
-          const isSubDept=e=>!isMainDept(e)&&(
-            (e.subs&&e.subs.length)?e.subs.includes(dept):(e.sub1===dept||e.sub2===dept)
+          // 1. หาคนหลัก (mainDept === dept)
+          const mainPool=byShift[sh].filter(e=>
+            (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
           );
-          const subPool=byShift[sh].filter(e=>isSubDept(e)&&!usedEmps.has(e.name));
+
+          // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
+          const subPool=byShift[sh].filter(e=>
+            (e.sub1===dept||e.sub2===dept)&&!usedEmps.has(e.name)&&
+            !(e.mainDept===dept||e.dept===dept)
+          );
 
           // รวม pool: คนหลักก่อน มือสำรองตาม
           const pool=[...mainPool,...subPool];
@@ -2680,24 +2658,7 @@ const PLAN={
     allSched[wk]=sched;
     D.saveSched(allSched);
     FB.set(S.sys+'/sched/'+wk,sched);
-    // idle chips เฉพาะ Filling
-    const fillEmpsOnly=D.getEmps('fill');
-    const idleSet=new Set();
-    for(let di2=0;di2<6;di2++){
-      const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
-      const dk3=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
-      fillEmpsOnly.forEach(e=>{
-        if((leaveData[e.name]||[]).includes(dk3))return;
-        const sh3=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-        const assigned2=fillDepts.some(dept=>(sched[dept]?.[di2]?.[sh3]||[]).find(w=>w.name===e.name));
-        const inAL2=(sched[AL]?.[di2]?.[sh3]||[]).find(w=>w.name===e.name);
-        if(!assigned2&&!inAL2)idleSet.add(e.name);
-      });
-    }
-    const idleEl2=document.getElementById('idle-chips');
-    if(idleEl2)idleEl2.innerHTML=idleSet.size>0?[...idleSet].map(n=>`<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${n}</div>`).join(''):'<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
     markUnsaved();SCHED.render();DASH.render();doneLoad(true);
-    }catch(err){console.error('Filling load error:',err);toast('❌ โหลดผิดพลาด: '+err.message);doneLoad(false,'error: '+err.message);}
   },
   openSched(){
     this.updateSchedPreview();
