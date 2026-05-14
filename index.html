@@ -2619,14 +2619,21 @@ const PLAN={
       // assign แต่ละ LINE แต่ละกะ ตาม shiftPeople
       SHS.forEach(sh=>{
         fillDepts.forEach(dept=>{
-          // จำนวนคนที่ต้องการ LINE นี้ กะนี้
-          // ดูจาก _dayData ถ้ามี หรือ default 1 คน
-          let need=1;
-          if(this._dayData){
-            const dayInfo=this._dayData.find(d=>d.di===di);
-            if(dayInfo&&dayInfo.shiftPeople&&typeof dayInfo.shiftPeople[sh]==='number')
-              need=dayInfo.shiftPeople[sh];
-            else if(dayInfo&&dayInfo.units===0) need=0;
+          // จำนวนคน = ดูจาก Product Master ของ product ที่ผลิตวันนั้น
+          const _fillPlan=LS.get('plan_fill',{});
+          const _wk=wKey(S.wkStart);
+          const _isWk=Object.keys(_fillPlan).some(k=>/^\d{4}-W\d+$/.test(k));
+          const _plan=_isWk?(_fillPlan[_wk]||{}):_fillPlan;
+          const _master=D.getProductMaster();
+          const _items=(_plan[dept]||{})[di]||(_plan[dept]||{})[String(di)]||[];
+          let need=0; // ถ้าไม่มีแผน → ไม่ดึงคน → ไปอยู่ว่าง
+          if(_items.length>0){
+            const _counts=_items.map(item=>{
+              const _pn=typeof item==='object'?item.product:item;
+              const _pm=_master.find(m=>m.name===_pn&&m.line===dept)||_master.find(m=>m.name===_pn);
+              return parseInt(_pm?.count)||1;
+            });
+            need=Math.max(..._counts);
           }
           if(need<=0)return;
 
