@@ -1161,12 +1161,14 @@ const D={
   getPlan(sys=S.sys,wk=null){
     const all=LS.get('plan_'+sys,{});
     const useWk=wk||wKey(S.wkStart);
-    // รองรับ format เก่า (flat: {dept:{di:[]}}) และใหม่ ({wk:{dept:{di:[]}}})
+    // เช็ค wk key format: YYYY-Wnn เช่น "2025-W19"
+    const isWkKey=k=>typeof k==='string'&&/^\d{4}-W\d+$/.test(k);
+    // ถ้ามี wk key ตรง → format ใหม่
     if(all[useWk]&&typeof all[useWk]==='object'&&!Array.isArray(all[useWk]))return all[useWk];
-    // ถ้าเป็น format เก่า (flat) ให้ return ตรงๆ เพื่อ backward compat
+    // ถ้า key แรกเป็น wk format → format ใหม่ แต่ไม่มี wk นี้
     const firstKey=Object.keys(all)[0]||'';
-    if(firstKey&&firstKey.match(/^\d{4}-\d{2}-\d{2}$/))return all[useWk]||{};
-    return all; // format เก่า flat
+    if(firstKey&&isWkKey(firstKey))return all[useWk]||{};
+    return all; // format เก่า flat → return ทั้ง object
   },
   savePlan(p,sys=S.sys,wk=null){
     const useWk=wk||wKey(S.wkStart);
@@ -2637,8 +2639,12 @@ const PLAN={
 
       // ดึง master สำหรับ lookup count
       const fillMaster=D.getProductMaster();
-      // อ่าน plan Filling ตรงๆ แบบ flat (ไม่แยก wk key) เหมือน version เดิม
-      const fillPlanNow=D.getPlan('fill');
+      // อ่านตรงจาก LS รองรับทั้ง format เก่า (flat) และใหม่ (wk-based)
+      const _planRaw=LS.get('plan_fill',{});
+      const _wkNow=wKey(S.wkStart);
+      // ถ้ามี wk key → format ใหม่, ไม่มี → flat เดิม
+      const _isNewFmt=Object.keys(_planRaw).some(k=>/^\d{4}-W\d+$/.test(k));
+      const fillPlanNow=_isNewFmt?(_planRaw[_wkNow]||{}):_planRaw;
 
       // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
