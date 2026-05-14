@@ -2013,7 +2013,7 @@ const PLAN={
         const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง"
           data-dept="${dept.replace(/"/g,'&quot;')}" data-di="${di}" data-pn="${prodName.replace(/"/g,'&quot;')}" data-ml="${ml}" data-lid="${literId}"
           oninput="PLAN.onVolInput(this)"
-          onblur="PLAN.onVolBlur(this)"
+          onblur="PLAN.onVolSave(this)"
           style="width:62px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
         return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
       }).join('');
@@ -2042,15 +2042,17 @@ const PLAN={
     if(lbl)lbl.textContent=el.value>0&&ml>0?'= '+Math.round(el.value*ml/1000).toLocaleString()+' ล.':'กล่อง';
     // debounce save
     clearTimeout(el._t);
-    el._t=setTimeout(()=>this.onVolBlur(el),600);
+    el._t=setTimeout(()=>PLAN.onVolSave(el),600);
   },
-  onVolBlur(el){
-    // บันทึกทันที
+  onVolBlur(el){PLAN.onVolSave(el);},
+  onVolSave(el){
     const dept=el.dataset.dept;
     const di=parseInt(el.dataset.di);
     const prodName=el.dataset.pn;
     const v=el.value;
-    if(dept&&prodName!==undefined&&di>=0)this.setVolProd(dept,di,prodName,v);
+    if(dept&&prodName!==undefined&&!isNaN(di)&&di>=0){
+      PLAN.setVolProd(dept,di,prodName,v);
+    }
   },
   setCount(dept,di,ii,v){if(!this.plan[dept])this.plan[dept]={};if(!this.plan[dept][di])this.plan[dept][di]=[];if(this.plan[dept][di][ii])this.plan[dept][di][ii].count=parseInt(v)||1;},
   delProd(dept,di,ii){if(!this.plan[dept]||!this.plan[dept][di])return;this.plan[dept][di].splice(ii,1);D.savePlan(this.plan);this.render();},
@@ -2387,16 +2389,14 @@ const PLAN={
     if(!emps.length){doneLoad(false,'ไม่มีพนักงาน');alert2('ยังไม่มีพนักงานใน '+(S.sys==='proc'?'Process':'Filling'),'❌');return;}
     // Process — ต้องโหลดแผน Filling ก่อน
     if(S.sys==='proc'){
-      // ไม่ต้องรอ _dayData — ใช้ count จาก Product Master โดยตรง
       const wk2=wKey(S.wkStart);
       const allSched2=D.getSched();
       if(!allSched2[wk2])allSched2[wk2]={};
       const sched2=allSched2[wk2];
-
       const procDepts=D.getDepts('proc').filter(d=>d!==AL);
       const leaveData2=D.getLeave();
-      const teamShifts=TEAM.getCurShifts();
-      const shMap={morning:'morning',afternoon:'afternoon',night:'night'};
+      const teamShifts2=TEAM.getCurShifts();
+      const shMap2={morning:'morning',afternoon:'afternoon',night:'night'};
 
       // init structure
       procDepts.forEach(dept=>{
@@ -2406,70 +2406,50 @@ const PLAN={
       if(!sched2[AL])sched2[AL]={};
       for(let di=0;di<6;di++) if(!sched2[AL][di])sched2[AL][di]={morning:[],afternoon:[],night:[]};
 
-      // กรองเฉพาะ proc emps
+      // procEmps เฉพาะ proc
       const procEmps=emps.filter(e=>(e.sys||'proc')==='proc');
 
-      this._dayData.forEach(dayInfo=>{
-        const di=dayInfo.di;
+      // เช็คแผน Filling
+      const _fpRaw=LS.get('plan_fill',{});
+      const _fpWk=wKey(S.wkStart);
+      const _fp=_fpRaw[_fpWk]||_fpRaw;
+      const _fillDepts=D.getDepts('fill').filter(d=>d!=='AL');
+
+      for(let di=0;di<6;di++){
         const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
-        const hoursNeeded=dayInfo.hoursNeeded||0;
-        const units=dayInfo.units||0;
 
-        // คนที่ลาวันนี้ → AL
+        // คนลาวันนี้ → AL
         procEmps.forEach(e=>{
           if((leaveData2[e.name]||[]).includes(dk)){
-            const empSh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-            if(!sched2[AL][di][empSh].find(w=>w.name===e.name))
-              sched2[AL][di][empSh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isLeave:true});
+            const sh=e.lockShift||(e.team?shMap2[teamShifts2[e.team]]:null)||'morning';
+            if(!sched2[AL][di][sh].find(w=>w.name===e.name))
+              sched2[AL][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isLeave:true});
           }
         });
 
-        // pool คนที่ไม่ลา (ใช้ทุกกรณี)
+        // pool คนไม่ลา
         const avail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk));
-        const byShiftAlways={morning:[],afternoon:[],night:[]};
-        avail.forEach(e=>{
-          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-          if(byShiftAlways[sh])byShiftAlways[sh].push(e);
+        const usedProc=new Set();
+
+        // เช็คว่าวันนี้มีแผนผลิตหรือเปล่า
+        const hasAnyPlan=_fillDepts.some(dept3=>{
+          const items3=(_fp[dept3]||{})[di]||(_fp[dept3]||{})[String(di)]||[];
+          return items3.length>0;
         });
-        const usedAlways=new Set();
+        const units=hasAnyPlan?1:0;
 
-        // โหลดแผนกถาวรก่อนเสมอ ไม่ขึ้นกับแผนผลิต
-        ALWAYS_PROC.forEach(dept=>{
-          if(!sched2[dept])return;
-          SHS.forEach(sh=>{
-            const pool=byShiftAlways[sh].filter(e=>
-              (D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept)
-              &&!usedAlways.has(e.name)
-            );
-            pool.forEach(e=>{
-              sched2[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
-              usedAlways.add(e.name);
-            });
-          });
-        });
-
-        if(units===0){
-          // วันไม่ผลิต — คนที่เหลือ (ไม่ใช่แผนกถาวร) ไม่ต้องลง
-          return;
-        }
-
-        // เช็คว่าวันนี้มีแผนผลิต Oreo จริงๆ ใน Glacé หรือ Extrud 3
-        // เช็คจากชื่อ product ที่มี keyword "oreo" (case-insensitive)
-        // เช็คแผน Oreo — รองรับ format เก่าและใหม่
-        const _fpRaw=LS.get('plan_fill',{});
-        const _fpWk=wKey(S.wkStart);
-        const fillPlan2=_fpRaw[_fpWk]||_fpRaw;
-        const oreoLines=['Glacé','Glace','Extrud 3','Extru 3','Glacier','Extrude3','Extrude 3'];
+        // เช็ค Oreo
+        const oreoLines=['Glacé','Glace','Extrud 3','Extru 3','Glacier','Extrude3'];
         const hasOreoToday=oreoLines.some(line=>{
-          const items=(fillPlan2[line]||{})[di]||(fillPlan2[line]||{})[String(di)]||[];
+          const items=(_fp[line]||{})[di]||(_fp[line]||{})[String(di)]||[];
           return items.some(item=>{
             const name=typeof item==='object'?item.product:item;
             return name&&name.toLowerCase().includes('oreo');
           });
         });
-        // effectiveDept: ถ้าไม่มี Oreo → Oreo Coating ใช้ sub1 แทน
-        // ใช้ primary mainDept (ลำดับ 1) เป็น base
+
+        // effectiveDept
         const effectiveDept=e=>{
           const primaryDept=D.getEmpPrimaryDept(e);
           if(!hasOreoToday&&primaryDept==='Oreo Coating'){
@@ -2481,247 +2461,101 @@ const PLAN={
           }
           return primaryDept;
         };
-        // assign ตาม mainDepts ทุกแผนก (ลำดับ 1 → 2 → 3...)
         const getEmpDepts=e=>{
           const mains=D.getEmpMainDepts(e);
           return mains.length?mains:[e.mainDept||e.dept];
         };
 
-        // แผนกที่ไม่ใช่ Oreo
-        const nonOreoDepts=procDepts.filter(d=>d!=='Oreo Coating');
-        // getEmpDepts ถูก define ข้างบนแล้ว
-        const cfg2=D.getMixingCfg?D.getMixingCfg():{};
-        const pplPerShift=units>=2?(cfg2.mix2people||9):(cfg2.mix1people||6);
-        const needPpl=pplPerShift; // กะละ pplPerShift คน ทุกกะ
-        const nightPpl=pplPerShift; // กะดึกใช้จำนวนเดียวกัน
-
-        // แยกตามกะที่ถูกกำหนด
+        // แยกตามกะ
         const byShift={morning:[],afternoon:[],night:[]};
         avail.forEach(e=>{
-          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
+          const sh=e.lockShift||(e.team?shMap2[teamShifts2[e.team]]:null)||'morning';
           if(byShift[sh])byShift[sh].push(e);
         });
-        // getEmpDepts: ดึงทุก mainDept ตามลำดับ สำหรับ multi-dept assign
-        // ใช้ getEmpDepts(e) ที่ define ไว้ข้างบน
 
-        // usedEmps: ป้องกัน 1 คน เข้าหลายกะ
-        const usedEmps=new Set();
+        // โหลดแผนกถาวรก่อน (ทุกวัน)
+        ALWAYS_PROC.forEach(dept=>{
+          if(!sched2[dept])return;
+          avail.forEach(e=>{
+            if(!(D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept))return;
+            if(usedProc.has(e.name))return;
+            const sh=e.lockShift||(e.team?shMap2[teamShifts2[e.team]]:null);
+            if(!sh)return;
+            if(!sched2[dept][di][sh].find(w=>w.name===e.name)){
+              sched2[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+              usedProc.add(e.name);
+            }
+          });
+        });
 
-        // 1. กะดึก → 9 คน (non-Oreo ก่อน)
+        if(units===0)continue; // ไม่ผลิตวันนี้
+
+        // Mixing config
+        const cfg2=D.getMixingCfg?D.getMixingCfg():{};
+        const pplPerShift=units>=2?(cfg2.mix2people||9):(cfg2.mix1people||6);
+        const nonOreoDepts=procDepts.filter(d=>d!=='Oreo Coating');
+
+        // assign กะดึก
         const nightPool=[...byShift.night];
-        const nightAssigned=[];
         nonOreoDepts.forEach(dept=>{
-          const deptNight=nightPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
-          deptNight.forEach(e=>{
-            if(nightAssigned.length<nightPpl){
-              sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
-              nightAssigned.push(e);usedEmps.add(e.name);
-            }
+          const pool=nightPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          pool.slice(0,pplPerShift).forEach(e=>{
+            sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            usedProc.add(e.name);
           });
         });
 
-        // 2. กะเช้า → needPpl คน (non-Oreo)
+        // assign กะเช้า
         const morningPool=[...byShift.morning];
-        const morningAssigned=[];
         nonOreoDepts.forEach(dept=>{
-          const deptMorn=morningPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
-          deptMorn.forEach(e=>{
-            if(morningAssigned.length<needPpl&&!usedEmps.has(e.name)){
-              sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
-              morningAssigned.push(e);usedEmps.add(e.name);
-            }
+          const pool=morningPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          pool.slice(0,pplPerShift).forEach(e=>{
+            sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            usedProc.add(e.name);
           });
         });
 
-        // 2.5 ถ้าเปิด 2 ชุด และเช้าไม่พอ → ดึงกะบ่าย pre-OT
-        const preOTFromAfternoon=new Set();
-        if(units>=2&&morningAssigned.length<needPpl){
-          const shortfall=needPpl-morningAssigned.length;
-          let preOTCount=0;
-          nonOreoDepts.forEach(dept=>{
-            const deptAfPre=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
-            deptAfPre.forEach(e=>{
-              if(preOTCount>=shortfall)return;
-              sched2[dept][di].morning.push({name:e.name,ot:true,otHrs:4,otBefore:true,av:e.av||0});
-              morningAssigned.push(e);preOTFromAfternoon.add(e.name);
-              usedEmps.add(e.name);preOTCount++;
-            });
-          });
-        }
-
-        // 3. กะบ่าย → ที่เหลือ (non-Oreo)
-        const afternoonAssigned=[];
+        // assign กะบ่าย
         nonOreoDepts.forEach(dept=>{
-          const deptAfter=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
-          deptAfter.forEach(e=>{
-            sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
-            afternoonAssigned.push(e);usedEmps.add(e.name);
+          const pool=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          pool.forEach(e=>{
+            sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            usedProc.add(e.name);
           });
         });
 
-        // Oreo assign แยก (ไม่นับใน needPpl) — ต้องมีครบ 3 กะถ้ามีแผน Oreo
-        // pool ทั้งหมด (ไม่จำกัดแค่ byShift เพื่อดึง OT ได้)
-        const oreoAllEmps=avail; // คนที่ไม่ลาวันนี้
+        // Oreo Coating
         if(hasOreoToday&&sched2['Oreo Coating']){
-          const oreoUsed=new Set(); // ป้องกัน 1 คนอยู่หลายกะ Oreo
           SHS.forEach(sh=>{
-            // 1. หาจาก byShift ของกะนั้นก่อน
-            const oreoMain=byShift[sh].filter(e=>(e.mainDept||e.dept)==='Oreo Coating'&&!usedEmps.has(e.name)&&!oreoUsed.has(e.name));
-            const oreoSub=byShift[sh].filter(e=>(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating')&&!usedEmps.has(e.name)&&!oreoUsed.has(e.name)&&(e.mainDept||e.dept)!=='Oreo Coating');
-            // ถ้าหาจาก byShift ของกะนั้นได้ → assign ปกติ ไม่มี OT
-            if([...oreoMain,...oreoSub][0]){
-              const oreo=[...oreoMain,...oreoSub][0];
-              sched2['Oreo Coating'][di][sh].push({name:oreo.name,ot:false,otHrs:4,av:oreo.av||0,
-                isSub:!oreoMain.find(m=>m.name===oreo.name)});
-              usedEmps.add(oreo.name);
-              oreoUsed.add(oreo.name);
-            } else {
-              // หาจาก pool ทั้งหมดที่ยังว่าง (ไม่ใช้ usedEmps เพราะยอมให้ทำงาน 2 กะได้ถ้าจำเป็น)
-              const fallback=oreoAllEmps.filter(e=>{
-                if(oreoUsed.has(e.name))return false;
-                return (e.mainDept||e.dept)==='Oreo Coating'||(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating');
-              })[0];
-              if(fallback){
-                // ตรวจว่า fallback อยู่กะไหนแล้ว
-                const alreadyNight=sched2['Oreo Coating'][di]['night']?.find(w=>w.name===fallback.name);
-                const alreadyMorn=sched2['Oreo Coating'][di]['morning']?.find(w=>w.name===fallback.name);
-                const alreadyAftn=sched2['Oreo Coating'][di]['afternoon']?.find(w=>w.name===fallback.name);
-                if(!alreadyNight&&!alreadyMorn&&!alreadyAftn){
-                  // ยังไม่อยู่กะ Oreo ไหนเลย
-                  // ถ้าถูก assign dept อื่นกะเดียวกัน → ย้ายมา Oreo (ลบออกจาก dept เดิม)
-                  nonOreoDepts.forEach(function(d){
-                    if(sched2[d]&&sched2[d][di]&&sched2[d][di][sh]){
-                      sched2[d][di][sh]=sched2[d][di][sh].filter(function(w){return w.name!==fallback.name;});
-                    }
-                  });
-                  sched2['Oreo Coating'][di][sh].push({name:fallback.name,ot:false,otHrs:4,av:fallback.av||0,isSub:true});
-                  oreoUsed.add(fallback.name);
-                  usedEmps.add(fallback.name); // ป้องกันถูก assign ซ้ำอีก
-                }
-              }
+            const oreoMain=byShift[sh].filter(e=>(e.mainDept||e.dept)==='Oreo Coating'&&!usedProc.has(e.name));
+            const oreoSub=byShift[sh].filter(e=>(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating')&&!usedProc.has(e.name)&&(e.mainDept||e.dept)!=='Oreo Coating');
+            const oreo=[...oreoMain,...oreoSub][0];
+            if(oreo){
+              sched2['Oreo Coating'][di][sh].push({name:oreo.name,ot:false,otHrs:4,av:oreo.av||0,isSub:!oreoMain.find(m=>m.name===oreo.name)});
+              usedProc.add(oreo.name);
             }
           });
         }
-
-        // 4. คำนวณ OT ถ้าต้องผลิตเกิน 14:00 (กะเช้าหมด)
-        // hoursNeeded คือชั่วโมงที่ต้องผลิต เริ่มจาก 6:00
-        // กะเช้า cover 6:00-14:00 = 8 ชม.
-        // ถ้า hoursNeeded > 8 → ต้องมีคนต่อ
-
-        // ===== ช่วง 18:00-22:00: ดึงกะดึก pre-OT มาเสริมกะบ่าย =====
-        // กะบ่ายทำถึง 22:00 แต่อาจไม่พอ needPpl คน
-        // ดึงกะดึก pre-OT = needPpl - บ่ายที่มีอยู่ คน (save OT ให้มากที่สุด)
-        {
-          const aftnCount=afternoonAssigned.filter(e=>effectiveDept(e)!=='Oreo Coating').length;
-          const needExtra=Math.max(0,needPpl-aftnCount);
-          if(needExtra>0){
-            const maxOTDays=D.getMaxOT()||3;
-            const otLog=D.getOTLog(S.sys)||[];
-            const wk2str=wKey(S.wkStart);
-            const canOT=(name)=>{
-              const otDays=otLog.filter(l=>l.name===name&&l.wk===wk2str).length;
-              return otDays<maxOTDays;
-            };
-            let preOTCount=0;
-            nightAssigned.forEach(e=>{
-              if(preOTCount>=needExtra)return;
-              if(!canOT(e.name))return;
-              const dept=effectiveDept(e);
-              if(!dept||!nonOreoDepts.includes(dept))return;
-              const w=sched2[dept][di].night.find(x=>x.name===e.name);
-              if(w&&!w.ot){
-                w.ot=true;w.otBefore=true;w.otHrs=4;
-                preOTCount++;
-              }
-            });
-          }
-        }
-      });
-
-      // ตรวจ Oreo Coating: ถ้ามีแผน Oreo ต้องมีคนครบ 3 กะ
-      // คำนวณ dayData จาก Filling plan โดยตรง (ไม่ต้องกดปุ่มก่อน)
-      const _fillPlanRaw2=LS.get('plan_fill',{});
-      const _wkKey3=wKey(S.wkStart);
-      const _fillPlan3=_fillPlanRaw2[_wkKey3]||_fillPlanRaw2;
-      const _fillVol3=D.getVolume();
-      const _fillMaster3=D.getProductMaster();
-      const _fillDepts3=D.getDepts('fill').filter(d=>d!=='AL');
-      const _computedDayData=Array.from({length:6},(_,di3)=>{
-        let totalLiter3=0;
-        _fillDepts3.forEach(dept3=>{
-          const volDay3=(_fillVol3[dept3]||{})[di3]||(_fillVol3[dept3]||{})[String(di3)]||{};
-          const items3=(_fillPlan3[dept3]||{})[di3]||(_fillPlan3[dept3]||{})[String(di3)]||[];
-          items3.forEach(item3=>{
-            const n3=typeof item3==='object'?item3.product:item3;
-            const boxes3=typeof volDay3==='object'&&volDay3!==null?(volDay3[n3]||0):(typeof volDay3==='number'?volDay3:0);
-            const pm3=_fillMaster3.find(m=>m.name===n3&&m.line===dept3)||_fillMaster3.find(m=>m.name===n3);
-            const ml3=parseFloat(pm3?.ml)||0;
-            if(boxes3>0&&ml3>0)totalLiter3+=Math.round(boxes3*ml3/1000);
-          });
-        });
-        const units3=totalLiter3>8000?2:totalLiter3>0?1:0;
-        return{di:di3,totalLiter:totalLiter3,units:units3,hoursNeeded:units3>0?8:0,
-          shiftPeople:{morning:units3>0?6:0,afternoon:units3>0?6:0,night:units3>0?6:0}};
-      });
-      {const _dd=_computedDayData;
-        _dd.forEach(dayInfo2=>{
-          const di2=dayInfo2.di;
-          const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
-          const dk2=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
-          const fp=D.getPlan?D.getPlan('fill'):{};
-          const oreoLns=['Glacé','Glace','Extrud 3','Extru 3'];
-          const hasOreo2=oreoLns.some(ln=>{
-            const its=(fp[ln]||{})[di2]||(fp[ln]||{})[String(di2)]||[];
-            return its.length>0;
-          });
-          if(!hasOreo2)return;
-          if(!sched2['Oreo Coating'])return;
-          SHS.forEach(sh2=>{
-            const existing=(sched2['Oreo Coating'][di2]||{})[sh2]||[];
-            if(existing.length>=1)return; // มีคนอยู่แล้ว (ต้องการแค่ 1 คน/กะ)
-            // หาคนที่มี sub1=Oreo Coating หรือ sub2=Oreo Coating มาเพิ่ม
-            const allAvail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk2));
-            const subForOreo=allAvail.find(e=>{
-              if((sched2['Oreo Coating'][di2]||{})[sh2]?.find(w=>w.name===e.name))return false;
-              const alreadyInSched=procDepts.some(d=>SHS.some(s=>(sched2[d]?.[di2]?.[s]||[]).find(w=>w.name===e.name&&!w.ot)));
-              if(alreadyInSched)return false;
-              return e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating';
-            });
-            if(subForOreo){
-              if(!sched2['Oreo Coating'][di2])sched2['Oreo Coating'][di2]={morning:[],afternoon:[],night:[]};
-              sched2['Oreo Coating'][di2][sh2].push({name:subForOreo.name,ot:false,otHrs:4,av:subForOreo.av||0,isSub:true});
-            }
-          });
-        });
       }
 
       allSched2[wk2]=sched2;
       D.saveSched(allSched2);
       FB.set(S.sys+'/sched/'+wKey(S.wkStart),sched2);
-      // แสดงคนว่าง Process (ไม่เอา Filling มาปน)
-      const procEmpsOnly=D.getEmps('proc');
-      const procDepts2=D.getDepts('proc').filter(d=>d!==AL);
+
+      // idle chips — เฉพาะ proc emps
       const procIdleSet=new Set();
-      for(let _di=0;_di<6;_di++){
-        const _d=new Date(S.wkStart);_d.setDate(S.wkStart.getDate()+_di);
-        const _dk=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
-        procEmpsOnly.forEach(e=>{
-          if((leaveData2[e.name]||[]).includes(_dk))return;
-          const _sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
-          const _assigned=procDepts2.some(dept=>(sched2[dept]?.[_di]?.[_sh]||[]).find(w=>w.name===e.name));
-          const _inAL=(sched2[AL]?.[_di]?.[_sh]||[]).find(w=>w.name===e.name);
-          if(!_assigned&&!_inAL)procIdleSet.add(e.name);
-        });
-      }
+      procEmps.forEach(e=>{
+        const sh=e.lockShift||(e.team?shMap2[teamShifts2[e.team]]:null)||'morning';
+        const assigned=procDepts.some(dept=>
+          Object.values(sched2[dept]||{}).some(dayObj=>(dayObj[sh]||[]).find(w=>w.name===e.name))
+        );
+        if(!assigned)procIdleSet.add(e.name);
+      });
       const _idleEl=document.getElementById('idle-chips');
       if(_idleEl){
-        if(procIdleSet.size>0){
-          _idleEl.innerHTML=[...procIdleSet].map(name=>
-            `<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`
-          ).join('');
-        } else {
-          _idleEl.innerHTML='<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
-        }
+        _idleEl.innerHTML=procIdleSet.size>0
+          ?[...procIdleSet].map(name=>`<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`).join('')
+          :'<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
       }
       markUnsaved();SCHED.render();DASH.render();doneLoad(true);
       return;
@@ -2759,6 +2593,28 @@ const PLAN={
       return otDays<maxOTDays;
     };
 
+    // โหลดแผนกถาวร Filling — ใส่ตามกะทีมเท่านั้น (ไม่ซ้ำ 3 กะ)
+    const globalUsedFill=new Set(); // ป้องกันคนเดิมถูกใส่ซ้ำหลาย dept
+    ALWAYS_FILL.forEach(dept=>{
+      if(!sched[dept])return;
+      for(let di=0;di<6;di++){
+        const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
+        const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+        emps.forEach(e=>{
+          if((leaveData[e.name]||[]).includes(dk))return;
+          if(!(D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept))return;
+          // ใช้กะของทีม — ถ้าไม่มีทีมให้ skip (ไม่ default morning)
+          if(!e.team&&!e.lockShift)return;
+          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
+          if(!sh)return;
+          if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]};
+          if(!sched[dept][di][sh].find(w=>w.name===e.name)){
+            sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+          }
+        });
+      }
+    });
+
     for(let di=0;di<6;di++){
       const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
       const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
@@ -2790,30 +2646,6 @@ const PLAN={
       const wkKey2=wKey(S.wkStart);
       // ถ้ามี wk key → format ใหม่, ถ้าไม่มี → format เก่า flat
       const fillPlanNow=fillPlanRaw[wkKey2]||fillPlanRaw;
-
-      // โหลดแผนกถาวร Filling ก่อนเสมอ
-      const usedFillAlways=new Set();
-      ALWAYS_FILL.forEach(dept=>{
-        if(!sched[dept])return;
-        for(let di2=0;di2<6;di2++){
-          const d3=new Date(S.wkStart);d3.setDate(S.wkStart.getDate()+di2);
-          const dk3=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
-          SHS.forEach(sh=>{
-            const pool=emps.filter(e=>
-              !(leaveData[e.name]||[]).includes(dk3)&&
-              (D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept)
-              &&!usedFillAlways.has(e.name)
-            );
-            pool.forEach(e=>{
-              if(!sched[dept][di2])sched[dept][di2]={morning:[],afternoon:[],night:[]};
-              if(!sched[dept][di2][sh].find(w=>w.name===e.name)){
-                sched[dept][di2][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
-                usedFillAlways.add(e.name);
-              }
-            });
-          });
-        }
-      });
 
       // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
