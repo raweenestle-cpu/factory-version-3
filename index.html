@@ -181,9 +181,9 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tb{padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
 .sched-tb-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sched-tb-top h2{font-size:14px;font-weight:900;flex:1}
-.wk-nav{display:flex;align-items:center;gap:6px}
-.wk-nav button{width:28px;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px}
-.wk-nav span{font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap}
+.wk-nav{display:flex;align-items:center;gap:6px;min-width:0}
+.wk-nav button{width:30px;height:30px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer}
+.wk-nav span{font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;min-width:120px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
 .sched-btns{display:flex;gap:5px}
 .sched-btns button{flex:1;padding:7px;border:none;border-radius:8px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif}
 .sched-wrap{overflow:auto;flex:1}
@@ -191,6 +191,12 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tbl th{background:var(--bg2);padding:7px 8px;font-size:10px;font-weight:800;color:var(--text2);border:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap}
 .sched-tbl th.sc{position:sticky;left:0;z-index:6;background:var(--navy);color:#fff;min-width:75px}
 .sched-tbl td{border:1px solid var(--border);padding:3px;vertical-align:top;width:auto;background:var(--bg)}
+.sched-tbl td.sh-morning{background:rgba(219,234,254,.18)}
+.sched-tbl td.sh-afternoon{background:rgba(254,243,199,.18)}
+.sched-tbl td.sh-night{background:rgba(226,232,240,.12)}
+.sched-tbl th.sh-morning{background:rgba(219,234,254,.55)!important;color:var(--blue2)!important}
+.sched-tbl th.sh-afternoon{background:rgba(254,243,199,.55)!important;color:var(--amber)!important}
+.sched-tbl th.sh-night{background:rgba(226,232,240,.35)!important;color:var(--text2)!important}
 .sched-tbl td.sn{position:sticky;left:0;background:var(--bg2);font-size:10px;font-weight:800;color:var(--text2);padding:7px 8px;white-space:nowrap;z-index:4}
 .wc{display:inline-flex;align-items:center;gap:3px;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;margin:1px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
 .wc.ot{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4)}
@@ -394,7 +400,7 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
   #print-area th{background:#e8eeff!important;color:#000!important;border:1px solid #8090b0!important;padding:5px 8px!important;font-size:9pt!important;font-weight:700!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   #print-area td{background:transparent!important;color:#000!important;border:1px solid #8090b0!important;padding:5px 8px!important;font-size:9pt!important;}
   #print-area tr:nth-child(even) td{background:#f8faff!important;}
-  @page{size:A4 landscape;margin:8mm;}
+  @page{size:A4 portrait;margin:8mm;}
 }
 #print-area{display:none;font-family:'Sarabun',sans-serif;font-size:12pt;color:#000;background:#fff}
 /* Print Styles — ใช้ได้ทั้ง preview และ print */
@@ -610,8 +616,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div class="al-sec">
       <h3>🏖️ AL — พนักงานลา</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <div id="al-pending" style="flex:1;min-width:120px;background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 10px">
-          <div style="font-size:10px;font-weight:900;color:var(--amber);margin-bottom:5px">⏳ รออนุมัติ</div>
+        <div id="al-pending" ondragover="SCHED.onDragOver(event)" ondrop="SCHED.onDropAL(event)" ondragleave="SCHED.onDragLeave(event)" style="flex:1;min-width:120px;background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 10px;transition:background .2s">
+          <div style="font-size:10px;font-weight:900;color:var(--amber);margin-bottom:5px">⏳ รออนุมัติ <span style="font-size:9px;font-weight:400;color:var(--text3)">(ลากมาวางได้)</span></div>
           <div id="al-pending-chips"><span style="font-size:10px;color:var(--text3)">—</span></div>
         </div>
         <div id="al-approved" style="flex:1;min-width:120px;background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.35);border-radius:10px;padding:8px 10px">
@@ -1122,6 +1128,14 @@ const D={
   saveTarget(v){LS.set('ot_target',v);FB.set('config/ot_target',v);},
   getMaxOT(){return LS.get('max_ot',3);},
   getSaveLog(){return LS.get('save_log',[]);},
+  // helper: ดึง mainDepts ทั้งหมดของพนักงาน (รองรับ array ใหม่ + legacy)
+  getEmpMainDepts(e){
+    const arr=[...(e.mainDepts||[])];
+    if(!arr.length&&(e.mainDept||e.dept))arr.push(e.mainDept||e.dept);
+    return arr.filter(Boolean);
+  },
+  // แผนกหลักลำดับ 1 (primary)
+  getEmpPrimaryDept(e){return this.getEmpMainDepts(e)[0]||'';},
   saveSaveLog(v){LS.set('save_log',v);},
   saveMaxOT(v){LS.set('max_ot',v);FB.set('config/max_ot',v);},
   getPin(){return LS.get('admin_pin','123456');},
@@ -1147,8 +1161,29 @@ const D={
     const wk=wKey(S.wkStart);
     if(sc[wk])FB.set(sys+'/sched/'+wk,sc[wk]);
   },
-  getPlan(sys=S.sys){return LS.get('plan_'+sys,{});},
-  savePlan(p,sys=S.sys){LS.set('plan_'+sys,p);FB.set(sys+'/plan',p);},
+  getPlan(sys=S.sys,wk=null){
+    const all=LS.get('plan_'+sys,{});
+    const useWk=wk||wKey(S.wkStart);
+    // รองรับ format เก่า (flat: {dept:{di:[]}}) และใหม่ ({wk:{dept:{di:[]}}})
+    if(all[useWk]&&typeof all[useWk]==='object'&&!Array.isArray(all[useWk]))return all[useWk];
+    // ถ้าเป็น format เก่า (flat) ให้ return ตรงๆ เพื่อ backward compat
+    const firstKey=Object.keys(all)[0]||'';
+    if(firstKey&&firstKey.match(/^\d{4}-\d{2}-\d{2}$/))return all[useWk]||{};
+    return all; // format เก่า flat
+  },
+  savePlan(p,sys=S.sys,wk=null){
+    const useWk=wk||wKey(S.wkStart);
+    const all=LS.get('plan_'+sys,{});
+    // ถ้าเป็น format เก่า flat → migrate ไป wk-based
+    const firstKey=Object.keys(all)[0]||'';
+    if(firstKey&&!firstKey.match(/^\d{4}-\d{2}-\d{2}$/)&&Object.keys(all).length>0){
+      // migrate: wrap ด้วย wk ปัจจุบัน
+      all[useWk]=p;
+    } else {
+      all[useWk]=p;
+    }
+    LS.set('plan_'+sys,all);FB.set(sys+'/plan/'+useWk,p);
+  },
   getSign(k){return LS.get('sg_'+k,null);},
   saveSign(k,v){LS.set('sg_'+k,v);FB.set('signs/'+k,v);},
   getLeave(){
@@ -1187,9 +1222,16 @@ const D={
 
 function updEmpCnt(){
   const p=D.getEmps('proc').length,f=D.getEmps('fill').length;
+  // Line Service — ดึงจาก lsvc_data สัปดาห์ปัจจุบัน
+  const lsvcData=LS.get('lsvc_data',{});
+  const wkNow=wKey(S.wkStart);
+  const lsvcTotal=lsvcData[wkNow]?.total||0;
   document.getElementById('pc').textContent=p+' คน';
   document.getElementById('fc').textContent=f+' คน';
-  document.getElementById('tc').textContent='รวม '+(p+f)+' คน';
+  document.getElementById('tc').textContent='รวม '+(p+f+lsvcTotal)+' คน';
+  // อัปเดต lsc ด้วย
+  const lscEl=document.getElementById('lsc');
+  if(lscEl)lscEl.textContent=lsvcTotal>0?lsvcTotal+' คน':'—';
 }
 
 const AUTH={
@@ -1731,16 +1773,16 @@ const DASH={
       const hpx=v==null?2:Math.max(Math.round(v/mx*BAR_H),4);
       const label=labels[mi]||MONTHS[mi]||mi;
       return`<div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:0;position:relative;min-width:0;height:${BAR_H}px">
-        ${v!=null?`<div style="font-size:7px;font-weight:800;color:${col};margin-bottom:1px;white-space:nowrap;line-height:1">${v}%</div>`:'<div style="font-size:7px;color:transparent;line-height:1">0</div>'}
+        ${v!=null?`<div style="font-size:9px;font-weight:900;color:${col};margin-bottom:1px;white-space:nowrap;line-height:1">${v}%</div>`:'<div style="font-size:9px;color:transparent;line-height:1">0</div>'}
         <div style="width:100%;height:${hpx}px;background:${col};border-radius:2px 2px 0 0;min-height:2px;${isCur?'box-shadow:0 0 4px '+col:''};transition:height .3s"></div>
-        <div style="position:absolute;bottom:-16px;font-size:6.5px;color:${isCur?'var(--blue2)':'var(--text3)'};font-weight:${isCur?'900':'600'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
+        <div style="position:absolute;bottom:-16px;font-size:8px;color:${isCur?'var(--blue2)':'var(--text3)'};font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
       </div>`;
     }).join('');
     // target line — คำนวณจาก px
     const tl=document.createElement('div');
     const tgtPx=Math.min(Math.round(tgt/mx*BAR_H),BAR_H);
     tl.style.cssText=`position:absolute;left:0;right:0;bottom:${tgtPx}px;border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
-    tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:7px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 3px;border-radius:3px">Target ${tgt}%</span>`;
+    tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:9px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 4px;border-radius:3px">Target ${tgt}%</span>`;
     ce.appendChild(tl);
     }catch(e){console.log('renderChart error',e.message);}
   },
@@ -1968,7 +2010,7 @@ const PLAN={
         const safePN=prodName.replace(/'/g,"\\'").replace(/"/g,'&quot;');
         const literId='lbl_'+dept.replace(/[^a-z0-9]/gi,'_')+'_'+di+'_'+ii;
         const boxInput=isFill?`<div class="pp-count" style="margin-top:3px"><input type="number" min="0" value="${boxes}" placeholder="กล่อง"
-          oninput="document.getElementById('${literId}').textContent=this.value>0&&${ml}>0?'= '+Math.round(this.value*${ml}/1000).toLocaleString()+' ล.':'กล่อง'"
+          oninput="(function(el){document.getElementById('${literId}').textContent=el.value>0&&${ml}>0?'= '+Math.round(el.value*${ml}/1000).toLocaleString()+' ล.':'กล่อง';clearTimeout(el._t);el._t=setTimeout(()=>PLAN.setVolProd('${dept}',${di},'${safePN}',el.value),400);})(this)"
           onchange="PLAN.setVolProd('${dept}',${di},'${safePN}',this.value)"
           style="width:62px;padding:2px 4px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--amber);font-size:10px;font-weight:700;text-align:center;font-family:'Sarabun',sans-serif"><label id="${literId}" style="font-size:9px;color:var(--text3)">กล่อง${ml>0&&boxes>0?' = '+liters.toLocaleString()+' ล.':''}</label></div>`:'';
         return`<div class="pp"><div class="pp-name">${getProdLabel(prodName)}</div>${boxInput}<button class="pp-del" onclick="PLAN.delProd('${dept}',${di},${ii})">✕</button></div>`;
@@ -2059,7 +2101,7 @@ const PLAN={
 
   loadFromFilling(){
     try{
-      const fillPlan=D.getPlan('fill');
+      const fillPlan=D.getPlan('fill',wKey(S.wkStart));
       const fillVol=D.getVolume();
       const depts=D.getDepts('fill').filter(d=>d!=='AL');
       const cfg=D.getMixingCfg();
@@ -2077,10 +2119,18 @@ const PLAN={
           const items=(fillPlan[dept]||{})[di]||(fillPlan[dept]||{})[String(di)]||[];
           items.forEach(item=>{
             const name=typeof item==='object'?item.product:item;
-            const boxes=typeof volDay==='object'&&volDay!==null?(volDay[name]||0):(typeof volDay==='number'?volDay:0);
+            // รองรับ format ใหม่ (object per product) และ legacy (number รวม ÷ จำนวน product)
+            let boxes=0;
+            if(typeof volDay==='object'&&volDay!==null&&!Array.isArray(volDay)){
+              boxes=volDay[name]||0; // format ใหม่: แยกต่อ product
+            } else if(typeof volDay==='number'){
+              // legacy: แบ่งเท่ากันทุก product ในวันนั้น
+              const itemCount=items.length||1;
+              boxes=Math.round(volDay/itemCount);
+            }
             const pm=master.find(m=>m.name===name&&(m.line===dept||m.line?.trim().toLowerCase()===dept.trim().toLowerCase()))||master.find(m=>m.name===name);
             const ml=parseFloat(pm?.ml)||0;
-            totalLiter+=Math.round(boxes*ml/1000);
+            if(boxes>0&&ml>0)totalLiter+=Math.round(boxes*ml/1000);
           });
           if(dept===cfg.oreoLine||(fillPlan[dept]||{})[di]?.some(x=>(typeof x==='object'?x.product:x).toLowerCase().includes('oreo')))
             hasOreo=true;
@@ -2162,7 +2212,8 @@ const PLAN={
         stock=Math.max(0,stock+produced-todayDemand);
 
         const oreoP=d.hasOreo&&units>0?1:0;
-        return{...d,targetKg,units,hoursNeeded,extraShifts,shiftExtra,totalP:pplMain,oreoP,
+        const needed=Math.round(targetKg); // ลิตรที่ต้องผลิตวันนี้
+        return{...d,targetKg,needed,units,hoursNeeded,extraShifts,shiftExtra,totalP:pplMain,oreoP,
           shiftPeople};
       });
       toast('✅ โหลดแผน Filling แล้ว');
@@ -2264,26 +2315,28 @@ const PLAN={
     this.loadFromFilling(); // recalculate
   },
   updateMixingSummary(){if(S.sys==='proc'&&this._dayData)this.renderMixSummary();},
-  save(){D.savePlan(this.plan);FB.set(S.sys+'/plan',this.plan);markSaved();toast('✅ บันทึกแผนการผลิต');},
+  save(){D.savePlan(this.plan);markSaved();toast('✅ บันทึกแผนการผลิต W'+wNum(S.wkStart));},
   clearPlan(){
-    confirm2('ล้างแผนการผลิต?\n(ล้าง Product, Volume ทุก Line\nตารางกะไม่ถูกแตะ)',()=>{
-      this.plan={};
-      LS.set('plan_'+S.sys,{});FB.set(S.sys+'/plan',{});
-      LS.set('fill_volume',{});FB.set('fill/volume',{});
+    const wkNow=wKey(S.wkStart);
+    confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+'\nประวัติสัปดาห์อื่นยังคงอยู่)',()=>{
+      // ล้างเฉพาะสัปดาห์นี้ ไม่ลบ history
+      const allPlan=LS.get('plan_'+S.sys,{});
+      delete allPlan[wkNow];
+      this.plan=allPlan;
+      LS.set('plan_'+S.sys,allPlan);FB.set(S.sys+'/plan/'+wkNow,null);
+      // ล้าง volume เฉพาะสัปดาห์นี้
+      const allVol=LS.get('fill_volume',{});
+      // fill_volume ไม่ได้แยก wk แต่แยก dept/di — ล้างแค่ di 0-5 ของ Line ทุก Line
+      D.getDepts('fill').forEach(dept=>{
+        if(allVol[dept]){for(let di=0;di<6;di++){delete allVol[dept][di];delete allVol[dept][String(di)];}}
+      });
+      LS.set('fill_volume',allVol);FB.set('fill/volume',allVol);
       LS.set('mix_stock',0);FB.set('config/mix_stock',0);
-      // ล้างชื่อผลิตภัณฑ์ทุก LINE ด้วย
-      LS.set('prods_'+S.sys,{});FB.set(S.sys+'/products',{});
       const ms=document.getElementById('mixing-summary');
       if(ms)ms.style.display='none';
       this._dayData=null;
-      // re-read plan จาก LS ใหม่
-      this.plan={};
-      // render ทุกส่วนทันที
-      this.render();
-      // รีเซ็ต table cells ทั้งหมด
-      document.querySelectorAll('.plan-cell,.vol-cell,.prod-cell').forEach(el=>{if(el.tagName==='INPUT')el.value='';else el.textContent='';});
-      SCHED.render();DASH.render();
-      toast('✅ ล้างแผนแล้ว พร้อมรับข้อมูลสัปดาห์ใหม่');
+      this.render();SCHED.render();DASH.render();
+      toast('✅ ล้างแผนสัปดาห์นี้แล้ว (W'+wNum(S.wkStart)+')');
     });
   },
   autoLoad(){
@@ -2357,22 +2410,40 @@ const PLAN={
         // pool คนที่ไม่ลา
         const avail=procEmps.filter(e=>!(leaveData2[e.name]||[]).includes(dk));
 
-        // เช็คว่าวันนี้มีแผนผลิต Oreo ใน Laser หรือ Extru 3 ไหม
+        // เช็คว่าวันนี้มีแผนผลิต Oreo จริงๆ ใน Glacé หรือ Extrud 3
+        // เช็คจากชื่อ product ที่มี keyword "oreo" (case-insensitive)
         const fillPlan2=D.getPlan?D.getPlan('fill'):{};
-        const oreoLines=['Glacé','Glace','Extrud 3','Extru 3'];
+        const oreoLines=['Glacé','Glace','Extrud 3','Extru 3','Glacier','Extrude3','Extrude 3'];
         const hasOreoToday=oreoLines.some(line=>{
           const items=(fillPlan2[line]||{})[di]||(fillPlan2[line]||{})[String(di)]||[];
-          return items.length>0;
+          // ต้องมี product ที่ชื่อมี keyword "oreo" จริงๆ ไม่ใช่แค่มีแผนผลิต
+          return items.some(item=>{
+            const name=typeof item==='object'?item.product:item;
+            return name&&name.toLowerCase().includes('oreo');
+          });
         });
-        // ถ้าไม่มี Oreo วันนี้ → คน Oreo Coating ให้ใช้ sub1 เป็น mainDept แทน
+        // effectiveDept: ถ้าไม่มี Oreo → Oreo Coating ใช้ sub1 แทน
+        // ใช้ primary mainDept (ลำดับ 1) เป็น base
         const effectiveDept=e=>{
-          const dept=e.mainDept||e.dept;
-          if(!hasOreoToday&&dept==='Oreo Coating'&&e.sub1&&procDepts.includes(e.sub1))return e.sub1;
-          return dept;
+          const primaryDept=D.getEmpPrimaryDept(e);
+          if(!hasOreoToday&&primaryDept==='Oreo Coating'){
+            const allSubs=[...(e.subs||[])];
+            if(e.sub1&&!allSubs.includes(e.sub1))allSubs.push(e.sub1);
+            if(e.sub2&&!allSubs.includes(e.sub2))allSubs.push(e.sub2);
+            const fallback=allSubs.find(s=>procDepts.includes(s));
+            if(fallback)return fallback;
+          }
+          return primaryDept;
+        };
+        // assign ตาม mainDepts ทุกแผนก (ลำดับ 1 → 2 → 3...)
+        const getEmpDepts=e=>{
+          const mains=D.getEmpMainDepts(e);
+          return mains.length?mains:[e.mainDept||e.dept];
         };
 
-        // จำนวนคนที่ต้องการ (ไม่นับ Oreo Coating ซึ่งมีคนประจำ)
+        // แผนกที่ไม่ใช่ Oreo
         const nonOreoDepts=procDepts.filter(d=>d!=='Oreo Coating');
+        // getEmpDepts ถูก define ข้างบนแล้ว
         const cfg2=D.getMixingCfg?D.getMixingCfg():{};
         const pplPerShift=units>=2?(cfg2.mix2people||9):(cfg2.mix1people||6);
         const needPpl=pplPerShift; // กะละ pplPerShift คน ทุกกะ
@@ -2384,6 +2455,8 @@ const PLAN={
           const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null)||'morning';
           if(byShift[sh])byShift[sh].push(e);
         });
+        // getEmpDepts: ดึงทุก mainDept ตามลำดับ สำหรับ multi-dept assign
+        // ใช้ getEmpDepts(e) ที่ define ไว้ข้างบน
 
         // usedEmps: ป้องกัน 1 คน เข้าหลายกะ
         const usedEmps=new Set();
@@ -2392,10 +2465,10 @@ const PLAN={
         const nightPool=[...byShift.night];
         const nightAssigned=[];
         nonOreoDepts.forEach(dept=>{
-          const deptNight=nightPool.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          const deptNight=nightPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
           deptNight.forEach(e=>{
             if(nightAssigned.length<nightPpl){
-              sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
+              sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
               nightAssigned.push(e);usedEmps.add(e.name);
             }
           });
@@ -2405,10 +2478,10 @@ const PLAN={
         const morningPool=[...byShift.morning];
         const morningAssigned=[];
         nonOreoDepts.forEach(dept=>{
-          const deptMorn=morningPool.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          const deptMorn=morningPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
           deptMorn.forEach(e=>{
             if(morningAssigned.length<needPpl&&!usedEmps.has(e.name)){
-              sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
+              sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
               morningAssigned.push(e);usedEmps.add(e.name);
             }
           });
@@ -2420,7 +2493,7 @@ const PLAN={
           const shortfall=needPpl-morningAssigned.length;
           let preOTCount=0;
           nonOreoDepts.forEach(dept=>{
-            const deptAfPre=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+            const deptAfPre=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
             deptAfPre.forEach(e=>{
               if(preOTCount>=shortfall)return;
               sched2[dept][di].morning.push({name:e.name,ot:true,otHrs:4,otBefore:true,av:e.av||0});
@@ -2433,7 +2506,7 @@ const PLAN={
         // 3. กะบ่าย → ที่เหลือ (non-Oreo)
         const afternoonAssigned=[];
         nonOreoDepts.forEach(dept=>{
-          const deptAfter=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedEmps.has(e.name));
+          const deptAfter=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedEmps.has(e.name));
           deptAfter.forEach(e=>{
             sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0});
             afternoonAssigned.push(e);usedEmps.add(e.name);
@@ -2629,16 +2702,20 @@ const PLAN={
           }
           if(need<=0)return;
 
-          // 1. หาคนหลัก (mainDept === dept)
+          // 1. หาคนหลัก — รองรับ mainDepts array (หลายแผนก)
           const mainPool=byShift[sh].filter(e=>
-            (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
+            D.getEmpMainDepts(e).includes(dept)&&!usedEmps.has(e.name)
           );
 
-          // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
-          const subPool=byShift[sh].filter(e=>
-            (e.sub1===dept||e.sub2===dept)&&!usedEmps.has(e.name)&&
-            !(e.mainDept===dept||e.dept===dept)
-          );
+          // 2. หามือสำรอง — รองรับ subs array (หลายแผนก)
+          const subPool=byShift[sh].filter(e=>{
+            if(usedEmps.has(e.name))return false;
+            if(D.getEmpMainDepts(e).includes(dept))return false; // เป็นมือหลักอยู่แล้ว
+            const allEmpSubs=[...(e.subs||[])];
+            if(e.sub1&&!allEmpSubs.includes(e.sub1))allEmpSubs.push(e.sub1);
+            if(e.sub2&&!allEmpSubs.includes(e.sub2))allEmpSubs.push(e.sub2);
+            return allEmpSubs.includes(dept);
+          });
 
           // รวม pool: คนหลักก่อน มือสำรองตาม
           const pool=[...mainPool,...subPool];
@@ -3054,22 +3131,27 @@ const PRINT={
     const isFill=sys==='fill';
 
     const buildTable=(depts2,sched2,di,showHeader=true)=>{
-      // หัวตารางแสดงเสมอ ติดกับวันนั้น
+      // 7 cols: แผนก | เช้า | ลายเซ็น | บ่าย | ลายเซ็น | ดึก | ลายเซ็น
+      const cols='<colgroup><col style="width:18%"><col style="width:18%"><col style="width:10%"><col style="width:18%"><col style="width:10%"><col style="width:18%"><col style="width:8%"></colgroup>';
+      const sigTh=(color)=>`<th style="border:${bd};padding:2px 3px;background:${color};color:#555;font-weight:700;text-align:center;font-size:5.5pt">ลายเซ็น</th>`;
       const head=`<thead><tr>
-        <th style="border:${bd};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
-        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        <th style="border:${bd};padding:2px 4px;background:#e8eeff;color:#000;font-weight:700;text-align:left">แผนก</th>
+        <th style="border:${bd};padding:2px 4px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+        ${sigTh('#eef4ff')}
+        <th style="border:${bd};padding:2px 4px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+        ${sigTh('#fffbeb')}
+        <th style="border:${bd};padding:2px 4px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        ${sigTh('#f5f7fa')}
       </tr></thead>`;
+      const sigTd=`<td style="border:${bd};padding:2px 3px;vertical-align:bottom;min-height:28pt;height:28pt"></td>`;
       let rows='<tbody>';
       depts2.forEach((dept,ri)=>{
-        const bg=ri%2===0?'#fff':'#f8faff';
-        rows+=`<tr style="background:${bg}">`;
-        rows+=`<td style="border:${bd};padding:1px 3px;font-weight:700">${dept}</td>`;
+        rows+=`<tr><td style="border:${bd};padding:2px 4px;font-weight:700;background:#f0f4ff">${dept}</td>`;
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
           const names=ws2.map(w=>{
-            if(!w.ot)return`<div style="white-space:nowrap">${w.name}</div>`;
+            const subBadge=w.isSub?'<span style="font-size:5.5pt;color:#ea580c;font-weight:900"> ⚠️มือรอง</span>':'';
+            if(!w.ot)return`<div>${w.name}${subBadge}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
@@ -3077,14 +3159,15 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
+            return`<div><b>${w.name}</b>${subBadge} <span style="color:#b45309;font-size:6.5pt">OT ${tS}–${tE}</span></div>`;
           }).join('');
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+          rows+=`<td style="border:${bd};padding:2px 4px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+          rows+=sigTd; // ช่องลายเซ็น
         });
         rows+='</tr>';
       });
       rows+='</tbody>';
-      return`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:auto">${head}${rows}</table>`;
+      return`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:fixed">${cols}${head}${rows}</table>`;
     };
 
     const procSched=D.getSched('proc')[wk]||{};
@@ -3099,14 +3182,20 @@ const PRINT={
 
       if(isFill){
         const bd2='1px solid #8090b0';
+        const cols2='<colgroup><col style="width:18%"><col style="width:18%"><col style="width:10%"><col style="width:18%"><col style="width:10%"><col style="width:18%"><col style="width:8%"></colgroup>';
+        const sigTh2=(color)=>`<th style="border:${bd2};padding:2px 3px;background:${color};color:#555;font-weight:700;text-align:center;font-size:5.5pt">ลายเซ็น</th>`;
+        const sigTd2=`<td style="border:${bd2};padding:2px 3px;vertical-align:bottom;min-height:28pt;height:28pt"></td>`;
         const head2=`<thead><tr>
-          <th style="border:${bd2};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
-          <th style="border:${bd2};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
-          <th style="border:${bd2};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
-          <th style="border:${bd2};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+          <th style="border:${bd2};padding:2px 4px;background:#e8eeff;color:#000;font-weight:700;text-align:left">แผนก</th>
+          <th style="border:${bd2};padding:2px 4px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+          ${sigTh2('#eef4ff')}
+          <th style="border:${bd2};padding:2px 4px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+          ${sigTh2('#fffbeb')}
+          <th style="border:${bd2};padding:2px 4px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+          ${sigTh2('#f5f7fa')}
         </tr></thead>`;
         const buildRows2=(depts2,sched2,label,lbg,lcolor)=>{
-          let rows=`<tr><td colspan="4" style="border:${bd2};padding:1px 4px;font-size:6pt;font-weight:900;color:${lcolor};background:${lbg}">${label}</td></tr>`;
+          let rows=`<tr><td colspan="7" style="border:${bd2};padding:1px 4px;font-size:6pt;font-weight:900;color:${lcolor};background:${lbg}">${label}</td></tr>`;
           depts2.forEach((dept,ri)=>{
             const bg=ri%2===0?'#fff':'#f8faff';
             rows+=`<tr style="background:${bg}"><td style="border:${bd2};padding:1px 3px;font-weight:700">${dept}</td>`;
@@ -3125,12 +3214,13 @@ const PRINT={
                 return`<div style="white-space:nowrap"><b>${w.name}</b>${subBadge} <span style="color:#b45309">OT ${tS}-${tE}</span></div>`;
               }).join('');
               rows+=`<td style="border:${bd2};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+              rows+=sigTd2; // ช่องลายเซ็น
             });
             rows+='</tr>';
           });
           return rows;
         };
-        const combinedTbl=`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:auto">${head2}<tbody>`
+        const combinedTbl=`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:fixed">${cols2}${head2}<tbody>`
           +buildRows2(procDepts,procSched,'🔧 Process','#dbeafe','#1e40af')
           +buildRows2(fillDepts,fillSched,'🏭 Filling','#fef3c7','#92400e')
           +'</tbody></table>';
@@ -3176,19 +3266,23 @@ const PRINT={
     doc.write('<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap" rel="stylesheet">');
     doc.write('<style>');
     doc.write('*{margin:0;padding:0;box-sizing:border-box;}');
-    doc.write('html,body{width:289mm;font-family:Sarabun,sans-serif;font-size:6.5pt;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
-    doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
-    doc.write('.day-block{margin-bottom:3px;}');
-    doc.write('.day-page{display:block;margin-bottom:3px;page-break-before:always;break-before:always;page-break-inside:avoid;break-inside:avoid;}');
+    doc.write('html,body{width:210mm;font-family:Sarabun,sans-serif;font-size:6.5pt;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
+    doc.write('.day-header{font-size:8pt;font-weight:900;color:#1e3a5f;margin:4px 0 2px;padding:3px 8px;background:#e8eeff;border-left:4px solid #2563eb;page-break-after:avoid;break-after:avoid;}');
+    doc.write('.day-block{margin-bottom:4px;}');
+    doc.write('.day-page{display:block;width:100%;margin-bottom:4px;page-break-before:always;break-before:always;page-break-inside:avoid;break-inside:avoid;}');
     doc.write('.day-page:first-child{page-break-before:auto;break-before:auto;}');
-    doc.write('.day-header{page-break-after:avoid;break-after:avoid;}');
-    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;}');
+    // table-layout:fixed + col width เท่ากัน ทำให้ทุกแผนก column เท่ากัน
+    doc.write('table{width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:fixed;}');
+    doc.write('col.col-dept{width:22%;}');
+    doc.write('col.col-sh{width:26%;}');
     doc.write('thead{display:table-header-group;}');
-    doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;}');
-    doc.write('td{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;color:#000;vertical-align:top;}');
+    doc.write('th{border:1px solid #8090b0;padding:2px 4px;font-size:7pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;overflow:hidden;}');
+    doc.write('td{border:1px solid #8090b0;padding:2px 4px;font-size:7pt;color:#000;vertical-align:top;overflow:hidden;word-break:break-word;}');
+    doc.write('td:first-child{font-weight:700;background:#f0f4ff;}');
     doc.write('tr:nth-child(even) td{background:#f8faff;}');
-    doc.write('@page{size:A4 landscape;margin:4mm;}');
-    doc.write('@media print{html,body{padding:0;}}');
+    doc.write('tr:nth-child(even) td:first-child{background:#e8eeff;}');
+    doc.write('@page{size:A4 portrait;margin:8mm;}');
+    doc.write('@media print{html,body{width:210mm;padding:0;}div{page-break-inside:avoid;}}');
     doc.write('</style></head><body>');
     doc.write(html);
     doc.write('</body></html>');
@@ -3305,6 +3399,87 @@ const SCHED={
     if(S.user?.isAdmin||S.user?.emp?.name===ne)this.openW(ne,dept,di,sh);
   },
   addWData(el,name,dept,di,sh){this.addW(name,dept,di,sh);},
+  // ── Drag & Drop ──
+  onDragStart(e){
+    const el=e.currentTarget;
+    const payload={name:el.dataset.ne,fromDept:el.dataset.dept,fromDi:parseInt(el.dataset.di),fromSh:el.dataset.sh,sys:el.dataset.sys||S.sys};
+    e.dataTransfer.setData('text/plain',JSON.stringify(payload));
+    e.dataTransfer.effectAllowed='move';
+    el.style.opacity='0.4';
+    setTimeout(()=>el.style.opacity='',0);
+  },
+  onDragOver(e){
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    e.currentTarget.style.background='rgba(37,99,235,.12)';
+  },
+  onDragLeave(e){
+    e.currentTarget.style.background='';
+  },
+  onDrop(e,toDept,toDi,toSh){
+    e.preventDefault();e.currentTarget.style.background='';
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    let payload;
+    try{payload=JSON.parse(e.dataTransfer.getData('text/plain'));}catch{return;}
+    const{name,fromDept,fromDi,fromSh,sys}=payload;
+    // ห้ามลากข้ามระบบ
+    if(sys!==S.sys){toast('❌ ห้ามลากข้าม Process ↔ Filling');return;}
+    // ถ้าปลายทางเหมือนต้นทาง
+    if(fromDept===toDept&&fromDi===toDi&&fromSh===toSh)return;
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    // หา worker object จากต้นทาง
+    const srcArr=sched[fromDept]?.[fromDi]?.[fromSh]||[];
+    const wIdx=srcArr.findIndex(w=>w.name===name);
+    if(wIdx<0){toast('❌ ไม่พบพนักงานในกะต้นทาง');return;}
+    const worker={...srcArr[wIdx]};
+    // ลบออกจากต้นทาง
+    srcArr.splice(wIdx,1);
+    if(!sched[fromDept])sched[fromDept]={};
+    if(!sched[fromDept][fromDi])sched[fromDept][fromDi]={morning:[],afternoon:[],night:[]};
+    sched[fromDept][fromDi][fromSh]=srcArr;
+    // เพิ่มที่ปลายทาง — ตรวจ dept เพื่อ isSub
+    const emp=D.getEmps().find(x=>x.name===name);
+    // เช็คพัก 12 ชม.
+    if(!checkRest(name,toDi,toSh,sched)){toast('😴 '+name+' พักไม่ครบ 12 ชม. ก่อนกะนี้');return;}
+    const empMain=emp?.mainDept||emp?.dept||'';
+    const allSubs=[...(emp?.subs||[])];if(emp?.sub1&&!allSubs.includes(emp.sub1))allSubs.push(emp.sub1);if(emp?.sub2&&!allSubs.includes(emp.sub2))allSubs.push(emp.sub2);
+    worker.isSub=(empMain!==toDept&&allSubs.includes(toDept));
+    if(!sched[toDept])sched[toDept]={};
+    if(!sched[toDept][toDi])sched[toDept][toDi]={morning:[],afternoon:[],night:[]};
+    if(!sched[toDept][toDi][toSh])sched[toDept][toDi][toSh]=[];
+    // ป้องกัน duplicate
+    if(!sched[toDept][toDi][toSh].find(w=>w.name===name)){
+      sched[toDept][toDi][toSh].push(worker);
+    }
+    all[wk]=sched;D.saveSched(all);markUnsaved();this.render();
+    toast('✅ ย้าย '+name+' → '+toDept+' '+SHTH[toSh]+' '+(DAYS[toDi]||''));
+  },
+  onDropCell(td,e){
+    e.preventDefault();td.style.background='';
+    const toDept=td.dataset.todept;const toDi=parseInt(td.dataset.todi);const toSh=td.dataset.tosh;
+    this.onDrop(e,toDept,toDi,toSh);
+  },
+  onDropAL(e){
+    e.preventDefault();e.currentTarget.style.background='';
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    let payload;
+    try{payload=JSON.parse(e.dataTransfer.getData('text/plain'));}catch{return;}
+    const{name,fromDept,fromDi,fromSh,sys}=payload;
+    if(sys!==S.sys){toast('❌ ห้ามลากข้าม Process ↔ Filling');return;}
+    // ลบออกจากกะ
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    const srcArr=sched[fromDept]?.[fromDi]?.[fromSh]||[];
+    const wIdx=srcArr.findIndex(w=>w.name===name);
+    if(wIdx>=0)srcArr.splice(wIdx,1);
+    all[wk]=sched;D.saveSched(all);markUnsaved();
+    // สร้าง leave request (pending) สำหรับวันนั้น
+    const ws=S.wkStart;const d2=new Date(ws);d2.setDate(ws.getDate()+fromDi);
+    const dateStr=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+    const reqs=D.getLeaveReq();
+    reqs.push({id:'lr_'+Date.now(),name,dates:[dateStr],reason:'ลากระบบ',type:'ลากิจ',status:'pending',ts:new Date().toISOString()});
+    D.saveLeaveReq(reqs);
+    this.render();LEAVE.updBadge();
+    toast('🏖️ '+name+' ย้ายไปลา '+dateStr+' (รออนุมัติ)');
+  },
   render(){
     const wk=wKey(S.wkStart);const ws=S.wkStart;
     const all=D.getSched();const sched=all[wk]||{};
@@ -3313,13 +3488,18 @@ const SCHED={
     const procDepts=isFill?D.getDepts('proc').filter(d=>d!==AL&&!LOCK_D.includes(d)):[];
     const procSched=isFill?(D.getSched('proc')[wk]||{}):null;
     const colSpan=DAYS.length*3+1;
+    // อัปเดต week label แสดงวันที่+ระบบ
+    {const wlEl=document.getElementById('swl');
+    if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+5);
+    const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    wlEl.textContent='W'+wNum(ws)+': '+ws.getDate()+' '+MN[ws.getMonth()]+' – '+we9.getDate()+' '+MN[we9.getMonth()]+' '+(ws.getFullYear()+543)+' ['+(isFill?'🏭 Filling':'⚙️ Process')+']';}}
     const tb=document.getElementById('stb');if(!tb)return;
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
         +DAYS.map((d,di)=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);return`<th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th></th>'
-        +DAYS.map(()=>SHS.map(sh=>`<th style="font-size:9px;font-weight:700;padding:4px 2px;color:${sh==='morning'?'var(--blue2)':sh==='afternoon'?'var(--amber)':'var(--text3)'}">${SHTH[sh]}</th>`).join('')).join('')
+        +DAYS.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
     }
     const makeRow=(dept,sc,readOnly)=>{
@@ -3344,14 +3524,18 @@ const SCHED={
             const isSub=!!w.isSub;
             const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
             const subBadge=isSub?'<span style="display:block;font-size:8px;color:#ea580c;font-weight:900">⚠️ มือรอง</span>':'';
-            return'<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+'" onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" style="'+subStyle+'">'
+            const draggable=(!readOnly&&S.user?.isAdmin)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
+            const chip='<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+(isSub?' sub':'')+'" '
+              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab">'
               +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
               +subBadge
               +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
               +(sg?'✅':(w.ot?'✍️':''))+'</span>';
+            return chip;
           }).join('');
           const addBtn=(S.user?.isAdmin&&!readOnly)?('<button class="aw-btn" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" onclick="SCHED.openAdd(this.dataset.dept,parseInt(this.dataset.di),this.dataset.sh)">+</button>'):'';
-          row+='<td style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
+          const tdDrop=(!readOnly&&S.user?.isAdmin)?(' ondragover="SCHED.onDragOver(event)" ondragleave="SCHED.onDragLeave(event)" ondrop="SCHED.onDropCell(this,event)" data-todept="'+dept+'" data-todi="'+di+'" data-tosh="'+sh+'"'):'';
+          row+='<td'+tdDrop+' class="sh-'+sh+'" style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
         });
       });
       row+='</tr>';
@@ -3443,7 +3627,8 @@ const SCHED={
     let html=`<div class="md"><div class="md-handle"></div><div class="md-hdr"><div class="md-title">${name}</div><button class="md-close" onclick="closeMo('mo-w')">\u2715</button></div><div class="md-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${dept} \u2014 ${SHTH[sh]} \u2014 ${DAYS[di]}</div>`;
     if(isAdmin){
-      html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'\ud83d\udfe1 \u0e1b\u0e34\u0e14 OT':'\u26a1 \u0e40\u0e1b\u0e34\u0e14 OT'}</button>`;
+      html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'🟡 ปิด OT':'⚡ เปิด OT'}</button>`;
+      if(!isMe&&w.ot&&!sg){html+='<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.25);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;color:var(--blue2)">ℹ️ พนักงานต้อง Login แล้วกดยืนยัน OT ด้วยตัวเอง</div>';}
       if(w.ot){
         if(sh==='afternoon'){
           html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
@@ -3467,7 +3652,7 @@ const SCHED={
       }
       html+=`<button onclick="SCHED.removeW('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif">🗑️ ลบออกจากกะ</button>`;
     }
-    if((isMe||isAdmin)&&w.ot&&!sg){
+    if(isMe&&w.ot&&!sg){ // เฉพาะเจ้าของ OT เท่านั้นที่ยืนยันได้ (ไม่รวม Admin)
       const otHrs=w.otHrs||4;
       const reasons=D.getReasons()||[];
       const otLog=D.getOTLog(S.sys)||[];
@@ -3508,7 +3693,7 @@ const SCHED={
       if(!checkRest(name,di,sh,sched)){alert2('😴 พักครบ 12 ชั่วโมง!\n\n'+name+' ยังพักไม่ครบก่อนกะนี้','❌');return;}
     }
     w.ot=!w.ot;if(!w.ot)w.otHrs=4;
-    all[wk]=sched;markUnsaved();D.saveSched(all);this.render();toast(w.ot?'\u2705 \u0e40\u0e1b\u0e34\u0e14 OT':'\u2705 \u0e1b\u0e34\u0e14 OT');
+    all[wk]=sched;markUnsaved();D.saveSched(all);this.render();DASH.render();toast(w.ot?'✅ เปิด OT':'✅ ปิด OT');
   },
   setH(name,dept,di,sh,h){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
@@ -3537,7 +3722,7 @@ const SCHED={
     }
   },
   sign(name,dept,di,sh){
-    if(!S.user?.isAdmin&&S.user?.emp?.name!==name){toast('\u274c \u0e40\u0e0b\u0e47\u0e19\u0e44\u0e14\u0e49\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e15\u0e31\u0e27\u0e40\u0e2d\u0e07');return;}
+    if(S.user?.emp?.name!==name){toast('❌ ยืนยัน OT ได้เฉพาะตัวเองเท่านั้น');return;}
     const wk=wKey(S.wkStart);
     // บันทึกลายเซ็น (ใช้รูปจาก emp ถ้ามี หรือชื่อ)
     const emp=D.getEmps().find(e=>e.name===name);
@@ -3555,7 +3740,7 @@ const SCHED={
     const wkStr=wKey(S.wkStart);
     otLog.push({name,dept,di,sh,hrs:otHrs2,reason,wk:wkStr,date:new Date().toISOString()});
     D.saveOTLog(otLog,S.sys);
-    this.render();toast('\u2705 \u0e22\u0e34\u0e19\u0e22\u0e2d\u0e21 OT \u2014 '+name);
+    this.render();DASH.render();updEmpCnt();toast('✅ ยินยอม OT — '+name);
   },
   removeW(name,dept,di,sh){
     if(!S.user?.isAdmin){toast('\u274c \u0e40\u0e09\u0e1e\u0e32\u0e30 Admin');return;}
@@ -3568,13 +3753,23 @@ const SCHED={
     const emps=D.getEmps();const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     const already=new Set((sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).map(w=>w.name));
     // จัดกลุ่ม: มือหลัก, มือรอง, อยู่แล้ว/พักไม่ครบ — ซ่อนคนที่ไม่เกี่ยวกับ dept นี้เลย
+    // วันที่ของกะนี้
+    const ws17=S.wkStart;const d17=new Date(ws17);d17.setDate(ws17.getDate()+di);
+    const dateStr17=d17.getFullYear()+'-'+String(d17.getMonth()+1).padStart(2,'0')+'-'+String(d17.getDate()).padStart(2,'0');
+    const leaveReqs=D.getLeaveReq();
+    // คนที่อนุมัติลาวันนี้แล้ว
+    const approvedLeaveToday=new Set(leaveReqs.filter(r=>r.status==='approved'&&(r.dates||[r.date]||[]).includes(dateStr17)).map(r=>r.name));
     const classified=emps.map(e=>{
-      const em=e.mainDept||e.dept||'';
-      const isMain=em===dept;
-      const isSub=!isMain&&(e.sub1===dept||e.sub2===dept);
+      const em=D.getEmpPrimaryDept(e)||e.mainDept||e.dept||'';
+      const allMdepts=D.getEmpMainDepts(e);
+      const isMain=allMdepts.includes(dept)||(em===dept);
+      const empAllSubs=[...(e.subs||[])];if(e.sub1&&!empAllSubs.includes(e.sub1))empAllSubs.push(e.sub1);if(e.sub2&&!empAllSubs.includes(e.sub2))empAllSubs.push(e.sub2);const isSub=!isMain&&empAllSubs.includes(dept);
       const isIn=already.has(e.name);
       const ok=checkRest(e.name,di,sh,sched);
-      if(!isMain&&!isSub&&!isIn)return null; // ซ่อนคนที่ไม่เกี่ยว
+      // ซ่อนคนที่ไม่เกี่ยวกับแผนกนี้
+      if(!isMain&&!isSub&&!isIn)return null;
+      // ซ่อนคนที่อนุมัติลาวันนี้แล้ว (ไม่ควร assign)
+      if(approvedLeaveToday.has(e.name))return null;
       return{e,isMain,isSub,isIn,ok};
     }).filter(Boolean);
     // เรียง: มือหลัก → มือรอง → อยู่แล้ว/พักไม่ครบ
@@ -3626,8 +3821,8 @@ const SCHED={
     if(!sched[dept][di][sh])sched[dept][di][sh]=[];
     // เช็คว่าเป็นมือรองหรือไม่ — ถ้า mainDept ไม่ตรงกับ dept ที่เพิ่มเข้าไป และมี sub1/sub2 ตรง → isSub:true
     const empMain=emp.mainDept||emp.dept||'';
-    const isSub=empMain!==dept&&(emp.sub1===dept||emp.sub2===dept);
-    if(!sched[dept][di][sh].find(w=>w.name===name))sched[dept][di][sh].push({name,ot:false,otHrs:4,av:emp.av||0,isSub});
+    const allSubsW=[...(emp.subs||[])];if(emp.sub1&&!allSubsW.includes(emp.sub1))allSubsW.push(emp.sub1);if(emp.sub2&&!allSubsW.includes(emp.sub2))allSubsW.push(emp.sub2);
+    const isSub=D.getEmpMainDepts(emp).length?!D.getEmpMainDepts(emp).includes(dept):allSubsW.includes(dept);
     all[wk]=sched;markUnsaved();D.saveSched(all);closeMo('mo-w');this.render();toast('\u2705 \u0e40\u0e1e\u0e34\u0e48\u0e21 '+name);
   },
   openAL(name){
@@ -3875,9 +4070,14 @@ const EMP={
     el.innerHTML=list.map(e=>{
       const ri=emps.indexOf(e);
       const tags=[];
-      if(e.mainDept)tags.push({l:'\u0e2b\u0e25\u0e31\u0e01: '+e.mainDept,c:'main'});
-      if(e.sub1)tags.push({l:'\u0e23\u0e2d\u0e071: '+e.sub1,c:'sub'});
-      if(e.sub2)tags.push({l:'\u0e23\u0e2d\u0e072: '+e.sub2,c:'sub'});
+      const allMains=[...(e.mainDepts||[])];
+      if(!allMains.length&&(e.mainDept||e.dept))allMains.push(e.mainDept||e.dept);
+      allMains.filter(Boolean).forEach((m,mi)=>tags.push({l:(mi===0?'★':'★'+( mi+1))+' '+m,c:'main'}));
+      // แสดง subs array (รองรับทั้ง format ใหม่และ legacy sub1/sub2)
+      const allSubs=[...(e.subs||[])];
+      if(e.sub1&&!allSubs.includes(e.sub1))allSubs.push(e.sub1);
+      if(e.sub2&&!allSubs.includes(e.sub2))allSubs.push(e.sub2);
+      allSubs.filter(Boolean).forEach((s,si)=>tags.push({l:'รอง'+(si+1)+': '+s,c:'sub'}));
       if(e.lockShift)tags.push({l:'\ud83d\udd12 '+SHTH[e.lockShift],c:'lk'});
       return `<div class="emp-card">
         <div class="e-av ${AV[(e.av||0)%8]}" ${e.photo?'style="background:transparent"':''}>${e.photo?`<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:e.name.charAt(0)}</div>
@@ -3895,6 +4095,58 @@ const EMP={
   },
   search(q){this.render(q);},
   openAdd(){this.openForm(-1);},
+  addMain(){
+    const wrap=document.getElementById('ef-mains-wrap');if(!wrap)return;
+    const depts=D.getDepts();
+    const rows=wrap.querySelectorAll('.main-row');
+    const num=rows.length+1;
+    const row=document.createElement('div');
+    row.className='main-row';
+    row.style.cssText='display:flex;gap:4px;align-items:center';
+    row.innerHTML='<span style="font-size:9px;font-weight:900;color:var(--navy);width:16px;flex-shrink:0">'+num+'.</span>'
+      +'<select class="fs ef-main" style="flex:1"><option value="">-- เลือก --</option>'
+      +depts.map(d=>'<option>'+d+'</option>').join('')
+      +'</select><button type="button" onclick="EMP.removeMain(this)" style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>';
+    wrap.appendChild(row);
+    // อัปเดตเลขลำดับ
+    EMP._renumberRows('ef-mains-wrap','main-row');
+  },
+  removeMain(btn){
+    const wrap=document.getElementById('ef-mains-wrap');
+    if(wrap&&wrap.querySelectorAll('.main-row').length<=1){
+      const sel=btn.previousElementSibling;if(sel)sel.value='';return;
+    }
+    btn.closest('.main-row')?.remove();
+    EMP._renumberRows('ef-mains-wrap','main-row');
+  },
+  _renumberRows(wrapId,rowClass){
+    const wrap=document.getElementById(wrapId);if(!wrap)return;
+    wrap.querySelectorAll('.'+rowClass).forEach((row,i)=>{
+      const num=row.querySelector('span');
+      if(num)num.textContent=(i+1)+'.';
+    });
+  },
+  addSub(){
+    const wrap=document.getElementById('ef-subs-wrap');if(!wrap)return;
+    const depts=D.getDepts();
+    const row=document.createElement('div');
+    row.className='sub-row';
+    row.style.cssText='display:flex;gap:4px;align-items:center';
+    row.innerHTML='<select class="fs ef-sub" style="flex:1"><option value="">-- ไม่มี --</option>'
+      +depts.map(d=>'<option>'+d+'</option>').join('')
+      +'</select><button type="button" onclick="EMP.removeSub(this)" style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>';
+    wrap.appendChild(row);
+  },
+  removeSub(btn){
+    const wrap=document.getElementById('ef-subs-wrap');
+    if(wrap&&wrap.children.length<=1){
+      // เหลือแค่ช่องสุดท้าย — แค่ reset ไม่ลบ
+      const sel=btn.previousElementSibling;
+      if(sel)sel.value='';
+      return;
+    }
+    btn.closest('.sub-row')?.remove();
+  },
   openEdit(i){this.openForm(i);},
   openForm(idx){
     const emps=D.getEmps();const emp=idx>=0?emps[idx]:null;const depts=D.getDepts();
@@ -3902,9 +4154,38 @@ const EMP={
     mo.innerHTML=`<div class="md"><div class="md-handle"></div><div class="md-hdr"><div class="md-title">${emp?'\u0e41\u0e01\u0e49\u0e44\u0e02':'\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e1e\u0e19\u0e31\u0e01\u0e07\u0e32\u0e19'}</div><button class="md-close" onclick="closeMo('mo-e')">\u2715</button></div><div class="md-body">
       <div class="fg"><label class="fl">\u0e0a\u0e37\u0e48\u0e2d-\u0e19\u0e32\u0e21\u0e2a\u0e01\u0e38\u0e25 *</label><input type="text" class="fi" id="ef-n" value="${emp?.name||''}" placeholder="\u0e0a\u0e37\u0e48\u0e2d..."></div>
       <div class="fg"><label class="fl">PIN ${emp?'(\u0e27\u0e48\u0e32\u0e07=\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19)':'* (4 \u0e2b\u0e25\u0e31\u0e01)'}</label><input type="password" class="fi" id="ef-p" maxlength="4" inputmode="numeric" placeholder="${emp?'\u0e27\u0e48\u0e32\u0e07=\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19':'PIN 4 \u0e2b\u0e25\u0e31\u0e01'}" style="letter-spacing:4px;text-align:center"></div>
-      <div class="fg"><label class="fl">\u0e41\u0e1c\u0e19\u0e01\u0e2b\u0e25\u0e31\u0e01 *</label><select class="fs" id="ef-md"><option value="">-- \u0e40\u0e25\u0e37\u0e2d\u0e01 --</option>${depts.map(d=>`<option ${emp?.mainDept===d||emp?.dept===d?'selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="fg"><label class="fl">\u0e41\u0e1c\u0e19\u0e01\u0e2a\u0e33\u0e23\u0e2d\u0e07 1</label><select class="fs" id="ef-s1"><option value="">-- \u0e44\u0e21\u0e48\u0e21\u0e35 --</option>${depts.map(d=>`<option ${emp?.sub1===d?'selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="fg"><label class="fl">\u0e41\u0e1c\u0e19\u0e01\u0e2a\u0e33\u0e23\u0e2d\u0e07 2</label><select class="fs" id="ef-s2"><option value="">-- \u0e44\u0e21\u0e48\u0e21\u0e35 --</option>${depts.map(d=>`<option ${emp?.sub2===d?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="fg" style="grid-column:1/-1">
+        <label class="fl">แผนกหลัก * <span style="font-size:9px;color:var(--text3);font-weight:400">(ลำดับ 1 = สำคัญสุด ใช้ตอน autoLoad)</span></label>
+        <div id="ef-mains-wrap" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px">
+          ${(()=>{
+            const existMains=[...(emp?.mainDepts||[])];
+            if(!existMains.length&&(emp?.mainDept||emp?.dept))existMains.push(emp?.mainDept||emp?.dept);
+            if(!existMains.length)existMains.push('');
+            return existMains.map((mv,mi)=>`<div class="main-row" style="display:flex;gap:4px;align-items:center">`
+              +`<span style="font-size:9px;font-weight:900;color:var(--navy);width:16px;flex-shrink:0">${mi+1}.</span>`
+              +`<select class="fs ef-main" style="flex:1"><option value="">-- เลือก --</option>${depts.map(d=>`<option ${mv===d?'selected':''}>${d}</option>`).join('')}</select>`
+              +`<button type="button" onclick="EMP.removeMain(this)" style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>`
+              +`</div>`).join('');
+          })()}
+        </div>
+        <button type="button" onclick="EMP.addMain()" style="padding:5px 12px;background:rgba(30,58,95,.1);border:1px solid rgba(30,58,95,.3);border-radius:8px;color:var(--navy);font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">+ เพิ่มแผนกหลัก</button>
+      </div>
+      <div class="fg" style="grid-column:1/-1">
+        <label class="fl">แผนกสำรอง (มือรอง)</label>
+        <div id="ef-subs-wrap" style="display:flex;flex-direction:column;gap:4px;margin-bottom:4px">
+          ${(()=>{
+            const existSubs=[...(emp?.subs||[])];
+            if(emp?.sub1&&!existSubs.includes(emp.sub1))existSubs.push(emp.sub1);
+            if(emp?.sub2&&!existSubs.includes(emp.sub2))existSubs.push(emp.sub2);
+            if(!existSubs.length)existSubs.push('');
+            return existSubs.map((sv,si)=>`<div class="sub-row" style="display:flex;gap:4px;align-items:center">`
+              +`<select class="fs ef-sub" style="flex:1"><option value="">-- ไม่มี --</option>${depts.map(d=>'<option '+(sv===d?'selected':'')+'>'+d+'</option>').join('')}</select>`
+              +`<button type="button" onclick="EMP.removeSub(this)" style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">✕</button>`
+              +`</div>`).join('');
+          })()}
+        </div>
+        <button type="button" onclick="EMP.addSub()" style="padding:5px 12px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:8px;color:var(--blue2);font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">+ เพิ่มแผนก</button>
+      </div>
       <div class="fg"><label class="fl">ทีม</label><select class="fs" id="ef-tm"><option value="" ${!emp?.team?'selected':''}>-- ไม่ระบุ --</option><option value="A" ${emp?.team==='A'?'selected':''}>ทีม A (เช้า)</option><option value="B" ${emp?.team==='B'?'selected':''}>ทีม B (บ่าย)</option><option value="C" ${emp?.team==='C'?'selected':''}>ทีม C (ดึก)</option></select></div>
       <div class="fg"><label class="fl">Lock \u0e01\u0e30</label><select class="fs" id="ef-lk"><option value="">-- \u0e2b\u0e21\u0e38\u0e19\u0e1b\u0e01\u0e15\u0e34 --</option><option value="morning" ${emp?.lockShift==='morning'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e40\u0e0a\u0e49\u0e32\u0e15\u0e25\u0e2d\u0e14</option><option value="afternoon" ${emp?.lockShift==='afternoon'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e1a\u0e48\u0e32\u0e22\u0e15\u0e25\u0e2d\u0e14</option><option value="night" ${emp?.lockShift==='night'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e14\u0e36\u0e01\u0e15\u0e25\u0e2d\u0e14</option></select></div>
       <div class="fg" style="grid-column:1/-1">
@@ -3942,9 +4223,13 @@ const EMP={
   save(idx){
     const name=document.getElementById('ef-n').value.trim();
     const pin=document.getElementById('ef-p').value.trim();
-    const md=document.getElementById('ef-md').value;
-    const s1=document.getElementById('ef-s1').value;
-    const s2=document.getElementById('ef-s2').value;
+    // อ่าน mainDepts array จาก dynamic rows (เรียงตามลำดับ)
+    const mainEls=document.querySelectorAll('.ef-main');
+    const mainDeptsArr=[...mainEls].map(s=>s.value).filter(v=>v&&v!=='');
+    const md=mainDeptsArr[0]||''; // แผนกหลักลำดับ 1 ใช้เป็น primary
+    // รับ subs ทั้งหมดจาก dynamic rows
+    const subEls=document.querySelectorAll('.ef-sub');
+    const subsArr=[...subEls].map(s=>s.value).filter(v=>v&&v!=='');
     const lk=document.getElementById('ef-lk').value||undefined;
     if(!name){toast('\u274c \u0e43\u0e2a\u0e48\u0e0a\u0e37\u0e48\u0e2d');return;}if(!md){toast('\u274c \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e41\u0e1c\u0e19\u0e01\u0e2b\u0e25\u0e31\u0e01');return;}
     const emps=D.getEmps();
@@ -3952,8 +4237,12 @@ const EMP={
     const dupEmp=emps.find(e=>e.pin===pin&&(idx<0||emps.indexOf(e)!==idx));if(idx<0&&dupEmp){toast('❌ PIN นี้ถูกใช้งานแล้ว กรุณาเลือก PIN ใหม่');return;}
     const emp=idx>=0?{...emps[idx]}:{av:Math.floor(Math.random()*8)};
     emp.name=name;emp.dept=md;emp.mainDept=md;
-    if(s1)emp.sub1=s1;else delete emp.sub1;
-    if(s2)emp.sub2=s2;else delete emp.sub2;
+    emp.mainDepts=mainDeptsArr; // เก็บทั้ง array
+    // บันทึก subs array + backward compat sub1/sub2
+    emp.subs=subsArr;
+    emp.sub1=subsArr[0]||'';emp.sub2=subsArr[1]||'';
+    if(!emp.sub1)delete emp.sub1;
+    if(!emp.sub2)delete emp.sub2;
     if(lk)emp.lockShift=lk;else delete emp.lockShift;
     const tm=document.getElementById('ef-tm')?.value||'';
     if(tm)emp.team=tm;else delete emp.team;
