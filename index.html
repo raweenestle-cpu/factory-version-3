@@ -2641,11 +2641,8 @@ const PLAN={
 
       // ดึง master สำหรับ lookup count
       const fillMaster=D.getProductMaster();
-      // รองรับทั้ง format ใหม่ (wk-based) และ format เก่า (flat)
-      const fillPlanRaw=LS.get('plan_fill',{});
-      const wkKey2=wKey(S.wkStart);
-      // ถ้ามี wk key → format ใหม่, ถ้าไม่มี → format เก่า flat
-      const fillPlanNow=fillPlanRaw[wkKey2]||fillPlanRaw;
+      // อ่าน plan Filling ตรงๆ แบบ flat (ไม่แยก wk key) เหมือน version เดิม
+      const fillPlanNow=D.getPlan('fill');
 
       // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
@@ -2667,19 +2664,23 @@ const PLAN={
           // ถ้าไม่มีแผนวันนั้น → need=0 → ไม่ assign คน (คนจะไปอยู่ว่าง)
           if(need<=0)return;
 
-          // 1. หาคนหลัก — รองรับ mainDepts array (หลายแผนก)
-          const mainPool=byShift[sh].filter(e=>
-            D.getEmpMainDepts(e).includes(dept)&&!usedEmps.has(e.name)
-          );
+          // helper: เปรียบเทียบชื่อแผนก case-insensitive + trim
+          const deptMatch=(a,b)=>a&&b&&a.trim().toLowerCase()===b.trim().toLowerCase();
 
-          // 2. หามือสำรอง — รองรับ subs array (หลายแผนก)
+          // 1. หาคนหลัก
+          const mainPool=byShift[sh].filter(e=>{
+            if(usedEmps.has(e.name))return false;
+            return D.getEmpMainDepts(e).some(m=>deptMatch(m,dept));
+          });
+
+          // 2. หามือสำรอง
           const subPool=byShift[sh].filter(e=>{
             if(usedEmps.has(e.name))return false;
-            if(D.getEmpMainDepts(e).includes(dept))return false; // เป็นมือหลักอยู่แล้ว
+            if(D.getEmpMainDepts(e).some(m=>deptMatch(m,dept)))return false;
             const allEmpSubs=[...(e.subs||[])];
             if(e.sub1&&!allEmpSubs.includes(e.sub1))allEmpSubs.push(e.sub1);
             if(e.sub2&&!allEmpSubs.includes(e.sub2))allEmpSubs.push(e.sub2);
-            return allEmpSubs.includes(dept);
+            return allEmpSubs.some(s=>deptMatch(s,dept));
           });
 
           // รวม pool: คนหลักก่อน มือสำรองตาม
