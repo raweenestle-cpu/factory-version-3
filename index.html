@@ -2461,10 +2461,7 @@ const PLAN={
           }
           return primaryDept;
         };
-        const getEmpDepts=e=>{
-          const mains=D.getEmpMainDepts(e);
-          return mains.length?mains:[e.mainDept||e.dept];
-        };
+
 
         // แยกตามกะ
         const byShift={morning:[],afternoon:[],night:[]};
@@ -2495,12 +2492,12 @@ const PLAN={
         const pplPerShift=units>=2?(cfg2.mix2people||9):(cfg2.mix1people||6);
         const nonOreoDepts=procDepts.filter(d=>d!=='Oreo Coating');
 
-        // assign กะดึก
+        // assign กะดึก — exact match แบบ version เดิม
         const nightPool=[...byShift.night];
         nonOreoDepts.forEach(dept=>{
-          const pool=nightPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
           pool.slice(0,pplPerShift).forEach(e=>{
-            sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
           });
         });
@@ -2508,18 +2505,18 @@ const PLAN={
         // assign กะเช้า
         const morningPool=[...byShift.morning];
         nonOreoDepts.forEach(dept=>{
-          const pool=morningPool.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
           pool.slice(0,pplPerShift).forEach(e=>{
-            sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
           });
         });
 
         // assign กะบ่าย
         nonOreoDepts.forEach(dept=>{
-          const pool=byShift.afternoon.filter(e=>(getEmpDepts(e).includes(dept)||effectiveDept(e)===dept)&&!usedProc.has(e.name));
+          const pool=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
           pool.forEach(e=>{
-            sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:!getEmpDepts(e).includes(dept)});
+            sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
           });
         });
@@ -2602,8 +2599,7 @@ const PLAN={
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
         emps.forEach(e=>{
           if((leaveData[e.name]||[]).includes(dk))return;
-          if(!(D.getEmpMainDepts(e).includes(dept)||(e.mainDept||e.dept)===dept))return;
-          // ใช้กะของทีม — ถ้าไม่มีทีมให้ skip (ไม่ default morning)
+          if((e.mainDept||e.dept)!==dept)return; // exact match แบบ version เดิม
           if(!e.team&&!e.lockShift)return;
           const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
           if(!sh)return;
@@ -2664,24 +2660,16 @@ const PLAN={
           // ถ้าไม่มีแผนวันนั้น → need=0 → ไม่ assign คน (คนจะไปอยู่ว่าง)
           if(need<=0)return;
 
-          // helper: เปรียบเทียบชื่อแผนก case-insensitive + trim
-          const deptMatch=(a,b)=>a&&b&&a.trim().toLowerCase()===b.trim().toLowerCase();
+          // 1. หาคนหลัก — ใช้ exact match แบบ version เดิม
+          const mainPool=byShift[sh].filter(e=>
+            (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
+          );
 
-          // 1. หาคนหลัก
-          const mainPool=byShift[sh].filter(e=>{
-            if(usedEmps.has(e.name))return false;
-            return D.getEmpMainDepts(e).some(m=>deptMatch(m,dept));
-          });
-
-          // 2. หามือสำรอง
-          const subPool=byShift[sh].filter(e=>{
-            if(usedEmps.has(e.name))return false;
-            if(D.getEmpMainDepts(e).some(m=>deptMatch(m,dept)))return false;
-            const allEmpSubs=[...(e.subs||[])];
-            if(e.sub1&&!allEmpSubs.includes(e.sub1))allEmpSubs.push(e.sub1);
-            if(e.sub2&&!allEmpSubs.includes(e.sub2))allEmpSubs.push(e.sub2);
-            return allEmpSubs.some(s=>deptMatch(s,dept));
-          });
+          // 2. หามือสำรอง — ใช้ sub1/sub2 แบบ version เดิม
+          const subPool=byShift[sh].filter(e=>
+            (e.sub1===dept||e.sub2===dept)&&!usedEmps.has(e.name)&&
+            !(e.mainDept===dept||e.dept===dept)
+          );
 
           // รวม pool: คนหลักก่อน มือสำรองตาม
           const pool=[...mainPool,...subPool];
