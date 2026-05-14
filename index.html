@@ -4226,8 +4226,10 @@ const EMP={
     const el=document.getElementById('el');if(!el)return;
     if(!list.length){el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text3)">${q?'\u0e44\u0e21\u0e48\u0e1e\u0e1a':'\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1e\u0e19\u0e31\u0e01\u0e07\u0e32\u0e19 \u0e01\u0e14 + \u0e40\u0e1e\u0e34\u0e48\u0e21'}</div>`;updEmpCnt();return;}
     el.innerHTML=list.map(e=>{
-      const ri=emps.indexOf(e);
       const tags=[];
+      if(parseInt(e.priority)===1)tags.push({l:'⭐ หัวหน้าหลัก',c:'main'});
+      else if(parseInt(e.priority)===2)tags.push({l:'⭐ หัวหน้ารอง',c:'sub'});
+      const ri=emps.indexOf(e);
       const allMains=[...(e.mainDepts||[])];
       if(!allMains.length&&(e.mainDept||e.dept))allMains.push(e.mainDept||e.dept);
       allMains.filter(Boolean).forEach((m,mi)=>tags.push({l:(mi===0?'★':'★'+( mi+1))+' '+m,c:'main'}));
@@ -4236,8 +4238,6 @@ const EMP={
       if(e.sub1&&!allSubs.includes(e.sub1))allSubs.push(e.sub1);
       if(e.sub2&&!allSubs.includes(e.sub2))allSubs.push(e.sub2);
       allSubs.filter(Boolean).forEach((s,si)=>tags.push({l:'รอง'+(si+1)+': '+s,c:'sub'}));
-      if(parseInt(e.priority)===1)tags.push({l:'★ หัวหน้าหลัก',c:'main'});
-      else if(parseInt(e.priority)===2)tags.push({l:'★ หัวหน้ารอง',c:'sub'});
       if(e.lockShift)tags.push({l:'\ud83d\udd12 '+SHTH[e.lockShift],c:'lk'});
       return `<div class="emp-card">
         <div class="e-av ${AV[(e.av||0)%8]}" ${e.photo?'style="background:transparent"':''}>${e.photo?`<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:e.name.charAt(0)}</div>
