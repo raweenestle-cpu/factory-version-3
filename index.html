@@ -4352,7 +4352,6 @@ const EMP={
         <button type="button" onclick="EMP.addSub()" style="padding:5px 12px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:8px;color:var(--blue2);font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">+ เพิ่มแผนก</button>
       </div>
       <div class="fg"><label class="fl">ทีม</label><select class="fs" id="ef-tm"><option value="" ${!emp?.team?'selected':''}>-- ไม่ระบุ --</option><option value="A" ${emp?.team==='A'?'selected':''}>ทีม A (เช้า)</option><option value="B" ${emp?.team==='B'?'selected':''}>ทีม B (บ่าย)</option><option value="C" ${emp?.team==='C'?'selected':''}>ทีม C (ดึก)</option></select></div>
-      <div class="fg"><label class="fl">ลำดับความสำคัญ <span style="font-size:9px;color:var(--text3);font-weight:400">(1=หัวหน้าสูงสุด, 0=พนักงานทั่วไป)</span></label><select class="fs" id="ef-pri"><option value="0" ${(!emp?.priority||emp?.priority===0)?'selected':''}>0 — พนักงานทั่วไป</option><option value="2" ${emp?.priority===2?'selected':''}>2 — หัวหน้ากะรอง</option><option value="1" ${emp?.priority===1?'selected':''}>1 — หัวหน้ากะหลัก</option></select></div>
       <div class="fg"><label class="fl">ลำดับความสำคัญ</label><select class="fs" id="ef-pri"><option value="0" ${(!emp?.priority)?'selected':''}>0 — ทั่วไป</option><option value="1" ${emp?.priority===1?'selected':''}>1 — หัวหน้าหลัก</option><option value="2" ${emp?.priority===2?'selected':''}>2 — หัวหน้ารอง</option></select></div>
       <div class="fg"><label class="fl">Lock กะ</label><select class="fs" id="ef-lk"><option value="">-- \u0e2b\u0e21\u0e38\u0e19\u0e1b\u0e01\u0e15\u0e34 --</option><option value="morning" ${emp?.lockShift==='morning'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e40\u0e0a\u0e49\u0e32\u0e15\u0e25\u0e2d\u0e14</option><option value="afternoon" ${emp?.lockShift==='afternoon'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e1a\u0e48\u0e32\u0e22\u0e15\u0e25\u0e2d\u0e14</option><option value="night" ${emp?.lockShift==='night'?'selected':''}>\ud83d\udd12 \u0e01\u0e30\u0e14\u0e36\u0e01\u0e15\u0e25\u0e2d\u0e14</option></select></div>
       <div class="fg" style="grid-column:1/-1">
@@ -4371,7 +4370,6 @@ const EMP={
           <span style="font-size:10px;color:var(--text3)">รูปลายเซ็นสำหรับพิมพ์ใบยินยอม OT</span>
         </div>
         <button onclick="document.getElementById('ef-pi').click()" style="padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e23\u0e39\u0e1b</button>
-        <input type="file" id="ef-pi" accept="image/*" style="display:none" onchange="EMP.onPhoto(this)">
       </div></div>
     </div><div class="md-foot"><button class="btn-cancel" onclick="closeMo('mo-e')">\u0e22\u0e01\u0e40\u0e25\u0e34\u0e01</button><button class="btn-confirm" onclick="EMP.save(${idx})">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button></div></div>`;
     mo.onclick=e=>{if(e.target===mo)closeMo('mo-e');};
@@ -4388,8 +4386,8 @@ const EMP={
   },
   onPhoto(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{this._photo=e.target.result;const pv=document.getElementById('ef-pv');if(pv)pv.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;};r.readAsDataURL(f);},
   save(idx){
-    const name=document.getElementById('ef-n').value.trim();
-    const pin=document.getElementById('ef-p').value.trim();
+    const name=document.getElementById('ef-n')?.value.trim()||'';
+    const pin=document.getElementById('ef-p')?.value.trim()||'';
     // อ่าน mainDepts array จาก dynamic rows (เรียงตามลำดับ)
     // query เฉพาะใน modal mo-e ป้องกัน duplicate elements
     const _moE=document.getElementById('mo-e')||document;
@@ -4398,7 +4396,7 @@ const EMP={
     const md=mainDeptsArr[0]||''; // แผนกหลักลำดับ 1 ใช้เป็น primary
     const subEls=_moE.querySelectorAll('.ef-sub');
     const subsArr=[...subEls].map(s=>s.value).filter(v=>v&&v!=='');
-    const lk=document.getElementById('ef-lk').value||undefined;
+    const lk=document.getElementById('ef-lk')?.value||undefined;
     if(!name){toast('\u274c \u0e43\u0e2a\u0e48\u0e0a\u0e37\u0e48\u0e2d');return;}if(!md){toast('\u274c \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e41\u0e1c\u0e19\u0e01\u0e2b\u0e25\u0e31\u0e01');return;}
     const emps=D.getEmps();
     if(idx<0&&(!pin||pin.length!==4)){toast('\u274c PIN \u0e15\u0e49\u0e2d\u0e07 4 \u0e2b\u0e25\u0e31\u0e01');return;}
