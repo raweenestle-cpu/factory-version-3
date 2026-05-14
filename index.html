@@ -2393,7 +2393,7 @@ const PLAN={
     if(!emps.length){doneLoad(false,'ไม่มีพนักงาน');alert2('ยังไม่มีพนักงานใน '+(S.sys==='proc'?'Process':'Filling'),'❌');return;}
     // Process — ต้องโหลดแผน Filling ก่อน
     if(S.sys==='proc'){
-      if(!this._dayData){doneLoad(false,'โหลดแผน Filling ก่อน');toast('⚠️ กรุณากดปุ่ม 📥 โหลดแผน Filling ก่อนครับ');return;}
+      // ไม่ต้องรอ _dayData — ใช้ count จาก Product Master โดยตรง
       const wk2=wKey(S.wkStart);
       const allSched2=D.getSched();
       if(!allSched2[wk2])allSched2[wk2]={};
@@ -2716,7 +2716,11 @@ const PLAN={
 
       // ดึง master สำหรับ lookup count
       const fillMaster=D.getProductMaster();
-      const fillPlanNow=D.getPlan('fill',wKey(S.wkStart));
+      // รองรับทั้ง format ใหม่ (wk-based) และ format เก่า (flat)
+      const fillPlanRaw=LS.get('plan_fill',{});
+      const wkKey2=wKey(S.wkStart);
+      // ถ้ามี wk key → format ใหม่, ถ้าไม่มี → format เก่า flat
+      const fillPlanNow=fillPlanRaw[wkKey2]||fillPlanRaw;
 
       // assign แต่ละ LINE แต่ละกะ ตาม count ใน Product Master
       SHS.forEach(sh=>{
@@ -2724,15 +2728,17 @@ const PLAN={
           // จำนวนคนที่ต้องการ = ดูจาก product ที่วางแผนไว้วันนั้นใน LINE นี้
           // ถ้ามีหลาย product ใช้ค่าสูงสุด
           const planItems=(fillPlanNow[dept]||{})[di]||(fillPlanNow[dept]||{})[String(di)]||[];
-          let need=1; // default 1 ถ้าไม่มีข้อมูล
+          // จำนวนคน = ดูจาก Product Master ของ product ที่ผลิตวันนั้น
+          let need=0;
           if(planItems.length>0){
             const counts=planItems.map(item=>{
               const pName=typeof item==='object'?item.product:item;
               const pm=fillMaster.find(m=>m.name===pName&&m.line===dept)||fillMaster.find(m=>m.name===pName);
               return parseInt(pm?.count)||1;
             });
-            need=Math.max(...counts); // ใช้ค่าสูงสุดของ product ในวันนั้น
+            need=Math.max(...counts);
           }
+          // ถ้าไม่มีแผนวันนั้น → need=0 → ไม่ assign คน (คนจะไปอยู่ว่าง)
           if(need<=0)return;
 
           // 1. หาคนหลัก — รองรับ mainDepts array (หลายแผนก)
