@@ -2503,7 +2503,7 @@ const PLAN={
         // assign กะดึก — exact match แบบ version เดิม
         const nightPool=[...byShift.night];
         nonOreoDepts.forEach(dept=>{
-          const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(b.priority||0)-(a.priority||0));
+          const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(a.priority||99)-(b.priority||99));
           pool.slice(0,pplPerShift).forEach(e=>{
             sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
@@ -2513,7 +2513,7 @@ const PLAN={
         // assign กะเช้า
         const morningPool=[...byShift.morning];
         nonOreoDepts.forEach(dept=>{
-          const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(b.priority||0)-(a.priority||0));
+          const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(a.priority||99)-(b.priority||99));
           pool.slice(0,pplPerShift).forEach(e=>{
             sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
@@ -2666,7 +2666,7 @@ const PLAN={
           // 1. หาคนหลัก (mainDept === dept)
           const mainPool=byShift[sh].filter(e=>
             (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
-          ).sort((a,b)=>(b.priority||0)-(a.priority||0)); // priority สูงขึ้นก่อน
+          ).sort((a,b)=>(a.priority||99)-(b.priority||99)); // priority สูงขึ้นก่อน
 
           // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
           const subPool=byShift[sh].filter(e=>
@@ -4390,11 +4390,12 @@ const EMP={
     const name=document.getElementById('ef-n').value.trim();
     const pin=document.getElementById('ef-p').value.trim();
     // อ่าน mainDepts array จาก dynamic rows (เรียงตามลำดับ)
-    const mainEls=document.querySelectorAll('.ef-main');
+    // query เฉพาะใน modal mo-e ป้องกัน duplicate elements
+    const _moE=document.getElementById('mo-e')||document;
+    const mainEls=_moE.querySelectorAll('.ef-main');
     const mainDeptsArr=[...mainEls].map(s=>s.value).filter(v=>v&&v!=='');
     const md=mainDeptsArr[0]||''; // แผนกหลักลำดับ 1 ใช้เป็น primary
-    // รับ subs ทั้งหมดจาก dynamic rows
-    const subEls=document.querySelectorAll('.ef-sub');
+    const subEls=_moE.querySelectorAll('.ef-sub');
     const subsArr=[...subEls].map(s=>s.value).filter(v=>v&&v!=='');
     const lk=document.getElementById('ef-lk').value||undefined;
     if(!name){toast('\u274c \u0e43\u0e2a\u0e48\u0e0a\u0e37\u0e48\u0e2d');return;}if(!md){toast('\u274c \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e41\u0e1c\u0e19\u0e01\u0e2b\u0e25\u0e31\u0e01');return;}
