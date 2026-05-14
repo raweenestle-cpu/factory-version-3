@@ -894,6 +894,20 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     </div>
   </div>
 </div>
+<div class="mo hide" id="mo-sign" style="align-items:center;justify-content:center">
+  <div class="md" style="max-width:380px;width:95%">
+    <div class="md-handle"></div>
+    <div class="md-hdr"><div class="md-title">✍️ เซ็นลายเซ็น</div><button class="md-close" onclick="closeMo('mo-sign')">✕</button></div>
+    <div class="md-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">เซ็นด้วยนิ้วในกรอบด้านล่าง</div>
+      <canvas id="sign-canvas" width="340" height="160" style="border:2px solid var(--border);border-radius:8px;background:#fff;touch-action:none;display:block;max-width:100%"></canvas>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="EMP.clearSign()" style="flex:1;padding:9px;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:8px;color:var(--red2);font-size:12px;font-weight:700;font-family:'Sarabun',sans-serif">🗑️ ล้าง</button>
+        <button onclick="EMP.saveSign()" style="flex:2;padding:9px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;font-family:'Sarabun',sans-serif">✅ บันทึกลายเซ็น</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="mo hide" id="mo-e"></div>
 <div class="mo hide" id="mo-pr"></div>
 <div class="mo hide" id="mo-or"></div>
@@ -4365,11 +4379,14 @@ const EMP={
       <div class="fg" style="grid-column:1/-1">
         <label class="fl">ลายเซ็น (สำหรับ OT)</label>
         <div style="display:flex;align-items:center;gap:6px">
-          <div id="ef-sv" onclick="document.getElementById('ef-si').click()" style="width:140px;height:52px;border-radius:8px;overflow:hidden;background:var(--bg3);border:2px dashed var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3)">${emp?.signature?`<img src="${emp.signature}" style="width:100%;height:100%;object-fit:contain">`:'✍️ อัพโหลดลายเซ็น'}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div id="ef-sv" style="width:140px;height:52px;border-radius:8px;overflow:hidden;background:#fff;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3)">${emp?.signature?`<img src="${emp.signature}" style="width:100%;height:100%;object-fit:contain">`:'✍️ ยังไม่มีลายเซ็น'}</div>
           <input type="file" id="ef-si" accept="image/*" style="display:none" onchange="EMP.onSign(this)">
-          <span style="font-size:10px;color:var(--text3)">รูปลายเซ็นสำหรับพิมพ์ใบยินยอม OT</span>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button onclick="EMP.openSignPad()" style="padding:7px 12px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif">✍️ เซ็นด้วยนิ้ว</button>
+            <button onclick="document.getElementById('ef-si').click()" style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:10px;font-family:'Sarabun',sans-serif">📷 อัปโหลดรูป</button>
+          </div>
         </div>
-        <button onclick="document.getElementById('ef-pi').click()" style="padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e23\u0e39\u0e1b</button>
       </div></div>
     </div><div class="md-foot"><button class="btn-cancel" onclick="closeMo('mo-e')">\u0e22\u0e01\u0e40\u0e25\u0e34\u0e01</button><button class="btn-confirm" onclick="EMP.save(${idx})">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button></div></div>`;
     mo.onclick=e=>{if(e.target===mo)closeMo('mo-e');};
@@ -4383,6 +4400,56 @@ const EMP={
       if(sv){sv.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain">`;sv.dataset.sign=e.target.result;}
     };
     r.readAsDataURL(f);
+  },
+  _signCtx:null,_signDrawing:false,_signLast:{x:0,y:0},
+  openSignPad(){
+    openMo('mo-sign');
+    setTimeout(()=>{
+      const canvas=document.getElementById('sign-canvas');
+      if(!canvas)return;
+      // resize canvas to fit
+      const w=canvas.parentElement.clientWidth-20;
+      canvas.width=w>340?340:w;
+      const ctx=canvas.getContext('2d');
+      ctx.strokeStyle='#1e3a5f';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+      this._signCtx=ctx;this._signDrawing=false;
+      // clear
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // เส้นบรรทัด
+      ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(10,canvas.height-30);ctx.lineTo(canvas.width-10,canvas.height-30);ctx.stroke();
+      ctx.strokeStyle='#1e3a5f';ctx.lineWidth=2.5;
+      // events
+      const getPos=(e)=>{
+        const rect=canvas.getBoundingClientRect();
+        const touch=e.touches?e.touches[0]:e;
+        return{x:(touch.clientX-rect.left)*(canvas.width/rect.width),
+               y:(touch.clientY-rect.top)*(canvas.height/rect.height)};
+      };
+      canvas.onpointerdown=e=>{this._signDrawing=true;const p=getPos(e);this._signLast=p;ctx.beginPath();ctx.moveTo(p.x,p.y);};
+      canvas.onpointermove=e=>{if(!this._signDrawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);this._signLast=p;};
+      canvas.onpointerup=()=>{this._signDrawing=false;};
+      canvas.onpointerleave=()=>{this._signDrawing=false;};
+    },300);
+  },
+  clearSign(){
+    const canvas=document.getElementById('sign-canvas');
+    if(!canvas||!this._signCtx)return;
+    const ctx=this._signCtx;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(10,canvas.height-30);ctx.lineTo(canvas.width-10,canvas.height-30);ctx.stroke();
+    ctx.strokeStyle='#1e3a5f';ctx.lineWidth=2.5;
+  },
+  saveSign(){
+    const canvas=document.getElementById('sign-canvas');
+    if(!canvas)return;
+    const dataUrl=canvas.toDataURL('image/png');
+    // บันทึกลงใน ef-sv
+    const sv=document.getElementById('ef-sv');
+    if(sv){sv.innerHTML=`<img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain">`;sv.dataset.sign=dataUrl;}
+    closeMo('mo-sign');
+    toast('✅ บันทึกลายเซ็นแล้ว');
   },
   onPhoto(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{this._photo=e.target.result;const pv=document.getElementById('ef-pv');if(pv)pv.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;};r.readAsDataURL(f);},
   save(idx){
