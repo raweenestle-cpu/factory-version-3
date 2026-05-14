@@ -2601,7 +2601,8 @@ const PLAN={
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
         emps.forEach(e=>{
           if((leaveData[e.name]||[]).includes(dk))return;
-          if((e.mainDept||e.dept)!==dept)return;
+          const _em2=e.mainDepts&&e.mainDepts.length?e.mainDepts.includes(dept):(e.mainDept||e.dept)===dept;
+          if(!_em2)return;
           if(!e.team&&!e.lockShift)return;
           const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
           if(!sh)return;
@@ -2651,16 +2652,16 @@ const PLAN={
           }
           if(need<=0)return;
 
-          // 1. หาคนหลัก (mainDept === dept)
-          const mainPool=byShift[sh].filter(e=>
-            (e.mainDept||e.dept)===dept&&!usedEmps.has(e.name)
-          );
+          // 1. หาคนหลัก — รองรับ mainDepts array ใหม่ + mainDept/dept เดิม
+          const isMainDept=e=>
+            (e.mainDepts&&e.mainDepts.length?e.mainDepts.includes(dept):(e.mainDept||e.dept)===dept);
+          const mainPool=byShift[sh].filter(e=>isMainDept(e)&&!usedEmps.has(e.name));
 
-          // 2. หามือสำรอง (sub1 หรือ sub2 === dept) ที่ยังไม่ถูกใช้
-          const subPool=byShift[sh].filter(e=>
-            (e.sub1===dept||e.sub2===dept)&&!usedEmps.has(e.name)&&
-            !(e.mainDept===dept||e.dept===dept)
+          // 2. หามือสำรอง — รองรับ subs array ใหม่ + sub1/sub2 เดิม
+          const isSubDept=e=>!isMainDept(e)&&(
+            (e.subs&&e.subs.length)?e.subs.includes(dept):(e.sub1===dept||e.sub2===dept)
           );
+          const subPool=byShift[sh].filter(e=>isSubDept(e)&&!usedEmps.has(e.name));
 
           // รวม pool: คนหลักก่อน มือสำรองตาม
           const pool=[...mainPool,...subPool];
