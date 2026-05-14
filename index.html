@@ -2592,6 +2592,24 @@ const PLAN={
       return otDays<maxOTDays;
     };
 
+    // โหลดแผนกถาวร — Leadman, CIP Filling ทุกวัน ทุกกะตามทีม
+    ALWAYS_FILL.forEach(dept=>{
+      if(!sched[dept])return;
+      for(let di=0;di<6;di++){
+        const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
+        const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+        emps.forEach(e=>{
+          if((leaveData[e.name]||[]).includes(dk))return;
+          if((e.mainDept||e.dept)!==dept)return;
+          if(!e.team&&!e.lockShift)return;
+          const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
+          if(!sh)return;
+          if(!sched[dept][di][sh].find(w=>w.name===e.name))
+            sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+        });
+      }
+    });
+
     for(let di=0;di<6;di++){
       const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
       const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
@@ -2619,6 +2637,7 @@ const PLAN={
       // assign แต่ละ LINE แต่ละกะ ตาม shiftPeople
       SHS.forEach(sh=>{
         fillDepts.forEach(dept=>{
+          if(ALWAYS_FILL.includes(dept))return; // โหลดไปแล้ว
           // จำนวนคน = ดูจาก Product Master ของ product ที่ผลิตวันนั้น
           const _fillPlan=LS.get('plan_fill',{});
           const _wk=wKey(S.wkStart);
