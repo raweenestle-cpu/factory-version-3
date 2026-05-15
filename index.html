@@ -495,6 +495,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
   font-weight:700!important;
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="pg-login">
@@ -574,6 +575,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
       <button id="plan-load-emp-proc-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Process</button>
       <button class="btn-p btn-green" onclick="PLAN.save()">💾 บันทึก</button>
+      <button class="btn-p" style="background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:var(--green2);display:${S.sys==='fill'?'inline-flex':'none'}" onclick="document.getElementById('xl-import').click()">📊 Import Excel</button>
+      <input type="file" id="xl-import" accept=".xlsx,.xls" style="display:none" onchange="PLAN.importExcel(this)">
       <button class="btn-p" style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.4);color:var(--red2)" onclick="PLAN.clearPlan()">🗑️ ล้างแผน</button>
     </div>
     <!-- Team status -->
@@ -2360,6 +2363,100 @@ const PLAN={
     this.loadFromFilling(); // recalculate
   },
   updateMixingSummary(){if(S.sys==='proc'&&this._dayData)this.renderMixSummary();},
+  importExcel(inp){
+    const file=inp.files[0];if(!file)return;
+    inp.value='';
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const data=new Uint8Array(e.target.result);
+        const wb=XLSX.read(data,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
+
+        // หา header row — แถวที่มี "Code" และ "SKU"
+        let hdrRow=-1,codeCol=-1,skuCol=-1;
+        let atCol=-1,ayCol=-1;
+        const dayMap={}; // di: colIndex
+
+        for(let r=0;r<Math.min(30,rows.length);r++){
+          const row=rows[r];
+          const codeIdx=row.findIndex(v=>String(v).trim().toLowerCase()==='code');
+          const skuIdx=row.findIndex(v=>String(v).trim().toLowerCase()==='sku');
+          if(codeIdx>=0&&skuIdx>=0){
+            hdrRow=r;codeCol=codeIdx;skuCol=skuIdx;
+            // หา column AT-AY จาก header Mon-18, Tue-19 ฯลฯ
+            const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
+            row.forEach((v,ci)=>{
+              const s=String(v).trim().toLowerCase();
+              const m=s.match(/^(mon|tue|wed|thu|fri|sat)/);
+              if(m&&DAY_MAP[m[1]]!==undefined)dayMap[DAY_MAP[m[1]]]=ci;
+            });
+            break;
+          }
+        }
+
+        if(hdrRow<0){toast('❌ ไม่พบ column Code และ SKU');return;}
+        if(!Object.keys(dayMap).length){toast('❌ ไม่พบ column วัน (Mon-Sat)');return;}
+
+        // อ่านข้อมูล
+        const depts=D.getDepts('fill');
+        let currentLine='';
+        let imported=0;
+        const newPlan={};
+        const newVol=D.getVolume();
+
+        for(let r=hdrRow+1;r<rows.length;r++){
+          const row=rows[r];
+          const code=String(row[codeCol]||'').trim();
+          const sku=String(row[skuCol]||'').trim();
+          if(!sku)continue;
+
+          if(!code){
+            // แถว LINE — Code ว่าง
+            // หา dept ที่ตรงกับ SKU
+            const matched=depts.find(d=>d.toLowerCase()===sku.toLowerCase()||sku.toLowerCase().includes(d.toLowerCase())||d.toLowerCase().includes(sku.toLowerCase()));
+            currentLine=matched||sku;
+          } else {
+            // แถว Product
+            if(!currentLine)continue;
+            if(!newPlan[currentLine])newPlan[currentLine]={};
+            if(!newVol[currentLine])newVol[currentLine]={};
+
+            Object.entries(dayMap).forEach(([di,ci])=>{
+              const diN=parseInt(di);
+              const boxes=parseInt(row[ci])||0;
+              // เพิ่ม product ในแผน
+              if(!newPlan[currentLine][diN])newPlan[currentLine][diN]=[];
+              if(!newPlan[currentLine][diN].find(x=>(x.product||x)===sku)){
+                newPlan[currentLine][diN].push({product:sku,count:1});
+              }
+              // บันทึก volume
+              if(!newVol[currentLine][diN]||typeof newVol[currentLine][diN]!=='object')
+                newVol[currentLine][diN]={};
+              if(boxes>0)newVol[currentLine][diN][sku]=boxes;
+            });
+            imported++;
+          }
+        }
+
+        if(!imported){toast('❌ ไม่พบข้อมูลสินค้า');return;}
+
+        // merge กับแผนเดิม
+        Object.assign(this.plan,newPlan);
+        D.savePlan(this.plan);
+        LS.set('fill_volume',newVol);
+        FB.set('fill/volume',newVol);
+        this.render();
+        toast('✅ Import สำเร็จ '+imported+' รายการ');
+      }catch(err){
+        console.error('Import error:',err);
+        toast('❌ Import ผิดพลาด: '+err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  },
   save(){D.savePlan(this.plan);// sync volume ไป Firebase ตอน save
     FB.set('fill/volume',D.getVolume());markSaved();toast('✅ บันทึกแผนการผลิต W'+wNum(S.wkStart));},
   clearPlan(){
