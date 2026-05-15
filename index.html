@@ -1114,13 +1114,14 @@ function openMo(id){document.getElementById(id)?.classList.remove('hide');}
 function closeMo(id){document.getElementById(id)?.classList.add('hide');}
 
 function confirm2(msg,fn){
+  window._cf2fn=fn; // เก็บ fn ไว้ใน window scope
   const mo=document.getElementById('mo-cf');
   mo.innerHTML=`<div class="md"><div class="md-body" style="text-align:center;padding:24px">
     <div style="font-size:32px;margin-bottom:12px">⚠️</div>
     <div style="font-size:14px;font-weight:700;white-space:pre-line;margin-bottom:20px">${msg}</div>
   </div><div class="md-foot">
     <button class="btn-cancel" onclick="closeMo('mo-cf')">ยกเลิก</button>
-    <button class="btn-confirm" onclick="closeMo('mo-cf');(${fn.toString()})()">ยืนยัน</button>
+    <button class="btn-confirm" onclick="closeMo('mo-cf');window._cf2fn&&window._cf2fn()">ยืนยัน</button>
   </div></div>`;
   openMo('mo-cf');
 }
