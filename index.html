@@ -2489,6 +2489,12 @@ const PLAN={
           }
         }
 
+        // pending ที่เหลือโดยไม่มี LINE → แจ้งเตือน
+        if(pendingProds.length>0){
+          const skipped=pendingProds.map(p=>p.sku).join(', ');
+          console.warn('ไม่พบ LINE สำหรับ:', skipped);
+        }
+
         if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
         // merge กับแผนเดิม
