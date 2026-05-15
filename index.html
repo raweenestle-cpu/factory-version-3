@@ -2407,6 +2407,7 @@ const PLAN={
           });
         }
 
+        alert2('codeCol:'+codeCol+' skuCol:'+skuCol+'\ndayMap:'+JSON.stringify(dayMap)+'\nRow0types:'+rows[0].slice(0,12).map(v=>typeof v+':'+String(v).slice(0,10)).join('|'),'Debug');
         // ถ้าไม่เจอ SKU แต่เจอ Code — ลองหา column ที่ 2 (B) เป็น SKU
         if(skuCol<0&&codeCol>=0)skuCol=codeCol+1;
         if(hdrRow<0)hdrRow=0;
