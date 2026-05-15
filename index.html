@@ -2367,6 +2367,7 @@ const PLAN={
     const file=inp.files[0];if(!file)return;
     inp.value='';
     const reader=new FileReader();
+    toast('⏳ กำลัง Import...');
     reader.onload=e=>{
       try{
         const data=new Uint8Array(e.target.result);
@@ -2423,8 +2424,14 @@ const PLAN={
 
           if(!code){
             // LINE — assign pending products ให้ LINE นี้
-            const matched=depts.find(d=>d.toLowerCase()===sku.toLowerCase()||sku.toLowerCase().includes(d.toLowerCase())||d.toLowerCase().includes(sku.toLowerCase()));
-            const line=matched||sku;
+            // match ชื่อ LINE — ignore space, case, special chars
+            const _norm=s=>s.toLowerCase().replace(/[\s\-_.\/]/g,'');
+            const matched=depts.find(d=>
+              _norm(d)===_norm(sku)||
+              _norm(sku).includes(_norm(d))||
+              _norm(d).includes(_norm(sku))
+            );
+            const line=matched||sku; // ถ้าไม่ match ใช้ชื่อจาก Excel ตรงๆ
             if(!newPlan[line])newPlan[line]={};
             if(!newVol[line])newVol[line]={};
 
@@ -2453,7 +2460,7 @@ const PLAN={
           }
         }
 
-        if(!imported){toast('❌ ไม่พบข้อมูลสินค้า');return;}
+        if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
         // merge กับแผนเดิม
         Object.assign(this.plan,newPlan);
@@ -2461,7 +2468,13 @@ const PLAN={
         LS.set('fill_volume',newVol);
         FB.set('fill/volume',newVol);
         this.render();
-        toast('✅ Import สำเร็จ '+imported+' รายการ');
+
+        // แจ้งผลสรุป
+        const lines2=Object.keys(newPlan);
+        const msg='✅ Import สำเร็จ\n'
+          +'📦 '+imported+' รายการสินค้า\n'
+          +'🏭 '+lines2.length+' LINE: '+lines2.join(', ');
+        alert2(msg,'📊 Import Excel สำเร็จ');
       }catch(err){
         console.error('Import error:',err);
         toast('❌ Import ผิดพลาด: '+err.message);
