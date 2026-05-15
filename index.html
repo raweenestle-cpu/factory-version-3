@@ -2381,32 +2381,31 @@ const PLAN={
         const dayMap={};
         const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
+        // สแกน 50 แถวแรก หา Code, SKU และวัน (อาจอยู่คนละแถว)
         for(let r=0;r<Math.min(50,rows.length);r++){
           const row=rows[r];
-          // เช็คทุก cell หา Code และ SKU (case insensitive, trim)
-          let ci_code=-1,ci_sku=-1;
           row.forEach((v,ci)=>{
             const s=String(v||'').trim().toLowerCase();
-            if(s==='code'||s==='รหัส'||s==='item code'||s==='item no')ci_code=ci;
-            if(s==='sku'||s==='description'||s==='product'||s==='ชื่อ')ci_sku=ci;
-            // วัน
+            if(s==='code'||s==='รหัส'||s==='item'||s==='item code'||s==='item no')
+              {if(codeCol<0)codeCol=ci;}
+            if(s==='sku'||s==='description'||s==='product name'||s==='ชื่อ'||s==='product')
+              {if(skuCol<0){skuCol=ci;hdrRow=r;}}
+            // วัน — mon-18, tue-19 etc
             const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
-            if(m)dayMap[DAY_MAP[m[1].toLowerCase()]]=ci;
+            if(m&&DAY_MAP[m[1].toLowerCase()]!==undefined)
+              dayMap[DAY_MAP[m[1].toLowerCase()]]=ci;
           });
-          if(ci_code>=0&&ci_sku>=0){
-            hdrRow=r;codeCol=ci_code;skuCol=ci_sku;break;
-          }
-          // ถ้าเจอแค่ SKU ก็พอ
-          if(ci_sku>=0&&Object.keys(dayMap).length>=3){
-            hdrRow=r;codeCol=ci_code>=0?ci_code:0;skuCol=ci_sku;break;
-          }
         }
 
-        if(hdrRow<0||skuCol<0){
-          toast('❌ ไม่พบ column ชื่อสินค้า กรุณาตรวจสอบ header ใน Excel');return;
+        // ถ้าไม่เจอ SKU แต่เจอ Code — ลองหา column ที่ 2 (B) เป็น SKU
+        if(skuCol<0&&codeCol>=0)skuCol=codeCol+1;
+        if(hdrRow<0)hdrRow=0;
+
+        if(skuCol<0){
+          toast('❌ ไม่พบ column SKU กรุณาตรวจสอบ header ใน Excel');return;
         }
         if(!Object.keys(dayMap).length){
-          toast('❌ ไม่พบ column วัน (Mon/Tue...) กรุณาตรวจสอบ header');return;
+          toast('❌ ไม่พบ column วัน Mon/Tue... กรุณาตรวจสอบ header');return;
         }
 
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
