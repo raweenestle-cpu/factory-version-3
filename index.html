@@ -568,7 +568,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
   <div class="page" id="pg-plan">
     <div class="plan-tb" style="flex-wrap:wrap;gap:6px">
-      <h2 style="width:100%;margin-bottom:2px">📋 วางแผนการผลิต</h2>
+      <h2 style="width:100%;margin-bottom:2px">📋 วางแผนการผลิต <span id="plan-wk-label" style="font-size:13px;font-weight:400;color:var(--text2)"></span></h2>
       <!-- Filling buttons -->
       <button id="plan-load-emp-fill-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Filling</button>
       <!-- Process buttons -->
@@ -2020,6 +2020,7 @@ const PLAN={
       if(tc)tc.textContent='ทีม C: '+(shifts.C||'-');
     }catch(e){console.log('team shifts error',e);}
     const isFill=S.sys==='fill';
+    const _pwl=document.getElementById('plan-wk-label');if(_pwl)_pwl.textContent='— W'+wNum(S.wkStart)+': '+S.wkStart.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
     const th=document.getElementById('pth');
     if(th)th.innerHTML=`<tr><th class="dc">แผนก / Line</th>${DAYS.map((d,di)=>`<th>${d}${isFill?`<br><span style="font-size:9px;font-weight:400;color:var(--amber)">Volume</span>`:''}  </th>`).join('')}</tr>`;
     const tbEl=document.getElementById('ptb');if(!tbEl){console.log('ptb not found');return;}
@@ -2479,11 +2480,15 @@ const PLAN={
   clearPlan(){
     const wkNow=wKey(S.wkStart);
     confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+'\nประวัติสัปดาห์อื่นยังคงอยู่)',()=>{
-      // ล้างเฉพาะสัปดาห์นี้ ไม่ลบ history
+      // ล้างทั้ง wk-based และ flat format
       const allPlan=LS.get('plan_'+S.sys,{});
-      delete allPlan[wkNow];
-      this.plan=allPlan;
-      LS.set('plan_'+S.sys,allPlan);FB.set(S.sys+'/plan/'+wkNow,null);
+      delete allPlan[wkNow]; // wk-based
+      // flat format — ล้าง dept keys ด้วย
+      D.getDepts(S.sys).forEach(dept=>{delete allPlan[dept];});
+      this.plan={};
+      LS.set('plan_'+S.sys,allPlan);
+      FB.set(S.sys+'/plan/'+wkNow,null);
+      FB.set(S.sys+'/plan',allPlan);
       // ล้าง volume เฉพาะสัปดาห์นี้
       const allVol=LS.get('fill_volume',{});
       // fill_volume ไม่ได้แยก wk แต่แยก dept/di — ล้างแค่ di 0-5 ของ Line ทุก Line
