@@ -2374,8 +2374,9 @@ const PLAN={
         const wb=XLSX.read(data,{type:'array',cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
         // อ่าน 2 ชุด: formatted string สำหรับ header, raw number สำหรับข้อมูล
+        // ใช้ raw:false เพื่อให้ได้ค่า formula result ด้วย
         const rowsFmt=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+        const rows=rowsFmt; // ใช้ formatted เพื่อให้ได้ค่า formula
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
@@ -2408,8 +2409,9 @@ const PLAN={
           if(lineMatch||!code){
             // LINE — assign pending products ให้ LINE นี้
             const line=lineMatch||sku;
-            if(!newPlan[line])newPlan[line]={};
-            if(!newVol[line])newVol[line]={};
+            // overwrite — ล้างยอดเก่าของ LINE นี้ก่อน
+            newPlan[line]={};
+            newVol[line]={};
 
             pendingProds.forEach(p=>{
               Object.entries(dayMap).forEach(([di,ci])=>{
@@ -2444,11 +2446,19 @@ const PLAN={
 
         if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
-        // merge กับแผนเดิม
-        Object.assign(this.plan,newPlan);
-        D.savePlan(this.plan);
-        LS.set('fill_volume',newVol);
-        FB.set('fill/volume',newVol);
+        // save แบบ wk-based เพื่อให้ clearPlan ทำงานได้
+        const _wkKey=wKey(S.wkStart);
+        const _allPlan=LS.get('plan_fill',{});
+        if(!_allPlan[_wkKey])_allPlan[_wkKey]={};
+        Object.assign(_allPlan[_wkKey],newPlan);
+        this.plan=_allPlan[_wkKey];
+        LS.set('plan_fill',_allPlan);
+        FB.set('fill/plan/'+_wkKey,newPlan);
+        // save volume
+        const _curVol=LS.get('fill_volume',{});
+        Object.assign(_curVol,newVol);
+        LS.set('fill_volume',_curVol);
+        FB.set('fill/volume',_curVol);
         this.render();
 
         // แจ้งผลสรุป
