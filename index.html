@@ -2399,7 +2399,7 @@ const PLAN={
         // แปลง column letter → index จริง (ไม่ขึ้นกับ hidden cols)
         function _colIdx(l){let n=0;for(let i=0;i<l.length;i++)n=n*26+l.toUpperCase().charCodeAt(i)-64;return n-1;}
         // อ่านค่าจาก cell address โดยตรงผ่าน ws object
-        function _cell(r,col){const addr=XLSX.utils.encode_cell({r,c:_colIdx(col)});return ws[addr]?ws[addr].v:'';}
+        function _cell(r,col){const c2=_colIdx(col);let cn='';let cc=c2+1;while(cc>0){cn=String.fromCharCode(65+(cc-1)%26)+cn;cc=Math.floor((cc-1)/26);}const addr=cn+(r+1);return ws[addr]?ws[addr].v:ws[addr.toLowerCase()]?ws[addr.toLowerCase()].v:'';}        
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
