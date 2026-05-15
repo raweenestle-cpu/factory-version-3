@@ -2502,28 +2502,22 @@ const PLAN={
   },
   clearPlan(){
     const wkNow=wKey(S.wkStart);
-    confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+'\nประวัติสัปดาห์อื่นยังคงอยู่)',()=>{
-      // ล้างทั้ง wk-based และ flat format
+    confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+')',()=>{
       const allPlan=LS.get('plan_'+S.sys,{});
-      delete allPlan[wkNow]; // wk-based
-      // flat format — ล้าง dept keys ด้วย
+      delete allPlan[wkNow];
       D.getDepts(S.sys).forEach(dept=>{delete allPlan[dept];});
-      this.plan={};
+      PLAN.plan={};
       LS.set('plan_'+S.sys,allPlan);
       FB.set(S.sys+'/plan/'+wkNow,null);
       FB.set(S.sys+'/plan',allPlan);
-      // ล้าง volume เฉพาะสัปดาห์นี้
       const allVol=LS.get('fill_volume',{});
-      // fill_volume ไม่ได้แยก wk แต่แยก dept/di — ล้างแค่ di 0-5 ของ Line ทุก Line
       D.getDepts('fill').forEach(dept=>{
         if(allVol[dept]){for(let di=0;di<6;di++){delete allVol[dept][di];delete allVol[dept][String(di)];}}
       });
       LS.set('fill_volume',allVol);FB.set('fill/volume',allVol);
       LS.set('mix_stock',0);FB.set('config/mix_stock',0);
-      const ms=document.getElementById('mixing-summary');
-      if(ms)ms.style.display='none';
-      this._dayData=null;
-      this.render();SCHED.render();DASH.render();
+      PLAN._dayData=null;
+      PLAN.render();SCHED.render();DASH.render();
       toast('✅ ล้างแผนสัปดาห์นี้แล้ว (W'+wNum(S.wkStart)+')');
     });
   },
