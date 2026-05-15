@@ -2391,41 +2391,15 @@ const PLAN={
         const data=new Uint8Array(e.target.result);
         const wb=XLSX.read(data,{type:'array',cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
-        // DEBUG — แสดงค่าจริงจาก SheetJS
-        const _dbg=[];
-        [3,4,5,6,7].forEach(r=>{
-          if(!rows[r])return;
-          const cols=[];
-          [20,21,22,23,24,25,26,44,45,46,47,48,49,50,51].forEach(ci=>{
-            const v=rows[r][ci];
-            if(v!==undefined&&v!==''&&v!==null)cols.push(ci+':['+typeof v+']'+String(v).slice(0,12));
-          });
-          if(cols.length)_dbg.push('R'+(r+1)+': '+cols.join(' | '));
-        });
-        alert2(_dbg.join('\n'),'Debug rows 4-8');
+        alert2(_dbg2.join('\n')||'ไม่พบ SKU/Code/Mon เลย','Debug find SKU+Mon');
 
-        // scan หา column index แยกกัน — SKU และ วัน อาจอยู่คนละแถว
-        let _codeCol=-1,_skuCol=-1,hdrRow=11;
-        const _dayCols=[];
-        const _DM={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
-        for(let r=0;r<Math.min(20,rows.length);r++){
-          rows[r].forEach((v,ci)=>{
-            const s=String(v||'').trim().toLowerCase();
-            if(s==='code'||s==='material')if(_codeCol<0)_codeCol=ci;
-            if(s==='sku'||s==='description')if(_skuCol<0)_skuCol=ci;
-            const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
-            if(m&&_DM[m[1].toLowerCase()]!==undefined&&!_dayCols[_DM[m[1].toLowerCase()]])
-              _dayCols[_DM[m[1].toLowerCase()]]=ci;
-            // รองรับ Date object (SheetJS อ่าน date cell)
-            const rawV=rows[r][ci];
-            if(rawV instanceof Date&&!_dayCols[rawV.getDay()-1]&&rawV.getDay()>=1&&rawV.getDay()<=6)
-              _dayCols[rawV.getDay()-1]=ci;
-          });
-        }
-        if(_skuCol<0){toast('❌ ไม่พบ column SKU/Description');return;}
-        if(_dayCols.filter(Boolean).length<6){toast('❌ ไม่พบ column วัน Mon-Sat');return;}
+        // Column ตายตัวหลังลบ columns ด้านหน้าออก
+        // A=0(Code), E=4(SKU), Z=25(Mon), AA=26(Tue), AB=27(Wed), AC=28(Thu), AD=29(Fri), AE=30(Sat)
+        const _codeCol=0, _skuCol=4;
+        const _dayCols=[25,26,27,28,29,30]; // Mon-Sat
+        const hdrRow=4; // header แถว 5 (index 4)
 
         const depts=D.getDepts('fill');
         let imported=0;
