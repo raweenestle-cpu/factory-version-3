@@ -2375,8 +2375,6 @@ const PLAN={
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
-        const preview=rows.slice(0,5).map((r,i)=>'Row '+(i+1)+': '+r.slice(0,6).map(v=>String(v||'').trim()||'-').join(' | ')).join('\n');
-        alert2(preview,'Debug: 5 แถวแรก ก่อน parse');
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
         let hdrRow=-1,codeCol=-1,skuCol=-1;
@@ -2388,9 +2386,11 @@ const PLAN={
           const row=rows[r];
           row.forEach((v,ci)=>{
             const s=String(v||'').trim().toLowerCase();
-            if(s==='code'||s==='รหัส'||s==='item'||s==='item code'||s==='item no')
+            // Code/Material column
+            if(['code','material','รหัส','item','item code','item no','mat'].includes(s))
               {if(codeCol<0)codeCol=ci;}
-            if(s==='sku'||s==='description'||s==='product name'||s==='ชื่อ'||s==='product')
+            // SKU/Description column
+            if(['sku','description','product name','ชื่อ','product','desc'].includes(s))
               {if(skuCol<0){skuCol=ci;hdrRow=r;}}
             // วัน — mon-18, tue-19 etc
             const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
