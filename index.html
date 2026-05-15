@@ -2384,8 +2384,9 @@ const PLAN={
         const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
         // Column ตายตัว: U=20(Material), Y=24(Description), AT-AY=45-50(Mon-Sat)
-        codeCol=20; skuCol=24; hdrRow=0;
+        codeCol=20; skuCol=24;
         for(let di=0;di<6;di++) dayMap[di]=45+di;
+        hdrRow=11; // data เริ่มแถวที่ 13 → hdrRow=12-1=11 (0-indexed)
 
 
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
