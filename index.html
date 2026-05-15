@@ -2400,12 +2400,12 @@ const PLAN={
         if(hdrRow<0){toast('❌ ไม่พบ column Code และ SKU');return;}
         if(!Object.keys(dayMap).length){toast('❌ ไม่พบ column วัน (Mon-Sat)');return;}
 
-        // อ่านข้อมูล
+        // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
         const depts=D.getDepts('fill');
-        let currentLine='';
         let imported=0;
         const newPlan={};
         const newVol=D.getVolume();
+        let pendingProds=[]; // product ที่รอ LINE
 
         for(let r=hdrRow+1;r<rows.length;r++){
           const row=rows[r];
@@ -2414,30 +2414,34 @@ const PLAN={
           if(!sku)continue;
 
           if(!code){
-            // แถว LINE — Code ว่าง
-            // หา dept ที่ตรงกับ SKU
+            // LINE — assign pending products ให้ LINE นี้
             const matched=depts.find(d=>d.toLowerCase()===sku.toLowerCase()||sku.toLowerCase().includes(d.toLowerCase())||d.toLowerCase().includes(sku.toLowerCase()));
-            currentLine=matched||sku;
-          } else {
-            // แถว Product
-            if(!currentLine)continue;
-            if(!newPlan[currentLine])newPlan[currentLine]={};
-            if(!newVol[currentLine])newVol[currentLine]={};
+            const line=matched||sku;
+            if(!newPlan[line])newPlan[line]={};
+            if(!newVol[line])newVol[line]={};
 
-            Object.entries(dayMap).forEach(([di,ci])=>{
-              const diN=parseInt(di);
-              const boxes=parseInt(row[ci])||0;
-              // เพิ่ม product ในแผน
-              if(!newPlan[currentLine][diN])newPlan[currentLine][diN]=[];
-              if(!newPlan[currentLine][diN].find(x=>(x.product||x)===sku)){
-                newPlan[currentLine][diN].push({product:sku,count:1});
+            pendingProds.forEach(p=>{
+              Object.entries(dayMap).forEach(([di,ci])=>{
+                const diN=parseInt(di);
+                const boxes=parseInt(p.row[ci])||0;
+                if(!newPlan[line][diN])newPlan[line][diN]=[];
+                if(!newPlan[line][diN].find(x=>(x.product||x)===p.sku))
+                  newPlan[line][diN].push({product:p.sku,count:1});
+                if(!newVol[line][diN]||typeof newVol[line][diN]!=='object')newVol[line][diN]={};
+                if(boxes>0)newVol[line][diN][p.sku]=boxes;
+              });
+              // auto เพิ่มใน Product Master
+              const _master=D.getProductMaster();
+              if(!_master.find(m=>m.name===p.sku&&m.line===line)){
+                _master.push({name:p.sku,line,ml:0,count:1});
+                D.saveProductMaster(_master);
               }
-              // บันทึก volume
-              if(!newVol[currentLine][diN]||typeof newVol[currentLine][diN]!=='object')
-                newVol[currentLine][diN]={};
-              if(boxes>0)newVol[currentLine][diN][sku]=boxes;
+              imported++;
             });
-            imported++;
+            pendingProds=[];
+          } else {
+            // Product — เก็บไว้รอ LINE
+            pendingProds.push({sku,row});
           }
         }
 
