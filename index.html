@@ -2367,7 +2367,7 @@ const PLAN={
     const file=inp.files[0];if(!file)return;
     inp.value='';
     const reader=new FileReader();
-    toast('⏳ กำลัง Import...');
+    // เปิดไฟล์แล้วให้ user map column ก่อน
     reader.onload=e=>{
       try{
         const data=new Uint8Array(e.target.result);
@@ -2431,8 +2431,37 @@ const PLAN={
         if(skuCol<0){
           toast('❌ ไม่พบ column SKU กรุณาตรวจสอบ header ใน Excel');return;
         }
+        // ถ้าหาวันไม่ได้จาก header — ลอง detect จาก data rows
         if(!Object.keys(dayMap).length){
-          toast('❌ ไม่พบ column วัน Mon/Tue... กรุณาตรวจสอบ header');return;
+          // หา columns ที่มีตัวเลขในแถวข้อมูลแรก (หลัง hdrRow)
+          for(let r=hdrRow+1;r<Math.min(hdrRow+5,rows.length);r++){
+            const row=rows[r];
+            const code=String(row[codeCol]||'').trim();
+            if(!code)continue; // ข้าม LINE row
+            // หา columns ที่มีตัวเลข > 0 หลัง col 5
+            let numCols=[];
+            for(let ci=6;ci<row.length;ci++){
+              if(typeof row[ci]==='number'&&row[ci]>0)numCols.push(ci);
+            }
+            if(numCols.length>=3){
+              // สมมุติว่าเป็น Mon-Sat ตามลำดับจาก col แรกที่มีตัวเลข
+              // หา range ที่ต่อเนื่องกัน
+              let start=numCols[0];
+              // ดูจาก header row ว่า col 6-11 มีอะไร
+              const hFmt=rowsFmt[hdrRow]||[];
+              let foundDays=0;
+              for(let ci=start;ci<start+6&&ci<row.length;ci++){
+                if(dayMap[foundDays]===undefined){
+                  dayMap[foundDays]=ci;
+                  foundDays++;
+                }
+              }
+              break;
+            }
+          }
+        }
+        if(!Object.keys(dayMap).length){
+          toast('❌ ไม่พบ column วัน กรุณาตรวจสอบ header');return;
         }
 
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
