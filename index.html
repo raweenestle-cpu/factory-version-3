@@ -568,7 +568,14 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
   <div class="page" id="pg-plan">
     <div class="plan-tb" style="flex-wrap:wrap;gap:6px">
-      <h2 style="width:100%;margin-bottom:2px">📋 วางแผนการผลิต <span id="plan-wk-label" style="font-size:13px;font-weight:400;color:var(--text2)"></span></h2>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:2px;flex-wrap:wrap">
+        <h2 style="margin:0">📋 วางแผนการผลิต</h2>
+        <div class="wk-nav">
+          <button onclick="PLAN.chgWk(-1)">◀</button>
+          <span id="plan-wk-label" style="min-width:160px;text-align:center">-</span>
+          <button onclick="PLAN.chgWk(1)">▶</button>
+        </div>
+      </div>
       <!-- Filling buttons -->
       <button id="plan-load-emp-fill-btn" class="btn-p btn-amber" style="display:none" onclick="PLAN.autoLoad()">⚡ โหลดพนักงาน Filling</button>
       <!-- Process buttons -->
@@ -2020,9 +2027,18 @@ const PLAN={
       if(tc)tc.textContent='ทีม C: '+(shifts.C||'-');
     }catch(e){console.log('team shifts error',e);}
     const isFill=S.sys==='fill';
-    const _pwl=document.getElementById('plan-wk-label');if(_pwl)_pwl.textContent='— W'+wNum(S.wkStart)+': '+S.wkStart.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
+    const _pwl=document.getElementById('plan-wk-label');
+    if(_pwl){
+      const _we=new Date(S.wkStart);_we.setDate(S.wkStart.getDate()+5);
+      const _fmt=d=>d.getDate()+'/'+(d.getMonth()+1);
+      _pwl.textContent='W'+wNum(S.wkStart)+': '+_fmt(S.wkStart)+' – '+_fmt(_we)+' ('+S.wkStart.getFullYear()+')';
+    }
     const th=document.getElementById('pth');
-    if(th)th.innerHTML=`<tr><th class="dc">แผนก / Line</th>${DAYS.map((d,di)=>`<th>${d}${isFill?`<br><span style="font-size:9px;font-weight:400;color:var(--amber)">Volume</span>`:''}  </th>`).join('')}</tr>`;
+    if(th)th.innerHTML=`<tr><th class="dc">แผนก / Line</th>${DAYS.map((d,di)=>{
+      const _dd=new Date(S.wkStart);_dd.setDate(S.wkStart.getDate()+di);
+      const _dateStr=_dd.getDate()+'/'+((_dd.getMonth()+1));
+      return`<th>${d}<br><span style="font-size:10px;font-weight:400;color:var(--text2)">${_dateStr}</span>${isFill?`<br><span style="font-size:9px;font-weight:400;color:var(--amber)">Volume</span>`:''}  </th>`;
+    }).join('')}</tr>`;
     const tbEl=document.getElementById('ptb');if(!tbEl){console.log('ptb not found');return;}
     const vol=D.getVolume();
     if(!depts.length){tbEl.innerHTML='<tr><td style="padding:20px;color:var(--text3)">ยังไม่มีข้อมูลแผนก</td></tr>';return;}
@@ -2477,6 +2493,13 @@ const PLAN={
   },
   save(){D.savePlan(this.plan);// sync volume ไป Firebase ตอน save
     FB.set('fill/volume',D.getVolume());markSaved();toast('✅ บันทึกแผนการผลิต W'+wNum(S.wkStart));},
+  chgWk(dir){
+    const d=new Date(S.wkStart);
+    d.setDate(d.getDate()+dir*7);
+    S.wkStart=d;
+    this.plan=D.getPlan('fill');
+    this.render();
+  },
   clearPlan(){
     const wkNow=wKey(S.wkStart);
     confirm2('ล้างแผนการผลิต?\n(ล้างเฉพาะสัปดาห์นี้ — W'+wNum(S.wkStart)+'\nประวัติสัปดาห์อื่นยังคงอยู่)',()=>{
