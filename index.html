@@ -2393,6 +2393,18 @@ const PLAN={
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
+        // DEBUG — แสดงค่าจริงจาก SheetJS
+        const _dbg=[];
+        [3,4,5,6,7].forEach(r=>{
+          if(!rows[r])return;
+          const cols=[];
+          [20,21,22,23,24,25,26,44,45,46,47,48,49,50,51].forEach(ci=>{
+            const v=rows[r][ci];
+            if(v!==undefined&&v!==''&&v!==null)cols.push(ci+':['+typeof v+']'+String(v).slice(0,12));
+          });
+          if(cols.length)_dbg.push('R'+(r+1)+': '+cols.join(' | '));
+        });
+        alert2(_dbg.join('\n'),'Debug rows 4-8');
 
         // scan หา column index แยกกัน — SKU และ วัน อาจอยู่คนละแถว
         let _codeCol=-1,_skuCol=-1,hdrRow=11;
