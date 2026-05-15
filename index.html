@@ -2417,9 +2417,9 @@ const PLAN={
                 const boxes=parseInt(p.row[ci])||0;
                 if(!newPlan[line][diN])newPlan[line][diN]=[];
                 if(!newPlan[line][diN].find(x=>(x.product||x)===p.sku))
-                  newPlan[line][diN].push({product:p.sku,count:1});
+                  newPlan[line][diN].push({product:p.sku,count:1}); // เก็บชื่อจริง
                 if(!newVol[line][diN]||typeof newVol[line][diN]!=='object')newVol[line][diN]={};
-                if(boxes>0)newVol[line][diN][p.sku]=boxes;
+                const _sk=p.sku.replace(/[.#$\[\]\/]/g,'_');if(boxes>0)newVol[line][diN][_sk]=boxes;
               });
               // auto เพิ่มใน Product Master
               const _master=D.getProductMaster();
