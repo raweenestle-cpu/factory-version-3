@@ -2383,68 +2383,10 @@ const PLAN={
         const dayMap={};
         const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
-        // กำหนด column ตายตัวตาม Excel format จริง
-        // U=20(Material), Y=24(Description), AT=45(Mon)...AY=50(Sat)
-        codeCol=20; skuCol=24;
+        // Column ตายตัว: U=20(Material), Y=24(Description), AT-AY=45-50(Mon-Sat)
+        codeCol=20; skuCol=24; hdrRow=0;
         for(let di=0;di<6;di++) dayMap[di]=45+di;
 
-        // สแกน header เพื่อหา hdrRow
-        for(let r=0;r<Math.min(50,rowsFmt.length);r++){
-          const row=rowsFmt[r]; // ใช้ formatted
-          const rawRow=rows[r]; // ใช้ raw สำหรับตัวเลข
-          row.forEach((v,ci)=>{
-            const s=String(v||'').trim().toLowerCase();
-            // Code/Material column
-            if(['code','material','รหัส','item','item code','item no','mat'].includes(s))
-              {if(codeCol<0)codeCol=ci;}
-            // SKU/Description column
-            if(['sku','description','product name','ชื่อ','product','desc'].includes(s))
-              {if(skuCol<0){skuCol=ci;hdrRow=r;}}
-            // fallback ตาม column index ตายตัว U=20, Y=24
-            if(codeCol<0&&ci===20&&String(v||'').trim())codeCol=20;
-            if(skuCol<0&&ci===24&&String(v||'').trim()){skuCol=24;hdrRow=r;}
-            // วัน — รองรับ Mon-18, Mon/18
-            const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
-            if(m&&DAY_MAP[m[1].toLowerCase()]!==undefined)
-              dayMap[DAY_MAP[m[1].toLowerCase()]]=ci;
-            // Date object
-            const rawV=rawRow[ci];
-            if(rawV instanceof Date){
-              const dow=rawV.getDay();
-              const dowMap={1:0,2:1,3:2,4:3,5:4,6:5};
-              if(dowMap[dow]!==undefined&&dayMap[dowMap[dow]]===undefined)
-                dayMap[dowMap[dow]]=ci;
-            }
-            // formatted string เช่น "18.2026", "18/05/2026", "18-May-26"
-            // ดึงวันที่ของเดือน แล้ว map กับสัปดาห์ปัจจุบัน
-            if(!m&&typeof v==='string'){
-              const dm=s.match(/^(\d{1,2})[.\/-]/);
-              if(dm){
-                const dayNum=parseInt(dm[1]);
-                // หาวันในสัปดาห์จาก wkStart
-                const ws2=S.wkStart;
-                for(let di=0;di<6;di++){
-                  const d=new Date(ws2);d.setDate(ws2.getDate()+di);
-                  if(d.getDate()===dayNum&&dayMap[di]===undefined){dayMap[di]=ci;break;}
-                }
-              }
-            }
-          });
-        }
-
-        // ถ้าไม่เจอ SKU แต่เจอ Code — ลองหา column ที่ 2 (B) เป็น SKU
-        if(skuCol<0&&codeCol>=0)skuCol=codeCol+1;
-        if(hdrRow<0)hdrRow=0;
-
-        if(skuCol<0){
-          toast('❌ ไม่พบ column SKU กรุณาตรวจสอบ header ใน Excel');return;
-        }
-        // ถ้าหาวันไม่ได้จาก header — ลอง detect จาก data rows
-        // Col AT=45 = Mon, AU=46=Tue, AV=47=Wed, AW=48=Thu, AX=49=Fri, AY=50=Sat
-        if(!Object.keys(dayMap).length){
-          const startCol=45; // AT
-          for(let di=0;di<6;di++) dayMap[di]=startCol+di;
-        }
 
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
         const depts=D.getDepts('fill');
