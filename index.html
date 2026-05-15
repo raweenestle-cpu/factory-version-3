@@ -2375,6 +2375,7 @@ const PLAN={
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
+        alert2('Row1: '+rows[0].map((v,i)=>i+':'+String(v||'').trim()).filter((_,i)=>i<60).join(' | '),'Debug Row1 ทั้งหมด');
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
         let hdrRow=-1,codeCol=-1,skuCol=-1;
