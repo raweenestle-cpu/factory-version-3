@@ -2462,6 +2462,7 @@ const PLAN={
           console.warn('ไม่พบ LINE สำหรับ:', skipped);
         }
 
+        alert2('imported='+imported+' pending='+pendingProds.length+' depts='+depts.join(','),'Debug Import');
         if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
         // save แบบ wk-based เพื่อให้ clearPlan ทำงานได้
