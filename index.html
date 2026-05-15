@@ -2451,16 +2451,12 @@ const PLAN={
           const sku=String(row[skuCol]||'').trim();
           if(!sku)continue;
 
-          if(!code){
+          // เช็ค SKU ว่าตรงกับ LINE ใน Settings ก่อน (ไม่ว่า Code จะว่างหรือไม่)
+          const _norm2=s=>s.toLowerCase().replace(/[\s\-_.\/]/g,'');
+          const lineMatch=depts.find(d=>_norm2(d)===_norm2(sku));
+          if(lineMatch||!code){
             // LINE — assign pending products ให้ LINE นี้
-            // match ชื่อ LINE — ignore space, case, special chars
-            const _norm=s=>s.toLowerCase().replace(/[\s\-_.\/]/g,'');
-            const matched=depts.find(d=>
-              _norm(d)===_norm(sku)||
-              _norm(sku).includes(_norm(d))||
-              _norm(d).includes(_norm(sku))
-            );
-            const line=matched||sku; // ถ้าไม่ match ใช้ชื่อจาก Excel ตรงๆ
+            const line=lineMatch||sku;
             if(!newPlan[line])newPlan[line]={};
             if(!newVol[line])newVol[line]={};
 
