@@ -2375,30 +2375,38 @@ const PLAN={
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
 
-        // หา header row — แถวที่มี "Code" และ "SKU"
+        // หา header row — แถวที่มี "Code" หรือ "SKU"
         let hdrRow=-1,codeCol=-1,skuCol=-1;
-        let atCol=-1,ayCol=-1;
-        const dayMap={}; // di: colIndex
+        const dayMap={};
+        const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
-        for(let r=0;r<Math.min(30,rows.length);r++){
+        for(let r=0;r<Math.min(50,rows.length);r++){
           const row=rows[r];
-          const codeIdx=row.findIndex(v=>String(v).trim().toLowerCase()==='code');
-          const skuIdx=row.findIndex(v=>String(v).trim().toLowerCase()==='sku');
-          if(codeIdx>=0&&skuIdx>=0){
-            hdrRow=r;codeCol=codeIdx;skuCol=skuIdx;
-            // หา column AT-AY จาก header Mon-18, Tue-19 ฯลฯ
-            const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
-            row.forEach((v,ci)=>{
-              const s=String(v).trim().toLowerCase();
-              const m=s.match(/^(mon|tue|wed|thu|fri|sat)/);
-              if(m&&DAY_MAP[m[1]]!==undefined)dayMap[DAY_MAP[m[1]]]=ci;
-            });
-            break;
+          // เช็คทุก cell หา Code และ SKU (case insensitive, trim)
+          let ci_code=-1,ci_sku=-1;
+          row.forEach((v,ci)=>{
+            const s=String(v||'').trim().toLowerCase();
+            if(s==='code'||s==='รหัส'||s==='item code'||s==='item no')ci_code=ci;
+            if(s==='sku'||s==='description'||s==='product'||s==='ชื่อ')ci_sku=ci;
+            // วัน
+            const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
+            if(m)dayMap[DAY_MAP[m[1].toLowerCase()]]=ci;
+          });
+          if(ci_code>=0&&ci_sku>=0){
+            hdrRow=r;codeCol=ci_code;skuCol=ci_sku;break;
+          }
+          // ถ้าเจอแค่ SKU ก็พอ
+          if(ci_sku>=0&&Object.keys(dayMap).length>=3){
+            hdrRow=r;codeCol=ci_code>=0?ci_code:0;skuCol=ci_sku;break;
           }
         }
 
-        if(hdrRow<0){toast('❌ ไม่พบ column Code และ SKU');return;}
-        if(!Object.keys(dayMap).length){toast('❌ ไม่พบ column วัน (Mon-Sat)');return;}
+        if(hdrRow<0||skuCol<0){
+          toast('❌ ไม่พบ column ชื่อสินค้า กรุณาตรวจสอบ header ใน Excel');return;
+        }
+        if(!Object.keys(dayMap).length){
+          toast('❌ ไม่พบ column วัน (Mon/Tue...) กรุณาตรวจสอบ header');return;
+        }
 
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
         const depts=D.getDepts('fill');
