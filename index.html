@@ -2393,8 +2393,13 @@ const PLAN={
         const ws=wb.Sheets[wb.SheetNames[0]];
         // อ่าน 2 ชุด: formatted string สำหรับ header, raw number สำหรับข้อมูล
         // ใช้ raw:false เพื่อให้ได้ค่า formula result ด้วย
+        // อ่านโดยใช้ cell address โดยตรง (ไม่ขึ้นกับ hidden columns)
         const rowsFmt=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
-        const rows=rowsFmt; // ใช้ formatted เพื่อให้ได้ค่า formula
+        const rows=rowsFmt;
+        // แปลง column letter → index จริง (ไม่ขึ้นกับ hidden cols)
+        function _colIdx(l){let n=0;for(let i=0;i<l.length;i++)n=n*26+l.toUpperCase().charCodeAt(i)-64;return n-1;}
+        // อ่านค่าจาก cell address โดยตรงผ่าน ws object
+        function _cell(r,col){const addr=XLSX.utils.encode_cell({r,c:_colIdx(col)});return ws[addr]?ws[addr].v:'';}
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
@@ -2402,12 +2407,9 @@ const PLAN={
         const dayMap={};
         const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
-        // Column ตายตัว: U=20(Material), Y=24(Description), AT-AY=45-50(Mon-Sat)
-        codeCol=20; skuCol=24;
-        for(let di=0;di<6;di++) dayMap[di]=45+di;
-        hdrRow=11; // data เริ่มแถวที่ 13 → hdrRow=12-1=11 (0-indexed)
-
-
+        // ใช้ column letter โดยตรง — ไม่ขึ้นกับ hidden columns
+        const _COLS={code:'U',sku:'Y',days:['AT','AU','AV','AW','AX','AY']};
+        hdrRow=11; // data เริ่มแถวที่ 13 (0-indexed=12)
         // อ่านข้อมูล — LINE อยู่ท้ายกลุ่ม Product อยู่บน
         const depts=D.getDepts('fill');
         let imported=0;
@@ -2417,13 +2419,14 @@ const PLAN={
 
         for(let r=hdrRow+1;r<rows.length;r++){
           const row=rows[r];
-          const code=String(row[codeCol]||'').trim();
-          const sku=String(row[skuCol]||'').trim();
+          const code=String(_cell(r,_COLS.code)||'').trim();
+          const sku=String(_cell(r,_COLS.sku)||'').trim();
           if(!sku)continue;
 
           // เช็ค SKU ว่าตรงกับ LINE ใน Settings ก่อน (ไม่ว่า Code จะว่างหรือไม่)
           const _norm2=s=>s.toLowerCase().replace(/[\s\r\n\t\-_.\/]/g,'').trim();
           const lineMatch=depts.find(d=>_norm2(d)===_norm2(sku));
+          if(!lineMatch&&!code)console.log('LINE candidate: ['+JSON.stringify(sku)+'] norms to ['+_norm2(sku)+']');
           if(lineMatch||!code){
             // LINE — assign pending products ให้ LINE นี้
             const line=lineMatch||sku;
@@ -2432,9 +2435,9 @@ const PLAN={
             newVol[line]={};
 
             pendingProds.forEach(p=>{
-              Object.entries(dayMap).forEach(([di,ci])=>{
-                const diN=parseInt(di);
-                const boxes=parseInt(p.row[ci])||0;
+              _COLS.days.forEach((col,di)=>{
+                const diN=di;
+                const boxes=parseInt(_cell(p.r,col))||0;
                 if(!newPlan[line][diN])newPlan[line][diN]=[];
                 if(!newPlan[line][diN].find(x=>(x.product||x)===p.sku))
                   newPlan[line][diN].push({product:p.sku,count:1}); // เก็บชื่อจริง
@@ -2451,8 +2454,8 @@ const PLAN={
             });
             pendingProds=[];
           } else {
-            // Product — เก็บไว้รอ LINE
-            pendingProds.push({sku,row});
+            // Product — เก็บ row index ไว้ใช้กับ _cell
+            pendingProds.push({sku,r});
           }
         }
 
@@ -2462,7 +2465,7 @@ const PLAN={
           console.warn('ไม่พบ LINE สำหรับ:', skipped);
         }
 
-        alert2('imported='+imported+' pending='+pendingProds.length+' depts='+depts.join(','),'Debug Import');
+        alert2('imported='+imported+' pending='+pendingProds.length+'\ndepts='+depts.slice(0,3).join(',')+'\nfirst SKU=['+String(rows[hdrRow+1]?.[skuCol]||'').trim()+']\ncodeCol='+codeCol+' skuCol='+skuCol,'Debug Import');
         if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
         // save แบบ wk-based เพื่อให้ clearPlan ทำงานได้
