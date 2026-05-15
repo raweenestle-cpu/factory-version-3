@@ -2371,11 +2371,10 @@ const PLAN={
     reader.onload=e=>{
       try{
         const data=new Uint8Array(e.target.result);
-        const wb=XLSX.read(data,{type:'array'});
+        const wb=XLSX.read(data,{type:'array',cellDates:true,cellNF:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
-        alert2('Row1: '+rows[0].map((v,i)=>i+':'+String(v||'').trim()).filter((_,i)=>i<60).join(' | '),'Debug Row1 ทั้งหมด');
 
         // หา header row — แถวที่มี "Code" หรือ "SKU"
         let hdrRow=-1,codeCol=-1,skuCol=-1;
@@ -2393,10 +2392,18 @@ const PLAN={
             // SKU/Description column
             if(['sku','description','product name','ชื่อ','product','desc'].includes(s))
               {if(skuCol<0){skuCol=ci;hdrRow=r;}}
-            // วัน — mon-18, tue-19 etc
+            // วัน — รองรับ Mon-18, Mon/18, หรือ Date object
             const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
             if(m&&DAY_MAP[m[1].toLowerCase()]!==undefined)
               dayMap[DAY_MAP[m[1].toLowerCase()]]=ci;
+            // รองรับ Date object (cellDates:true)
+            const rawV=row[ci];
+            if(rawV instanceof Date){
+              const dow=rawV.getDay(); // 0=Sun,1=Mon...6=Sat
+              const dowMap={1:0,2:1,3:2,4:3,5:4,6:5}; // Mon-Sat → 0-5
+              if(dowMap[dow]!==undefined&&!dayMap[dowMap[dow]])
+                dayMap[dowMap[dow]]=ci;
+            }
           });
         }
 
