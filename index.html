@@ -2406,6 +2406,10 @@ const PLAN={
             const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
             if(m&&_DM[m[1].toLowerCase()]!==undefined&&!_dayCols[_DM[m[1].toLowerCase()]])
               _dayCols[_DM[m[1].toLowerCase()]]=ci;
+            // รองรับ Date object (SheetJS อ่าน date cell)
+            const rawV=rows[r][ci];
+            if(rawV instanceof Date&&!_dayCols[rawV.getDay()-1]&&rawV.getDay()>=1&&rawV.getDay()<=6)
+              _dayCols[rawV.getDay()-1]=ci;
           });
         }
         if(_skuCol<0){toast('❌ ไม่พบ column SKU/Description');return;}
