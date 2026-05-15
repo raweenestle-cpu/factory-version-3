@@ -2417,7 +2417,7 @@ const PLAN={
         const newVol=D.getVolume();
         let pendingProds=[]; // product ที่รอ LINE
 
-        for(let r=hdrRow+1;r<rows.length;r++){
+        for(let r=hdrRow+1;r<Math.min(240,rows.length);r++){
           const row=rows[r];
           const code=String(_cell(r,_COLS.code)||'').trim();
           const sku=String(_cell(r,_COLS.sku)||'').trim();
@@ -2426,7 +2426,6 @@ const PLAN={
           // เช็ค SKU ว่าตรงกับ LINE ใน Settings ก่อน (ไม่ว่า Code จะว่างหรือไม่)
           const _norm2=s=>s.toLowerCase().replace(/[\s\r\n\t\-_.\/]/g,'').trim();
           const lineMatch=depts.find(d=>_norm2(d)===_norm2(sku));
-          if(!lineMatch&&!code)console.log('LINE candidate: ['+JSON.stringify(sku)+'] norms to ['+_norm2(sku)+']');
           if(lineMatch){
             // LINE — ต้อง match กับ dept เท่านั้น
             const line=lineMatch;
@@ -2465,7 +2464,6 @@ const PLAN={
           console.warn('ไม่พบ LINE สำหรับ:', skipped);
         }
 
-        alert2('imported='+imported+' pending='+pendingProds.length+'\ndepts='+depts.slice(0,3).join(',')+'\nfirst SKU=['+String(rows[hdrRow+1]?.[skuCol]||'').trim()+']\ncodeCol='+codeCol+' skuCol='+skuCol,'Debug Import');
         if(!imported){toast('❌ ไม่พบข้อมูลสินค้า กรุณาตรวจสอบไฟล์');return;}
 
         // save แบบ wk-based เพื่อให้ clearPlan ทำงานได้
