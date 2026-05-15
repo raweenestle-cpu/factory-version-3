@@ -3725,7 +3725,30 @@ const SCHED={
             });
             _needBlink=Math.max(..._cnts);
           }
-          const _haveBlink=ws2.length;
+          // นับคนปกติในกะนี้
+          let _haveBlink=ws2.length;
+          // นับคนจากกะอื่นที่ OT คร่อมเข้ากะนี้
+          const _shRange={morning:[6,14],afternoon:[14,22],night:[22,30]};
+          const _shStart=_shRange[sh]?.[0]||0;
+          const _shEnd=_shRange[sh]?.[1]||8;
+          const _otNames=new Set(ws2.map(w=>w.name));
+          SHS.filter(s=>s!==sh).forEach(s=>{
+            const _otWorkers=sc[dept]?.[di]?.[s]||sc[dept]?.[String(di)]?.[s]||[];
+            _otWorkers.forEach(w=>{
+              if(!w.ot||_otNames.has(w.name))return;
+              // คำนวณช่วงเวลา OT
+              const _otHrs=Math.round(w.otHrs||4);
+              const _sH={morning:6,afternoon:14,night:22}[s]||6;
+              const _eH={morning:14,afternoon:22,night:30}[s]||14;
+              const _otStart=w.sr?parseInt(w.sr.split('-')[0]):_sH;
+              const _otEnd=w.sr?parseInt(w.sr.split('-')[1]):Math.round(_eH+_otHrs);
+              // ถ้า OT คร่อมช่วงเวลากะนี้ → นับเพิ่ม
+              if(_otStart<_shEnd&&_otEnd>_shStart){
+                _haveBlink++;
+                _otNames.add(w.name);
+              }
+            });
+          });
           const _shortClass=(!readOnly&&_needBlink>0&&_haveBlink<_needBlink)?'sched-short':'';
           row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
         });
