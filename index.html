@@ -2394,12 +2394,22 @@ const PLAN={
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
         if(!rows.length){toast('❌ ไม่พบข้อมูลในไฟล์');return;}
 
-        // หา column index จาก header row จริง (รองรับ hidden columns)
-        function _colIdx(l){let n=0;for(let i=0;i<l.length;i++)n=n*26+l.toUpperCase().charCodeAt(i)-64;return n-1;}
-        const _codeCol=_colIdx('U'); // col U
-        const _skuCol=_colIdx('Y');  // col Y
-        const _dayCols=[_colIdx('AT'),_colIdx('AU'),_colIdx('AV'),_colIdx('AW'),_colIdx('AX'),_colIdx('AY')];
-        const hdrRow=11; // header แถว 12, data เริ่มแถว 13
+        // scan หา header row และ column index จริง
+        let _codeCol=-1,_skuCol=-1,hdrRow=0;
+        const _dayCols=[];
+        const _DM={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
+        for(let r=0;r<Math.min(20,rows.length);r++){
+          rows[r].forEach((v,ci)=>{
+            const s=String(v||'').trim().toLowerCase();
+            if(s==='code'||s==='material')_codeCol=ci;
+            if(s==='sku'||s==='description')_skuCol=ci;
+            const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
+            if(m&&_DM[m[1].toLowerCase()]!==undefined)_dayCols[_DM[m[1].toLowerCase()]]=ci;
+          });
+          if(_skuCol>=0&&_dayCols.length>=6){hdrRow=r;break;}
+        }
+        if(_skuCol<0){toast('❌ ไม่พบ column SKU/Description');return;}
+        if(_dayCols.length<6){toast('❌ ไม่พบ column วัน Mon-Sat');return;}
 
         const depts=D.getDepts('fill');
         let imported=0;
