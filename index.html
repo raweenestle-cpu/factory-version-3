@@ -2427,9 +2427,9 @@ const PLAN={
           const _norm2=s=>s.toLowerCase().replace(/[\s\r\n\t\-_.\/]/g,'').trim();
           const lineMatch=depts.find(d=>_norm2(d)===_norm2(sku));
           if(!lineMatch&&!code)console.log('LINE candidate: ['+JSON.stringify(sku)+'] norms to ['+_norm2(sku)+']');
-          if(lineMatch||!code){
-            // LINE — assign pending products ให้ LINE นี้
-            const line=lineMatch||sku;
+          if(lineMatch){
+            // LINE — ต้อง match กับ dept เท่านั้น
+            const line=lineMatch;
             // overwrite — ล้างยอดเก่าของ LINE นี้ก่อน
             newPlan[line]={};
             newVol[line]={};
