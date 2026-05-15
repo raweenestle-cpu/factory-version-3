@@ -2383,7 +2383,12 @@ const PLAN={
         const dayMap={};
         const DAY_MAP={'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5};
 
-        // สแกน 50 แถวแรก หา Code, SKU และวัน โดยใช้ formatted string
+        // กำหนด column ตายตัวตาม Excel format จริง
+        // U=20(Material), Y=24(Description), AT=45(Mon)...AY=50(Sat)
+        codeCol=20; skuCol=24;
+        for(let di=0;di<6;di++) dayMap[di]=45+di;
+
+        // สแกน header เพื่อหา hdrRow
         for(let r=0;r<Math.min(50,rowsFmt.length);r++){
           const row=rowsFmt[r]; // ใช้ formatted
           const rawRow=rows[r]; // ใช้ raw สำหรับตัวเลข
@@ -2395,6 +2400,9 @@ const PLAN={
             // SKU/Description column
             if(['sku','description','product name','ชื่อ','product','desc'].includes(s))
               {if(skuCol<0){skuCol=ci;hdrRow=r;}}
+            // fallback ตาม column index ตายตัว U=20, Y=24
+            if(codeCol<0&&ci===20&&String(v||'').trim())codeCol=20;
+            if(skuCol<0&&ci===24&&String(v||'').trim()){skuCol=24;hdrRow=r;}
             // วัน — รองรับ Mon-18, Mon/18
             const m=s.match(/^(mon|tue|wed|thu|fri|sat)/i);
             if(m&&DAY_MAP[m[1].toLowerCase()]!==undefined)
@@ -2452,7 +2460,7 @@ const PLAN={
           if(!sku)continue;
 
           // เช็ค SKU ว่าตรงกับ LINE ใน Settings ก่อน (ไม่ว่า Code จะว่างหรือไม่)
-          const _norm2=s=>s.toLowerCase().replace(/[\s\-_.\/]/g,'');
+          const _norm2=s=>s.toLowerCase().replace(/[\s\r\n\t\-_.\/]/g,'').trim();
           const lineMatch=depts.find(d=>_norm2(d)===_norm2(sku));
           if(lineMatch||!code){
             // LINE — assign pending products ให้ LINE นี้
