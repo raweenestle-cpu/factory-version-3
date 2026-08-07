@@ -187,6 +187,9 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-btns{display:flex;gap:5px}
 .sched-btns button{flex:1;padding:7px;border:none;border-radius:8px;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif}
 .sched-wrap{overflow:auto;flex:1}
+.day-chip{padding:6px 10px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.day-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.day-chip.all-chip{border-style:dashed}
 .sched-tbl{border-collapse:collapse;width:100%;table-layout:auto}
 .sched-tbl th{background:var(--bg2);padding:7px 8px;font-size:10px;font-weight:800;color:var(--text2);border:1px solid var(--border);position:sticky;top:0;z-index:5;white-space:nowrap}
 .sched-tbl th.sc{position:sticky;left:0;z-index:6;background:var(--navy);color:#fff;min-width:75px}
@@ -616,17 +619,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="PRINT.openOT()" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(245,158,11,.4)">🖨️ OT</button>
         <button onclick="SCHED.clearWk()" style="background:rgba(217,119,6,.2);color:var(--amber);border:1px solid rgba(217,119,6,.3)">🗑️ ล้าง</button>
       </div>
-      <div class="sched-btns" style="margin-top:6px">
-        <select id="sched-load-day" style="padding:8px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;font-weight:700;font-family:'Sarabun',sans-serif">
-          <option value="all">📅 ทั้งสัปดาห์</option>
-          <option value="0">จันทร์</option>
-          <option value="1">อังคาร</option>
-          <option value="2">พุธ</option>
-          <option value="3">พฤหัสบดี</option>
-          <option value="4">ศุกร์</option>
-          <option value="5">เสาร์</option>
-          <option value="6">อาทิตย์</option>
-        </select>
+      <div class="sched-btns" style="margin-top:6px;flex-wrap:wrap">
+        <div id="sched-day-picker" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
         <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
       </div>
     </div>
@@ -3712,8 +3706,36 @@ const PRINT={
 
 const SCHED={
   curDi:0,
+  viewDays:[0,1,2,3,4,5,6],
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
   nextDay(){this.curDi=Math.min(6,this.curDi+1);this.render();},
+  toggleViewDay(di){
+    const idx=this.viewDays.indexOf(di);
+    if(idx>=0){
+      if(this.viewDays.length===1)return; // ต้องเหลืออย่างน้อย 1 วัน
+      this.viewDays.splice(idx,1);
+    }else{
+      this.viewDays.push(di);
+    }
+    this.viewDays.sort((a,b)=>a-b);
+    this.renderDayPicker();
+    this.render();
+  },
+  toggleAllDays(){
+    this.viewDays=(this.viewDays.length===7)?[0]:[0,1,2,3,4,5,6];
+    this.renderDayPicker();
+    this.render();
+  },
+  renderDayPicker(){
+    const el=document.getElementById('sched-day-picker');if(!el)return;
+    const isAll=this.viewDays.length===7;
+    let html=`<button class="day-chip all-chip${isAll?' active':''}" onclick="SCHED.toggleAllDays()">📅 ทั้งหมด</button>`;
+    DAYS.forEach((d,di)=>{
+      const active=this.viewDays.includes(di);
+      html+=`<button class="day-chip${active?' active':''}" onclick="SCHED.toggleViewDay(${di})">${d}</button>`;
+    });
+    el.innerHTML=html;
+  },
   chkOpenW(el){
     const ne=el.dataset.ne;const dept=el.dataset.dept;
     const di=parseInt(el.dataset.di);const sh=el.dataset.sh;
@@ -3809,7 +3831,9 @@ const SCHED={
     const depts=D.getDepts().filter(d=>d!==AL&&!LOCK_D.includes(d));
     const procDepts=isFill?D.getDepts('proc').filter(d=>d!==AL&&!LOCK_D.includes(d)):[];
     const procSched=isFill?(D.getSched('proc')[wk]||{}):null;
-    const colSpan=DAYS.length*3+1;
+    this.renderDayPicker();
+    const vDays=this.viewDays.map(di=>[DAYS[di],di]); // [[label,di],...] เฉพาะวันที่เลือก
+    const colSpan=vDays.length*3+1;
     // อัปเดต week label แสดงวันที่+ระบบ
     {const wlEl=document.getElementById('swl');
     if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+6);
@@ -3819,14 +3843,14 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +DAYS.map((d,di)=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);return`<th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);return`<th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th></th>'
-        +DAYS.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
+        +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
     }
     const makeRow=(dept,sc,readOnly)=>{
       let row=`<tr><td class="sc" style="${readOnly?'opacity:.55;font-style:italic':''}">${dept}</td>`;
-      DAYS.forEach((d,di)=>{
+      vDays.forEach(([d,di])=>{
         SHS.forEach(sh=>{
           const ws2raw=sc[dept]?.[di]?.[sh]||sc[dept]?.[String(di)]?.[sh]||[];
           const seenW=new Set();
@@ -4327,12 +4351,11 @@ const SCHED={
   },
   loadTeam(){
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
-    const sel=document.getElementById('sched-load-day');
-    const val=sel?sel.value:'all';
-    const dayList=val==='all'?[0,1,2,3,4,5,6]:[parseInt(val)];
-    const dayLabel=val==='all'?'ทั้งสัปดาห์':DAYS[parseInt(val)];
+    const dayList=[...this.viewDays];
+    const isAll=dayList.length===7;
+    const dayLabel=isAll?'ทั้งสัปดาห์':dayList.map(di=>DAYS[di]).join(', ');
     const sysLabel=S.sys==='fill'?'Filling':'Process';
-    confirm2('⚡ โหลดพนักงานตามทีม ('+sysLabel+') — '+dayLabel+'\n\nระบบจะล้างตารางกะเดิมของ'+(val==='all'?'ทั้งสัปดาห์':dayLabel)+'ออกก่อน แล้วโหลดพนักงานใหม่ตามทีม A/B/C ทั้งหมด ยืนยันหรือไม่?',()=>{
+    confirm2('⚡ โหลดพนักงานตามทีม ('+sysLabel+') — '+dayLabel+'\n\nระบบจะล้างตารางกะเดิมของ'+dayLabel+'ออกก่อน แล้วโหลดพนักงานใหม่ตามทีม A/B/C ทั้งหมด ยืนยันหรือไม่?',()=>{
       PLAN.autoLoad(dayList);
     });
   },
