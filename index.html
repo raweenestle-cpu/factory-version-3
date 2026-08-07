@@ -3834,6 +3834,7 @@ const SCHED={
     // เช็คพัก 12 ชม.
     if(!checkRest(name,toDi,toSh,sched)){toast('😴 '+name+' พักไม่ครบ 12 ชม. ก่อนกะนี้');return;}
     if(!checkMax6Consec(name,toDi,S.sys,wk,sched))return;
+    if(isDoubleBooked(name,toDi,sched)){toast('⚠️ '+name+' มีกะอยู่แล้วในวันนั้น (แผนก/กะอื่น) — 1 คนทำได้แค่ 1 กะต่อวัน');return;}
     const empMain=emp?.mainDept||emp?.dept||'';
     const allSubs=[...(emp?.subs||[])];if(emp?.sub1&&!allSubs.includes(emp.sub1))allSubs.push(emp.sub1);if(emp?.sub2&&!allSubs.includes(emp.sub2))allSubs.push(emp.sub2);
     worker.isSub=(empMain!==toDept&&allSubs.includes(toDept));
@@ -4256,6 +4257,7 @@ const SCHED={
 \
 '+name+' \u0e22\u0e31\u0e07\u0e1e\u0e31\u0e01\u0e44\u0e21\u0e48\u0e04\u0e23\u0e1a\u0e01\u0e48\u0e2d\u0e19\u0e01\u0e30\u0e19\u0e35\u0e49','\u274c');return;}
     if(!checkMax6Consec(name,di,S.sys,wk,sched))return;
+    if(isDoubleBooked(name,di,sched)){alert2('⚠️ '+name+' มีกะอยู่แล้วในวันนี้ (แผนก/กะอื่น) — 1 คนทำได้แค่ 1 กะต่อวันเท่านั้น','❌ ซ้อนกะ');return;}
     const emp=D.getEmps().find(e=>e.name===name);if(!emp)return;
     if(!sched[dept])sched[dept]={};if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]};
     if(!sched[dept][di][sh])sched[dept][di][sh]=[];
@@ -5404,6 +5406,18 @@ const TEAM={
   }
 };
 
+// เช็คว่าคนนี้ถูกจัดกะไปแล้วในวันนี้หรือยัง (แผนก/กะไหนก็ตาม) — 1 คนทำได้แค่ 1 กะต่อวัน
+function isDoubleBooked(name,di,sched){
+  const depts=D.getDepts().filter(d=>d!==AL);
+  let found=false;
+  depts.forEach(dept=>{
+    SHS.forEach(sh=>{
+      const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
+      if(arr.some(w=>w.name===name))found=true;
+    });
+  });
+  return found;
+}
 function checkRest(name,di,sh,sched){
   // เช็คว่าพักครบ 12 ชั่วโมงไหม — คู่ที่ผิดกฎมี 3 คู่:
   // 1) กะดึกเมื่อวาน (จบ 06:00) → กะเช้าวันนี้ (พัก 0 ชม.)
