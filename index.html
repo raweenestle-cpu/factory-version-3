@@ -4248,6 +4248,8 @@ const SCHED={
     const empMain=emp.mainDept||emp.dept||'';
     const allSubsW=[...(emp.subs||[])];if(emp.sub1&&!allSubsW.includes(emp.sub1))allSubsW.push(emp.sub1);if(emp.sub2&&!allSubsW.includes(emp.sub2))allSubsW.push(emp.sub2);
     const isSub=D.getEmpMainDepts(emp).length?!D.getEmpMainDepts(emp).includes(dept):allSubsW.includes(dept);
+    if(!sched[dept][di][sh].find(w=>w.name===emp.name))
+      sched[dept][di][sh].push({name:emp.name,ot:false,otHrs:4,av:emp.av||0,isSub});
     all[wk]=sched;markUnsaved();D.saveSched(all);closeMo('mo-w');this.render();toast('\u2705 \u0e40\u0e1e\u0e34\u0e48\u0e21 '+name);
   },
   openAL(name){
