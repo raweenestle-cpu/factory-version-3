@@ -2815,7 +2815,7 @@ const PLAN={
           const _plan=_isWk?(_fillPlan[_wk]||{}):_fillPlan;
           const _master=D.getProductMaster();
           const _items=(_plan[dept]||{})[di]||(_plan[dept]||{})[String(di)]||[];
-          let need=1; // ถ้าไม่มีแผน → ใช้ค่าเริ่มต้นอย่างน้อย 1 คน/ไลน์/กะ (โหลดตามแพทเทิร์นทีมแม้ไม่มีแผนผลิต)
+          let need=Infinity; // ถ้าไม่มีแผน → ไม่จำกัดจำนวน ใส่คนตามทีมให้ครบทุกคนที่ตรงไลน์นี้
           if(_items.length>0){
             const _counts=_items.map(item=>{
               const _pn=typeof item==='object'?item.product:item;
