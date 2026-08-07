@@ -5405,15 +5405,23 @@ const TEAM={
 };
 
 function checkRest(name,di,sh,sched){
-  // เช็คว่าพักครบ 12 ชั่วโมงไหม
-  // กะเช้า (06:00) ต้องไม่เคยทำกะดึกเมื่อวาน (จบ 06:00 = พัก 0 ชม.) หรือกะบ่ายเมื่อวาน (จบ 22:00 = พักแค่ 8 ชม.) — ทั้งสองกรณีไม่ครบ 12 ชม.
-  if(sh==='morning'&&di>0){
-    const depts=D.getDepts().filter(d=>d!==AL);
-    let prevEmps=[];
-    depts.forEach(d=>{
-      prevEmps=[...prevEmps,...(sched[d]?.[di-1]?.night||sched[d]?.[String(di-1)]?.night||[])];
-      prevEmps=[...prevEmps,...(sched[d]?.[di-1]?.afternoon||sched[d]?.[String(di-1)]?.afternoon||[])];
-    });
+  // เช็คว่าพักครบ 12 ชั่วโมงไหม — คู่ที่ผิดกฎมี 3 คู่:
+  // 1) กะดึกเมื่อวาน (จบ 06:00) → กะเช้าวันนี้ (พัก 0 ชม.)
+  // 2) กะบ่ายเมื่อวาน (จบ 22:00) → กะเช้าวันนี้ (พัก 8 ชม.)
+  // 3) กะดึกเมื่อวาน (จบ 06:00) → กะบ่ายวันนี้ (พัก 8 ชม.)
+  if(di<=0)return true;
+  const depts=D.getDepts().filter(d=>d!==AL);
+  const prevShiftEmps=(prevSh)=>{
+    let arr=[];
+    depts.forEach(d=>{arr=[...arr,...(sched[d]?.[di-1]?.[prevSh]||sched[d]?.[String(di-1)]?.[prevSh]||[])];});
+    return arr;
+  };
+  if(sh==='morning'){
+    const prevEmps=[...prevShiftEmps('night'),...prevShiftEmps('afternoon')];
+    if(prevEmps.find(w=>w.name===name))return false;
+  }
+  if(sh==='afternoon'){
+    const prevEmps=prevShiftEmps('night');
     if(prevEmps.find(w=>w.name===name))return false;
   }
   return true;
