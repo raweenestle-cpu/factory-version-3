@@ -616,6 +616,19 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="PRINT.openOT()" style="background:rgba(0,0,0,.3);color:#fff;border:1px solid rgba(245,158,11,.4)">🖨️ OT</button>
         <button onclick="SCHED.clearWk()" style="background:rgba(217,119,6,.2);color:var(--amber);border:1px solid rgba(217,119,6,.3)">🗑️ ล้าง</button>
       </div>
+      <div class="sched-btns" style="margin-top:6px">
+        <select id="sched-load-day" style="padding:8px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;font-weight:700;font-family:'Sarabun',sans-serif">
+          <option value="all">📅 ทั้งสัปดาห์</option>
+          <option value="0">จันทร์</option>
+          <option value="1">อังคาร</option>
+          <option value="2">พุธ</option>
+          <option value="3">พฤหัสบดี</option>
+          <option value="4">ศุกร์</option>
+          <option value="5">เสาร์</option>
+          <option value="6">อาทิตย์</option>
+        </select>
+        <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
+      </div>
     </div>
     <div id="save-info" style="font-size:9px;color:var(--text3);padding:2px 14px 2px;text-align:right"></div>
     <div class="sched-wrap"><table class="sched-tbl"><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
@@ -956,7 +969,7 @@ const LS={
   del(k){try{localStorage.removeItem('fv2_'+k);}catch{}}
 };
 const AV=['av0','av1','av2','av3','av4','av5','av6','av7'];
-const DAYS=['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const DAYS=['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
 const SHS=['morning','afternoon','night'];
 const SHTH={morning:'กะเช้า',afternoon:'กะบ่าย',night:'กะดึก'};
 const SHTIME={morning:'06:00-14:00',afternoon:'14:00-22:00',night:'22:00-06:00'};
@@ -1337,7 +1350,7 @@ const LSVC={
     const el=document.getElementById('lsvc-body');if(!el)return;
     const isAdmin=S.user?.isAdmin;
     const ws=this.getWkStart();
-    const we=new Date(ws);we.setDate(ws.getDate()+5);
+    const we=new Date(ws);we.setDate(ws.getDate()+6);
     const wk=wKey(ws);
     const data=LS.get('lsvc_data',{});
     const cur=data[wk]||{total:0,otCount:0,otHrs:0,workHrs:0,reasons:[]};
@@ -1660,7 +1673,7 @@ const DASH={
     let tH=0,oH=0;
     Object.keys(wd).forEach(d=>{
       if(typeof wd[d]!=='object')return;
-      for(let di=0;di<6;di++){
+      for(let di=0;di<7;di++){
         const day=wd[d]?.[di]||wd[d]?.[String(di)];if(!day)return;
         SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));
       }
@@ -1701,7 +1714,7 @@ const DASH={
       let wt=0,wo=0;
       Object.keys(wd).forEach(d=>{
         if(typeof wd[d]!=='object')return;
-        for(let di=0;di<6;di++){
+        for(let di=0;di<7;di++){
           const day=wd[d]?.[di]||wd[d]?.[String(di)];if(!day)return;
           SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;wt+=8+h;wo+=h;}));
         }
@@ -1714,7 +1727,7 @@ const DASH={
     updEmpCnt();
     ['proc','fill','lsvc','total'].forEach(t=>this.renderChart(t));
     this.renderPareto();
-    const ws=S.wkStart,we=new Date(ws);we.setDate(we.getDate()+5);
+    const ws=S.wkStart,we=new Date(ws);we.setDate(we.getDate()+6);
     document.getElementById('dwl').textContent='สัปดาห์ที่ '+wNum(ws)+' ('+dStr(ws)+' - '+dStr(we)+')';
     // update month nav label
     const _tmo2=this.getTargetMo();
@@ -2035,7 +2048,7 @@ const PLAN={
       _pwl.textContent='W'+wNum(S.wkStart)+': '+_fmt(S.wkStart)+' – '+_fmt(_we)+' ('+S.wkStart.getFullYear()+')';
     }
     const th=document.getElementById('pth');
-    if(th)th.innerHTML=`<tr><th class="dc">แผนก / Line</th>${DAYS.map((d,di)=>{
+    if(th)th.innerHTML=`<tr><th class="dc">แผนก / Line</th>${DAYS.slice(0,6).map((d,di)=>{
       const _dd=new Date(S.wkStart);_dd.setDate(S.wkStart.getDate()+di);
       const _dateStr=_dd.getDate()+'/'+((_dd.getMonth()+1));
       return`<th>${d}<br><span style="font-size:10px;font-weight:400;color:var(--text2)">${_dateStr}</span>${isFill?`<br><span style="font-size:9px;font-weight:400;color:var(--amber)">Volume</span>`:''}  </th>`;
@@ -2511,7 +2524,8 @@ const PLAN={
       toast('✅ ล้างแผนสัปดาห์นี้แล้ว (W'+wNum(S.wkStart)+')');
     });
   },
-  autoLoad(){
+  autoLoad(dayList){
+    dayList=(Array.isArray(dayList)&&dayList.length)?dayList:[0,1,2,3,4,5,6];
     // แสดงสถานะกำลังโหลด — define ก่อนเสมอ
     const autoBtn=S.sys==='fill'?document.getElementById('plan-load-emp-fill-btn'):document.getElementById('plan-load-emp-proc-btn');
     const origText=autoBtn?.textContent;
@@ -2548,13 +2562,17 @@ const PLAN={
       const teamShifts2=TEAM.getCurShifts();
       const shMap2={morning:'morning',afternoon:'afternoon',night:'night'};
 
-      // init structure
+      // ล้างเฉพาะวันที่เลือกใน dayList (ทุกแผนกที่มีอยู่) ก่อนโหลดใหม่ — วันอื่นไม่แตะ
+      Object.keys(sched2).forEach(dept=>{
+        dayList.forEach(di=>{ if(sched2[dept])sched2[dept][di]={morning:[],afternoon:[],night:[]}; });
+      });
+      // init structure (คงวันที่ไม่ได้เลือกไว้เหมือนเดิม)
       procDepts.forEach(dept=>{
-        sched2[dept]={};
-        for(let di=0;di<6;di++) sched2[dept][di]={morning:[],afternoon:[],night:[]};
+        if(!sched2[dept])sched2[dept]={};
+        dayList.forEach(di=>{ if(!sched2[dept][di])sched2[dept][di]={morning:[],afternoon:[],night:[]}; });
       });
       if(!sched2[AL])sched2[AL]={};
-      for(let di=0;di<6;di++) if(!sched2[AL][di])sched2[AL][di]={morning:[],afternoon:[],night:[]};
+      for(let di=0;di<7;di++) if(!sched2[AL][di])sched2[AL][di]={morning:[],afternoon:[],night:[]};
 
       // procEmps เฉพาะ proc
       const procEmps=emps.filter(e=>(e.sys||'proc')==='proc');
@@ -2565,7 +2583,7 @@ const PLAN={
       const _fp=_fpRaw[_fpWk]||_fpRaw;
       const _fillDepts=D.getDepts('fill').filter(d=>d!=='AL');
 
-      for(let di=0;di<6;di++){
+      dayList.forEach(di=>{
         const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
 
@@ -2635,7 +2653,7 @@ const PLAN={
           });
         });
 
-        if(units===0)continue; // ไม่ผลิตวันนี้
+        if(units===0)return; // ไม่ผลิตวันนี้
 
         // Mixing config
         const cfg2=D.getMixingCfg?D.getMixingCfg():{};
@@ -2683,7 +2701,7 @@ const PLAN={
             }
           });
         }
-      }
+      });
 
       allSched2[wk2]=sched2;
       D.saveSched(allSched2);
@@ -2714,7 +2732,10 @@ const PLAN={
     const allSched=D.getSched();
     if(!allSched[wk])allSched[wk]={};
     const sched=allSched[wk];
-    Object.keys(sched).forEach(k=>delete sched[k]);
+    // ล้างเฉพาะวันที่เลือกใน dayList (ทุกแผนกที่มีอยู่) ก่อนโหลดใหม่ — วันอื่นไม่แตะ
+    Object.keys(sched).forEach(dept=>{
+      dayList.forEach(di=>{ if(sched[dept])sched[dept][di]={morning:[],afternoon:[],night:[]}; });
+    });
 
     const fillDepts=D.getDepts('fill').filter(d=>d!==AL&&d!=='__IDLE__');
     const leaveData=D.getLeave();
@@ -2725,13 +2746,13 @@ const PLAN={
     const hasTeam=emps.some(e=>e.team);
     if(!hasTeam){doneLoad(false,'ยังไม่ได้กำหนดทีม');alert2('⚠️ กรุณาไปที่หน้า 🔄 ทีม แล้วกำหนดทีม A/B/C ให้พนักงานก่อนครับ','❌');return;}
 
-    // init sched structure
+    // init sched structure (คงวันที่ไม่ได้เลือกไว้เหมือนเดิม)
     fillDepts.forEach(dept=>{
-      sched[dept]={};
-      for(let di=0;di<6;di++) sched[dept][di]={morning:[],afternoon:[],night:[]};
+      if(!sched[dept])sched[dept]={};
+      dayList.forEach(di=>{ if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]}; });
     });
     if(!sched[AL])sched[AL]={};
-    for(let di=0;di<6;di++) if(!sched[AL][di])sched[AL][di]={morning:[],afternoon:[],night:[]};
+    for(let di=0;di<7;di++) if(!sched[AL][di])sched[AL][di]={morning:[],afternoon:[],night:[]};
 
     const maxOTDays=D.getMaxOT()||3;
     const otLog=D.getOTLog(S.sys)||[];
@@ -2744,7 +2765,7 @@ const PLAN={
     // โหลดแผนกถาวร — Leadman, CIP Filling ทุกวัน ทุกกะตามทีม
     ALWAYS_FILL.forEach(dept=>{
       if(!sched[dept])return;
-      for(let di=0;di<6;di++){
+      dayList.forEach(di=>{
         const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
         const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
         emps.forEach(e=>{
@@ -2756,10 +2777,10 @@ const PLAN={
           if(!sched[dept][di][sh].find(w=>w.name===e.name))
             sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
         });
-      }
+      });
     });
 
-    for(let di=0;di<6;di++){
+    dayList.forEach(di=>{
       const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
       const dk=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
 
@@ -2828,7 +2849,7 @@ const PLAN={
           });
         });
       });
-    }
+    });
 
     allSched[wk]=sched;
     D.saveSched(allSched);
@@ -3020,10 +3041,10 @@ const PLAN={
   ot(){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};const depts=D.getDepts();const tgt=D.getTarget();
     let tH=0,oH=0;
-    depts.forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
+    depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
+    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+6);
     const rows=[];
-    for(let di=0;di<6;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
+    for(let di=0;di<7;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
       SHS.forEach(sh=>depts.forEach(dept=>(sched[dept]?.[di]?.[sh]||[]).forEach(w=>{if(!w.ot)return;
         const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh)||'';
         const empData=[...D.getEmps('proc'),...D.getEmps('fill')].find(e=>e.name===w.name);
@@ -3335,14 +3356,14 @@ const PRINT={
     } else {
       const all=D.getSched(s2);Object.keys(all).forEach(k=>{if(k.match(/\d{4}-\d{2}-\d{2}/))wKeys.push(k);});
     }
-    const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+    const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
     const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     const bd='1px solid #8090b0';
     let rows=[];let rowNum=0;
     wKeys.forEach(wk4=>{
       const sched=D.getSched(s2)[wk4]||{};
       const wsDate=new Date(S.wkStart);
-      for(let di=0;di<6;di++){
+      for(let di=0;di<7;di++){
         const d2=new Date(wsDate);d2.setDate(wsDate.getDate()+di);
         const dayTh=DAYTH[di]+' '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
         SHS.forEach(sh=>{
@@ -3429,10 +3450,10 @@ const PRINT={
     const wk=wKey(S.wkStart);
     const sched=D.getSched(sys)[wk]||{};
     const depts=D.getDepts(sys).filter(d=>d!==AL);
-    const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+    const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
     const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     let rows=[];let rowNum=0;
-    for(let di=0;di<6;di++){
+    for(let di=0;di<7;di++){
       const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
       const dayTh=DAYTH[di]+' '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
       SHS.forEach(sh=>{
@@ -3618,10 +3639,10 @@ const PRINT={
   ot(){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};const depts=D.getDepts();const tgt=D.getTarget();
     let tH=0,oH=0;
-    depts.forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
-    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+5);
+    depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
+    const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+6);
     const rows=[];
-    for(let di=0;di<6;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
+    for(let di=0;di<7;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
       SHS.forEach(sh=>depts.forEach(dept=>(sched[dept]?.[di]?.[sh]||[]).forEach(w=>{if(!w.ot)return;
         const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh)||'';
         const empData=[...D.getEmps('proc'),...D.getEmps('fill')].find(e=>e.name===w.name);
@@ -3692,7 +3713,7 @@ const PRINT={
 const SCHED={
   curDi:0,
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
-  nextDay(){this.curDi=Math.min(5,this.curDi+1);this.render();},
+  nextDay(){this.curDi=Math.min(6,this.curDi+1);this.render();},
   chkOpenW(el){
     const ne=el.dataset.ne;const dept=el.dataset.dept;
     const di=parseInt(el.dataset.di);const sh=el.dataset.sh;
@@ -3740,6 +3761,7 @@ const SCHED={
     const emp=D.getEmps().find(x=>x.name===name);
     // เช็คพัก 12 ชม.
     if(!checkRest(name,toDi,toSh,sched)){toast('😴 '+name+' พักไม่ครบ 12 ชม. ก่อนกะนี้');return;}
+    if(!checkMax6Consec(name,toDi,S.sys,wk,sched))return;
     const empMain=emp?.mainDept||emp?.dept||'';
     const allSubs=[...(emp?.subs||[])];if(emp?.sub1&&!allSubs.includes(emp.sub1))allSubs.push(emp.sub1);if(emp?.sub2&&!allSubs.includes(emp.sub2))allSubs.push(emp.sub2);
     worker.isSub=(empMain!==toDept&&allSubs.includes(toDept));
@@ -3790,7 +3812,7 @@ const SCHED={
     const colSpan=DAYS.length*3+1;
     // อัปเดต week label แสดงวันที่+ระบบ
     {const wlEl=document.getElementById('swl');
-    if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+5);
+    if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+6);
     const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     wlEl.textContent='W'+wNum(ws)+': '+ws.getDate()+' '+MN[ws.getMonth()]+' – '+we9.getDate()+' '+MN[we9.getMonth()]+' '+(ws.getFullYear()+543)+' ['+(isFill?'🏭 Filling':'⚙️ Process')+']';}}
     const tb=document.getElementById('stb');if(!tb)return;
@@ -3901,14 +3923,14 @@ const SCHED={
     const isAdmin=S.user?.isAdmin;
     // รวบรวมชื่อทั้งหมดใน AL section ของสัปดาห์นี้
     const allNames=new Set();
-    for(let di=0;di<6;di++){
+    for(let di=0;di<7;di++){
       SHS.forEach(sh=>{
         (alSched[di]?.[sh]||[]).forEach(w=>allNames.add(w.name));
       });
     }
     // แยก pending vs approved จาก leaveReq
     const ws=S.wkStart;
-    const wkDates=Array.from({length:6},(_,i)=>{
+    const wkDates=Array.from({length:7},(_,i)=>{
       const d=new Date(ws);d.setDate(ws.getDate()+i);
       return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     });
@@ -4028,7 +4050,7 @@ const SCHED={
     if(!w.ot){
       // เช็ค OT ไม่เกิน 3 วัน/สัปดาห์ — นับวัน ไม่ใช่ shift
       const max=D.getMaxOT();const otDays=new Set();
-      D.getDepts().forEach(d=>{for(let di2=0;di2<6;di2++){const hasOT=SHS.some(s=>(sched[d]?.[di2]?.[s]||sched[d]?.[String(di2)]?.[s]||[]).some(x=>x.name===name&&x.ot));if(hasOT)otDays.add(di2);}});
+      D.getDepts().forEach(d=>{for(let di2=0;di2<7;di2++){const hasOT=SHS.some(s=>(sched[d]?.[di2]?.[s]||sched[d]?.[String(di2)]?.[s]||[]).some(x=>x.name===name&&x.ot));if(hasOT)otDays.add(di2);}});
       if(otDays.size>=max){alert2('🚫 OT เต็มแล้ว!\n\n'+name+' ทำ OT ครบ '+max+' วันแล้ว','❌');return;}
       // เช็คพัก 12 ชม. ก่อนทำ OT
       if(!checkRest(name,di,sh,sched)){alert2('😴 พักครบ 12 ชั่วโมง!\n\n'+name+' ยังพักไม่ครบก่อนกะนี้','❌');return;}
@@ -4157,6 +4179,7 @@ const SCHED={
     if(!checkRest(name,di,sh,sched)){alert2('😴 พัก\u0e04\u0e23\u0e1a 12 \u0e0a\u0e31\u0e48\u0e27\u0e42\u0e21\u0e07!\
 \
 '+name+' \u0e22\u0e31\u0e07\u0e1e\u0e31\u0e01\u0e44\u0e21\u0e48\u0e04\u0e23\u0e1a\u0e01\u0e48\u0e2d\u0e19\u0e01\u0e30\u0e19\u0e35\u0e49','\u274c');return;}
+    if(!checkMax6Consec(name,di,S.sys,wk,sched))return;
     const emp=D.getEmps().find(e=>e.name===name);if(!emp)return;
     if(!sched[dept])sched[dept]={};if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]};
     if(!sched[dept][di][sh])sched[dept][di][sh]=[];
@@ -4193,7 +4216,7 @@ const SCHED={
     if(!S.user?.isAdmin){toast('\u274c \u0e40\u0e09\u0e1e\u0e32\u0e30 Admin');return;}
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let tH=0,oH=0;
-    D.getDepts().forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
+    D.getDepts().forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
     const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*10000)/100:0;
     // หัก OT ที่กระจายไปแล้วในสัปดาห์นี้ออก — เพื่อให้กรอกเฉพาะส่วนที่เพิ่มใหม่
     const log=D.getOTLog(S.sys)||[];
@@ -4302,6 +4325,17 @@ const SCHED={
       const wk=wKey(S.wkStart);const all=D.getSched();delete all[wk];D.saveSched(all);FB.remove(S.sys+'/sched/'+wk);this.render();toast('\ud83d\uddd1\ufe0f \u0e25\u0e49\u0e32\u0e07\u0e41\u0e25\u0e49\u0e27');
     });
   },
+  loadTeam(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    const sel=document.getElementById('sched-load-day');
+    const val=sel?sel.value:'all';
+    const dayList=val==='all'?[0,1,2,3,4,5,6]:[parseInt(val)];
+    const dayLabel=val==='all'?'ทั้งสัปดาห์':DAYS[parseInt(val)];
+    const sysLabel=S.sys==='fill'?'Filling':'Process';
+    confirm2('⚡ โหลดพนักงานตามทีม ('+sysLabel+') — '+dayLabel+'\n\nระบบจะล้างตารางกะเดิมของ'+(val==='all'?'ทั้งสัปดาห์':dayLabel)+'ออกก่อน แล้วโหลดพนักงานใหม่ตามทีม A/B/C ทั้งหมด ยืนยันหรือไม่?',()=>{
+      PLAN.autoLoad(dayList);
+    });
+  },
   printSched(){PLAN.confirmSched();},
   printOT(){PLAN.confirmOT();}
 };
@@ -4310,7 +4344,7 @@ const OT={
   getEmpOT(name){
     const all=LS.get('sched_'+S.sys,{});const depts=D.getDepts();let oH=0,tH=0;
     const processWk=(wk,wd)=>{
-      depts.forEach(d=>{for(let di=0;di<6;di++)SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}});});
+      depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}});});
     };
     if(this.per==='wk'){
       const ws=new Date(S.wkStart);ws.setDate(ws.getDate()+this.wkOff*7);
@@ -4319,7 +4353,7 @@ const OT={
       Object.entries(all).forEach(([wk,wd])=>{
         if(!wk.match(/\d{4}-\d{2}-\d{2}/))return;
         const wp=wk.split('-');const ws=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));
-        for(let di=0;di<6;di++){
+        for(let di=0;di<7;di++){
           const dayLabel=DAYS[di];const d2=new Date(ws);d2.setDate(ws.getDate()+di);
           if(this.per==='mo'&&(d2.getMonth()!==this.mo||d2.getFullYear()!==this.yr2))continue;
           if(this.per==='yr'&&d2.getFullYear()!==this.yr2)continue;
@@ -4338,7 +4372,7 @@ const OT={
   next(){if(this.per==='wk')this.wkOff++;else if(this.per==='mo'){this.mo++;if(this.mo>11){this.mo=0;this.yr2++;}}else this.yr2++;this.render();},
   updNav(){
     const el=document.getElementById('onl');if(!el)return;
-    if(this.per==='wk'){const ws=new Date(S.wkStart);ws.setDate(ws.getDate()+this.wkOff*7);const we=new Date(ws);we.setDate(we.getDate()+5);el.textContent='\u0e2a\u0e31\u0e1b\u0e14\u0e32\u0e2b\u0e4c\u0e17\u0e35\u0e48 '+wNum(ws)+' ('+ws.getDate()+'/'+(ws.getMonth()+1)+'-'+we.getDate()+'/'+(we.getMonth()+1)+')';}
+    if(this.per==='wk'){const ws=new Date(S.wkStart);ws.setDate(ws.getDate()+this.wkOff*7);const we=new Date(ws);we.setDate(we.getDate()+6);el.textContent='\u0e2a\u0e31\u0e1b\u0e14\u0e32\u0e2b\u0e4c\u0e17\u0e35\u0e48 '+wNum(ws)+' ('+ws.getDate()+'/'+(ws.getMonth()+1)+'-'+we.getDate()+'/'+(we.getMonth()+1)+')';}
     else if(this.per==='mo')el.textContent=MON[this.mo]+' '+(this.yr2+543);
     else el.textContent='\u0e1b\u0e35 '+(this.yr2+543);
   },
@@ -4367,7 +4401,7 @@ const OT={
     Object.entries(all).forEach(([wk,sched])=>{
       if(!wk.match(/\d{4}-\d{2}-\d{2}/))return;
       const wp=wk.split('-');const ws=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));
-      for(let di=0;di<6;di++){
+      for(let di=0;di<7;di++){
         const dayLabel=DAYS[di];const d2=new Date(ws);d2.setDate(ws.getDate()+di);if(d2.getFullYear()!==yr)continue;
         const ds=dStr(d2);
         SHS.forEach(sh=>depts.forEach(dept=>{
@@ -5101,7 +5135,7 @@ const LEAVE={
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
     const reqs=D.getLeaveReq();
     const ws=S.wkStart;
-    const wkDates=Array.from({length:6},(_,i)=>{
+    const wkDates=Array.from({length:7},(_,i)=>{
       const d=new Date(ws);d.setDate(ws.getDate()+i);
       return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     });
@@ -5273,7 +5307,7 @@ const TEAM={
       const dept=emp.mainDept||emp.dept;
       if(!dept||!depts.includes(dept))return;
       if(!sched[dept])sched[dept]={};
-      for(let di=0;di<6;di++){
+      for(let di=0;di<7;di++){
         if(!sched[dept][di])sched[dept][di]={morning:[],afternoon:[],night:[]};
         if(!sched[dept][di][sh])sched[dept][di][sh]=[];
         if(!sched[dept][di][sh].find(w=>w.name===emp.name)){
@@ -5300,6 +5334,45 @@ function checkRest(name,di,sh,sched){
     let nightEmps=[];
     depts.forEach(d=>nightEmps=[...nightEmps,...(sched[d]?.[di-1]?.night||sched[d]?.[String(di-1)]?.night||[])]);
     if(nightEmps.find(w=>w.name===name))return false;
+  }
+  return true;
+}
+
+// ── เช็คทำงานติดต่อกันไม่เกิน 6 วัน (ข้ามระบบ Process/Filling และข้ามสัปดาห์ รวมวันอาทิตย์) ──
+function empWorkedOnDate(name,date,curSys,curWk,curSched){
+  const dow=date.getDay(); // 0=อาทิตย์,1=จันทร์...6=เสาร์
+  const di=(dow+6)%7; // จันทร์=0 ... เสาร์=5, อาทิตย์=6
+  const wk=wKey(date);
+  let found=false;
+  ['proc','fill'].forEach(sys=>{
+    if(found)return;
+    const sched=(sys===curSys&&wk===curWk)?curSched:(D.getSched(sys)[wk]||{});
+    const depts=D.getDepts(sys).filter(d=>d!==AL);
+    depts.forEach(dept=>{
+      if(found)return;
+      SHS.forEach(sh=>{
+        const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
+        if(arr.some(w=>w.name===name))found=true;
+      });
+    });
+  });
+  return found;
+}
+function countConsecutiveIfAdded(name,targetDate,curSys,curWk,curSched){
+  // นับวันทำงานติดต่อกัน โดยสมมติว่ามีการเพิ่มกะในวัน targetDate แล้ว (นับทั้งย้อนหลังและล่วงหน้า)
+  let back=0,d=new Date(targetDate);d.setDate(d.getDate()-1);
+  while(empWorkedOnDate(name,d,curSys,curWk,curSched)){back++;d.setDate(d.getDate()-1);}
+  let fwd=0;d=new Date(targetDate);d.setDate(d.getDate()+1);
+  while(empWorkedOnDate(name,d,curSys,curWk,curSched)){fwd++;d.setDate(d.getDate()+1);}
+  return back+1+fwd;
+}
+function checkMax6Consec(name,di,curSys,curWk,curSched){
+  const monday=getMonday(new Date(curWk));
+  const targetDate=new Date(monday);targetDate.setDate(monday.getDate()+di);
+  const total=countConsecutiveIfAdded(name,targetDate,curSys,curWk,curSched);
+  if(total>6){
+    alert2('🚫 ทำงานเกิน 6 วันติดต่อกัน!\n\n'+name+' จะทำงานติดต่อกัน '+total+' วัน (เกินกฎหมายกำหนด 6 วัน) — ไม่สามารถจัดกะนี้ได้','❌ ห้ามจัดกะ');
+    return false;
   }
   return true;
 }
