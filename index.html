@@ -2522,6 +2522,8 @@ const PLAN={
   },
   autoLoad(dayList){
     dayList=(Array.isArray(dayList)&&dayList.length)?dayList:[0,1,2,3,4,5,6];
+    dayList=[...dayList].sort((a,b)=>a-b); // ต้องเรียงจากวันแรกไปวันหลังเสมอ เพื่อให้เช็ค 6 วันติดต่อกันถูกต้อง
+    const skipped6=[]; // เก็บรายชื่อที่ถูกข้ามเพราะติดโควตา 6 วันติดต่อกัน {name,di,dept}
     // แสดงสถานะกำลังโหลด — define ก่อนเสมอ
     const autoBtn=S.sys==='fill'?document.getElementById('plan-load-emp-fill-btn'):document.getElementById('plan-load-emp-proc-btn');
     const origText=autoBtn?.textContent;
@@ -2543,6 +2545,17 @@ const PLAN={
         autoBtn.style.background='var(--red)';autoBtn.style.color='#fff';
         setTimeout(()=>{if(autoBtn){autoBtn.textContent=origText;autoBtn.style.background='';autoBtn.style.color='';}},3000);
       }
+    };
+    const showSkip6Summary=()=>{
+      if(!skipped6.length)return;
+      // รวมเป็นรายคน: ชื่อ → รายการวันที่ถูกข้าม
+      const byName={};
+      skipped6.forEach(s=>{
+        if(!byName[s.name])byName[s.name]=new Set();
+        byName[s.name].add(DAYS[s.di]);
+      });
+      const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม'+[...byName[name]].join(', ')+' (ทำครบ 6 วันติดต่อกันแล้ว)');
+      alert2('⚠️ พบพนักงานติดวันหยุดบังคับ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nระบบข้ามให้อัตโนมัติเพื่อไม่ให้ทำงานเกิน 6 วันติดต่อกัน — ช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ แจ้งเตือนวันหยุดบังคับ');
     };
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');doneLoad(false,'Admin เท่านั้น');return;}
     const emps=D.getEmps(S.sys);
@@ -2643,6 +2656,7 @@ const PLAN={
             const sh=e.lockShift||(e.team?shMap2[teamShifts2[e.team]]:null);
             if(!sh)return;
             if(!sched2[dept][di][sh].find(w=>w.name===e.name)){
+              if(!fitsMax6Consec(e.name,di,'proc',wk2,sched2)){skipped6.push({name:e.name,di,dept});return;}
               sched2[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
               usedProc.add(e.name);
             }
@@ -2660,26 +2674,35 @@ const PLAN={
         const nightPool=[...byShift.night];
         nonOreoDepts.forEach(dept=>{
           const pool=nightPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(parseInt(a.priority)||99)-(parseInt(b.priority)||99));
-          pool.slice(0,pplPerShift).forEach(e=>{
+          let cnt=0;
+          for(const e of pool){
+            if(cnt>=pplPerShift)break;
+            if(!fitsMax6Consec(e.name,di,'proc',wk2,sched2)){skipped6.push({name:e.name,di,dept});continue;}
             sched2[dept][di].night.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
-          });
+            cnt++;
+          }
         });
 
         // assign กะเช้า
         const morningPool=[...byShift.morning];
         nonOreoDepts.forEach(dept=>{
           const pool=morningPool.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name)).sort((a,b)=>(parseInt(a.priority)||99)-(parseInt(b.priority)||99));
-          pool.slice(0,pplPerShift).forEach(e=>{
+          let cnt=0;
+          for(const e of pool){
+            if(cnt>=pplPerShift)break;
+            if(!fitsMax6Consec(e.name,di,'proc',wk2,sched2)){skipped6.push({name:e.name,di,dept});continue;}
             sched2[dept][di].morning.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
-          });
+            cnt++;
+          }
         });
 
         // assign กะบ่าย
         nonOreoDepts.forEach(dept=>{
           const pool=byShift.afternoon.filter(e=>effectiveDept(e)===dept&&!usedProc.has(e.name));
           pool.forEach(e=>{
+            if(!fitsMax6Consec(e.name,di,'proc',wk2,sched2)){skipped6.push({name:e.name,di,dept});return;}
             sched2[dept][di].afternoon.push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
             usedProc.add(e.name);
           });
@@ -2690,7 +2713,12 @@ const PLAN={
           SHS.forEach(sh=>{
             const oreoMain=byShift[sh].filter(e=>(e.mainDept||e.dept)==='Oreo Coating'&&!usedProc.has(e.name));
             const oreoSub=byShift[sh].filter(e=>(e.sub1==='Oreo Coating'||e.sub2==='Oreo Coating')&&!usedProc.has(e.name)&&(e.mainDept||e.dept)!=='Oreo Coating');
-            const oreo=[...oreoMain,...oreoSub][0];
+            const candidates=[...oreoMain,...oreoSub];
+            let oreo=null;
+            for(const c of candidates){
+              if(fitsMax6Consec(c.name,di,'proc',wk2,sched2)){oreo=c;break;}
+              skipped6.push({name:c.name,di,dept:'Oreo Coating'});
+            }
             if(oreo){
               sched2['Oreo Coating'][di][sh].push({name:oreo.name,ot:false,otHrs:4,av:oreo.av||0,isSub:!oreoMain.find(m=>m.name===oreo.name)});
               usedProc.add(oreo.name);
@@ -2718,7 +2746,7 @@ const PLAN={
           ?[...procIdleSet].map(name=>`<div style="display:inline-flex;align-items:center;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.3);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--blue2)">📋 ${name}</div>`).join('')
           :'<span style="font-size:11px;color:var(--text3)">ไม่มี</span>';
       }
-      SCHED.render();DASH.render();doneLoad(true);
+      SCHED.render();DASH.render();doneLoad(true);showSkip6Summary();
       return;
     }
 
@@ -2770,8 +2798,10 @@ const PLAN={
           if(!e.team&&!e.lockShift)return;
           const sh=e.lockShift||(e.team?shMap[teamShifts[e.team]]:null);
           if(!sh)return;
-          if(!sched[dept][di][sh].find(w=>w.name===e.name))
+          if(!sched[dept][di][sh].find(w=>w.name===e.name)){
+            if(!fitsMax6Consec(e.name,di,'fill',wk,sched)){skipped6.push({name:e.name,di,dept});return;}
             sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,isSub:false});
+          }
         });
       });
     });
@@ -2838,6 +2868,7 @@ const PLAN={
           let assigned=0;
           pool.forEach(e=>{
             if(assigned>=need)return;
+            if(!fitsMax6Consec(e.name,di,'fill',wk,sched)){skipped6.push({name:e.name,di,dept});return;}
             sched[dept][di][sh].push({name:e.name,ot:false,otHrs:4,av:e.av||0,
               isSub:!mainPool.find(m=>m.name===e.name)});
             usedEmps.add(e.name);
@@ -2850,7 +2881,7 @@ const PLAN={
     allSched[wk]=sched;
     D.saveSched(allSched);
     FB.set(S.sys+'/sched/'+wk,sched);
-    SCHED.render();DASH.render();doneLoad(true);
+    SCHED.render();DASH.render();doneLoad(true);showSkip6Summary();
     }catch(err){console.error('Filling load error:',err);toast('❌ '+err.message);doneLoad(false,err.message);}
   },
   openSched(){
@@ -3708,7 +3739,7 @@ const PRINT={
 
 const SCHED={
   curDi:0,
-  viewDays:[0,1,2,3,4,5,6],
+  viewDays:[0,1,2,3,4,5], // default จันทร์–เสาร์ — อาทิตย์ต้องกดเลือกเองถึงจะโชว์/โหลด
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
   nextDay(){this.curDi=Math.min(6,this.curDi+1);this.render();},
   toggleViewDay(di){
@@ -3724,7 +3755,7 @@ const SCHED={
     this.render();
   },
   toggleAllDays(){
-    this.viewDays=(this.viewDays.length===7)?[0]:[0,1,2,3,4,5,6];
+    this.viewDays=(this.viewDays.length===7)?[0,1,2,3,4,5]:[0,1,2,3,4,5,6];
     this.renderDayPicker();
     this.render();
   },
@@ -5404,6 +5435,12 @@ function checkMax6Consec(name,di,curSys,curWk,curSched){
     return false;
   }
   return true;
+}
+// เวอร์ชันเงียบ (ไม่ขึ้น alert) สำหรับใช้ตอนโหลดพนักงานแบบกลุ่ม (PLAN.autoLoad) — คืนค่า true/false อย่างเดียว
+function fitsMax6Consec(name,di,curSys,curWk,curSched){
+  const monday=getMonday(new Date(curWk));
+  const targetDate=new Date(monday);targetDate.setDate(monday.getDate()+di);
+  return countConsecutiveIfAdded(name,targetDate,curSys,curWk,curSched)<=6;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
