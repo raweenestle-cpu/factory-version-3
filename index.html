@@ -964,6 +964,8 @@ const LS={
 };
 const AV=['av0','av1','av2','av3','av4','av5','av6','av7'];
 const DAYS=['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+// สีประจำวันแบบไทย (จันทร์=เหลือง, อังคาร=ชมพู, พุธ=เขียว, พฤหัสบดี=ส้ม, ศุกร์=ฟ้า, เสาร์=ม่วง, อาทิตย์=แดง) — ใช้เป็นโทนพื้นหลังอ่อนๆ แยกคอลัมน์แต่ละวันในตารางกะ
+const DAY_COLORS=['250,204,21','236,72,153','74,222,128','251,146,60','56,189,248','167,139,250','248,113,113'];
 const SHS=['morning','afternoon','night'];
 const SHTH={morning:'กะเช้า',afternoon:'กะบ่าย',night:'กะดึก'};
 const SHTIME={morning:'06:00-14:00',afternoon:'14:00-22:00',night:'22:00-06:00'};
@@ -3732,7 +3734,9 @@ const SCHED={
     let html=`<button class="day-chip all-chip${isAll?' active':''}" onclick="SCHED.toggleAllDays()">📅 ทั้งหมด</button>`;
     DAYS.forEach((d,di)=>{
       const active=this.viewDays.includes(di);
-      html+=`<button class="day-chip${active?' active':''}" onclick="SCHED.toggleViewDay(${di})">${d}</button>`;
+      const dc=DAY_COLORS[di];
+      const style=active?('background:rgba('+dc+',.35);border-color:rgba('+dc+',.8);color:#fff'):('border-color:rgba('+dc+',.4);color:rgba('+dc+',.9)');
+      html+=`<button class="day-chip${active?' active':''}" style="${style}" onclick="SCHED.toggleViewDay(${di})">${d}</button>`;
     });
     el.innerHTML=html;
   },
@@ -3843,7 +3847,7 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);return`<th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:rgba(${dc},.16);border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th></th>'
         +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
@@ -3922,7 +3926,9 @@ const SCHED={
             });
           });
           const _shortClass=(!readOnly&&_needBlink>0&&_haveBlink<_needBlink)?'sched-short':'';
-          row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px">'+cells+addBtn+'</td>';
+          const _dc=DAY_COLORS[di];
+          const _dayBorder=(sh==='morning')?('border-left:3px solid rgba('+_dc+',.55) !important;'):'';
+          row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));'+_dayBorder+'">'+cells+addBtn+'</td>';
         });
       });
       row+='</tr>';
