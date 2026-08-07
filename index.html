@@ -5390,12 +5390,16 @@ const TEAM={
 };
 
 function checkRest(name,di,sh,sched){
-  // เช็คว่าพักครบ 12 ชั่วโมงไหม (กะเช้าต้องไม่เคยทำกะดึกวันก่อน)
+  // เช็คว่าพักครบ 12 ชั่วโมงไหม
+  // กะเช้า (06:00) ต้องไม่เคยทำกะดึกเมื่อวาน (จบ 06:00 = พัก 0 ชม.) หรือกะบ่ายเมื่อวาน (จบ 22:00 = พักแค่ 8 ชม.) — ทั้งสองกรณีไม่ครบ 12 ชม.
   if(sh==='morning'&&di>0){
     const depts=D.getDepts().filter(d=>d!==AL);
-    let nightEmps=[];
-    depts.forEach(d=>nightEmps=[...nightEmps,...(sched[d]?.[di-1]?.night||sched[d]?.[String(di-1)]?.night||[])]);
-    if(nightEmps.find(w=>w.name===name))return false;
+    let prevEmps=[];
+    depts.forEach(d=>{
+      prevEmps=[...prevEmps,...(sched[d]?.[di-1]?.night||sched[d]?.[String(di-1)]?.night||[])];
+      prevEmps=[...prevEmps,...(sched[d]?.[di-1]?.afternoon||sched[d]?.[String(di-1)]?.afternoon||[])];
+    });
+    if(prevEmps.find(w=>w.name===name))return false;
   }
   return true;
 }
