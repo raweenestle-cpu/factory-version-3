@@ -972,6 +972,15 @@ const AV=['av0','av1','av2','av3','av4','av5','av6','av7'];
 const DAYS=['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
 // สีประจำวันแบบไทย (จันทร์=เหลือง, อังคาร=ชมพู, พุธ=เขียว, พฤหัสบดี=ส้ม, ศุกร์=ฟ้า, เสาร์=ม่วง, อาทิตย์=แดง) — ใช้เป็นโทนพื้นหลังอ่อนๆ แยกคอลัมน์แต่ละวันในตารางกะ
 const DAY_COLORS=['250,204,21','236,72,153','74,222,128','251,146,60','56,189,248','167,139,250','248,113,113'];
+// ผสมสีประจำวันกับสีขาวให้เป็นสีทึบ (ไม่ใช้ rgba โปร่งแสง) — กันปัญหาสีพื้นหลังโปร่งแสงจนเนื้อหาด้านล่างทะลุขึ้นมาตอน sticky header
+function pastelSolid(rgbStr,ratio){
+  ratio=ratio||0.18;
+  const p=rgbStr.split(',').map(Number);
+  const mr=Math.round(p[0]*ratio+255*(1-ratio));
+  const mg=Math.round(p[1]*ratio+255*(1-ratio));
+  const mb=Math.round(p[2]*ratio+255*(1-ratio));
+  return 'rgb('+mr+','+mg+','+mb+')';
+}
 const SHS=['morning','afternoon','night'];
 const SHTH={morning:'กะเช้า',afternoon:'กะบ่าย',night:'กะดึก'};
 const SHTIME={morning:'06:00-14:00',afternoon:'14:00-22:00',night:'22:00-06:00'};
@@ -3884,7 +3893,7 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:rgba(${dc},.16);border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th class="sc2"></th>'
         +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
