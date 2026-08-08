@@ -3572,12 +3572,15 @@ const PRINT={
     const isFill=sys==='fill';
 
     const buildTable=(depts2,sched2,di,showHeader=true)=>{
-      // หัวตารางแสดงเสมอ ติดกับวันนั้น
+      // หัวตารางแสดงเสมอ ติดกับวันนั้น — เพิ่มคอลัมน์ "ลงชื่อ" ต่อท้ายรายชื่อของแต่ละกะ
       const head=`<thead><tr>
         <th style="border:${bd};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
         <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
         <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
         <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
       </tr></thead>`;
       let rows='<tbody>';
       depts2.forEach((dept,ri)=>{
@@ -3597,7 +3600,9 @@ const PRINT={
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
             return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
           }).join('');
+          const sigLines=ws2.map(()=>`<div style="white-space:nowrap;border-bottom:1px solid #999;height:10pt">&nbsp;</div>`).join('');
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${sigLines}</td>`;
         });
         rows+='</tr>';
       });
