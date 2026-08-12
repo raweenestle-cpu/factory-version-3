@@ -628,6 +628,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <div class="sched-btns" style="margin-top:6px;flex-wrap:wrap">
         <div id="sched-day-picker" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
         <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
+        <button onclick="SCHED.openCopyDay()" style="background:rgba(22,163,74,.2);color:var(--green2);border:1px solid rgba(22,163,74,.4)">📋 คัดลอกวัน</button>
       </div>
     </div>
     <div id="save-info" style="font-size:9px;color:var(--text3);padding:2px 14px 2px;text-align:right"></div>
@@ -916,6 +917,38 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div class="md-foot">
       <button class="btn-cancel" onclick="closeMo('mo-print-sched')">ยกเลิก</button>
       <button class="btn-confirm" onclick="PRINT.confirmSched()">🖨️ พิมพ์</button>
+    </div>
+  </div>
+</div>
+<div class="mo hide" id="mo-copy-day" style="align-items:flex-start;padding-top:20px">
+  <div class="md" style="max-width:min(500px,95vw);margin:0 auto">
+    <div class="md-handle"></div>
+    <div class="md-hdr">
+      <div class="md-title">📋 คัดลอกตารางกะ</div>
+      <button class="md-close" onclick="closeMo('mo-copy-day')">✕</button>
+    </div>
+    <div class="md-body">
+      <div style="margin-bottom:14px">
+        <label class="fl">คัดลอกจากวัน</label>
+        <select class="fs" id="cpd-from">
+          <option value="0">จันทร์</option>
+          <option value="1">อังคาร</option>
+          <option value="2">พุธ</option>
+          <option value="3">พฤหัสบดี</option>
+          <option value="4">ศุกร์</option>
+          <option value="5">เสาร์</option>
+          <option value="6">อาทิตย์</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:8px">ไปวัน (เลือกได้หลายวัน)</div>
+        <div id="cpd-to-picker" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.5">⚠️ ระบบจะล้างตารางเดิมของวันที่เลือก "ไปวัน" ทั้งหมดก่อนคัดลอก และจะข้ามคนที่คัดลอกไปแล้วผิดกฎ (พัก 12 ชม. / ทำงานเกิน 6 วันติดต่อกัน / ซ้อนกะวันนั้น) โดยอัตโนมัติ พร้อมสรุปให้หลังคัดลอกเสร็จ</div>
+    </div>
+    <div class="md-foot">
+      <button class="btn-cancel" onclick="closeMo('mo-copy-day')">ยกเลิก</button>
+      <button class="btn-confirm" onclick="SCHED.doCopyDay()">📋 คัดลอก</button>
     </div>
   </div>
 </div>
@@ -4419,6 +4452,73 @@ const SCHED={
     confirm2('⚡ โหลดพนักงานตามทีม ('+sysLabel+') — '+dayLabel+'\n\nระบบจะล้างตารางกะเดิมของ'+dayLabel+'ออกก่อน แล้วโหลดพนักงานใหม่ตามทีม A/B/C ทั้งหมด ยืนยันหรือไม่?',()=>{
       PLAN.autoLoad(dayList);
     });
+  },
+  openCopyDay(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    const fromSel=document.getElementById('cpd-from');
+    if(fromSel)fromSel.value=String(this.curDi||0);
+    const picker=document.getElementById('cpd-to-picker');
+    if(picker){
+      let html='';
+      DAYS.forEach((d,di)=>{
+        html+='<label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="cpd-to-'+di+'"> '+d+'</label>';
+      });
+      picker.innerHTML=html;
+    }
+    openMo('mo-copy-day');
+  },
+  doCopyDay(){
+    const fromDi=parseInt(document.getElementById('cpd-from')?.value);
+    const toDis=[];
+    DAYS.forEach((d,di)=>{if(document.getElementById('cpd-to-'+di)?.checked)toDis.push(di);});
+    if(isNaN(fromDi)){toast('❌ เลือกวันต้นทาง');return;}
+    if(!toDis.length){toast('❌ เลือกวันปลายทางอย่างน้อย 1 วัน');return;}
+    if(toDis.includes(fromDi)){toast('❌ วันปลายทางต้องไม่ใช่วันเดียวกับต้นทาง');return;}
+    const fromLabel=DAYS[fromDi];
+    const toLabel=toDis.map(di=>DAYS[di]).join(', ');
+    confirm2('📋 คัดลอกตารางกะจาก'+fromLabel+' ไปยัง '+toLabel+'\n\nระบบจะล้างตารางเดิมของวันปลายทางทั้งหมดก่อนคัดลอก ยืนยันหรือไม่?',()=>{
+      closeMo('mo-copy-day');
+      this._runCopyDay(fromDi,toDis);
+    });
+  },
+  _runCopyDay(fromDi,toDis){
+    toDis=[...toDis].sort((a,b)=>a-b);
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    const depts=D.getDepts().filter(d=>d!==AL);
+    const skipped=[]; // {name,di,dept,reason}
+    toDis.forEach(toDi=>{
+      // ล้างวันปลายทางทุกแผนก (รวม AL) ก่อนคัดลอกใหม่
+      Object.keys(sched).forEach(dept=>{
+        if(sched[dept])sched[dept][toDi]={morning:[],afternoon:[],night:[]};
+      });
+      depts.forEach(dept=>{
+        if(!sched[dept])sched[dept]={};
+        if(!sched[dept][toDi])sched[dept][toDi]={morning:[],afternoon:[],night:[]};
+      });
+      depts.forEach(dept=>{
+        SHS.forEach(sh=>{
+          const srcArr=sched[dept]?.[fromDi]?.[sh]||sched[dept]?.[String(fromDi)]?.[sh]||[];
+          srcArr.forEach(w=>{
+            if(!checkRest(w.name,toDi,sh,sched)){skipped.push({name:w.name,di:toDi,reason:'พักไม่ครบ 12 ชม.'});return;}
+            if(!fitsMax6Consec(w.name,toDi,S.sys,wk,sched)){skipped.push({name:w.name,di:toDi,reason:'เกิน 6 วันติดต่อกัน'});return;}
+            if(isDoubleBooked(w.name,toDi,sched)){skipped.push({name:w.name,di:toDi,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
+            sched[dept][toDi][sh].push({...w});
+          });
+        });
+      });
+    });
+    all[wk]=sched;markUnsaved();D.saveSched(all);
+    this.render();DASH.render();
+    toast('✅ คัดลอกตารางกะเรียบร้อย');
+    if(skipped.length){
+      const byName={};
+      skipped.forEach(s=>{
+        if(!byName[s.name])byName[s.name]=[];
+        byName[s.name].push(DAYS[s.di]+' ('+s.reason+')');
+      });
+      const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม '+byName[name].join(', '));
+      alert2('⚠️ มีบางคนคัดลอกไม่ได้ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ คัดลอกไม่ครบ');
+    }
   },
   printSched(){PLAN.confirmSched();},
   printOT(){PLAN.confirmOT();}
