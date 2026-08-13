@@ -209,7 +209,7 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tbl .wc{background:#F8FAFC;border:1px solid #CBD5E1;color:#0F172A}
 .sched-tbl .wc.ot{background:#FEF3C7;border-color:#F59E0B}
 .sched-tbl .wc.sg{background:#DCFCE7;border-color:#16A34A}
-.wc{display:inline-flex;align-items:center;gap:3px;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;margin:1px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
+.wc{display:flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;margin:1px 0;font-size:10px;font-weight:700;cursor:pointer;width:100%;box-sizing:border-box;flex-wrap:wrap}
 .wc.ot{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4)}
 .wc.sg{background:rgba(22,163,74,.15);border-color:rgba(22,163,74,.4)}
 .wc .ot-t{font-size:9px;color:var(--amber);font-weight:800}
@@ -3970,23 +3970,23 @@ const SCHED={
             const oc=readOnly?'':('SCHED.chkOpenW(this)');
             const isSub=!!w.isSub;
             const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
-            const subBadge=isSub?'<span style="display:block;font-size:8px;color:#ea580c;font-weight:900">⚠️ มือรอง</span>':'';
+            const subBadge=isSub?'<span style="font-size:8px;color:#ea580c;font-weight:900;white-space:nowrap">⚠️ มือรอง</span>':'';
             const draggable=(!readOnly&&S.user?.isAdmin)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
             let reasonHtml='';
             if(w.ot){
               if(S.user?.isAdmin){
                 const curReason=w.otReason||'';
                 const opts='<option value="">— เหตุผล OT —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${(curReason&&!otReasons.includes(curReason))?'selected':''}>อื่นๆ (ระบุ)</option>`;
-                reasonHtml=`<select onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onchange="event.stopPropagation();SCHED.setOTReason('${ne}','${dept}',${di},'${sh}',this.value,this)" style="display:block;width:100%;margin-top:2px;font-size:8px;padding:1px 2px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:'Sarabun',sans-serif">${opts}</select>`;
+                reasonHtml=`<select onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onchange="event.stopPropagation();SCHED.setOTReason('${ne}','${dept}',${di},'${sh}',this.value,this)" style="flex:1;min-width:90px;font-size:8px;padding:1px 2px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:'Sarabun',sans-serif">${opts}</select>`;
               }else if(w.otReason){
-                reasonHtml='<span style="display:block;font-size:8px;color:var(--text3);margin-top:2px">📝 '+w.otReason+'</span>';
+                reasonHtml='<span style="font-size:8px;color:var(--text3);white-space:nowrap">📝 '+w.otReason+'</span>';
               }
             }
             const chip='<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+(isSub?' sub':'')+'" '
-              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:column;align-items:stretch">'
-              +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
+              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:row;align-items:center;flex-wrap:wrap">'
+              +'<span style="font-size:11px;font-weight:800;white-space:nowrap">'+w.name+'</span>'
               +subBadge
-              +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
+              +(w.ot?'<span style="font-size:9px;color:var(--amber);font-weight:700;white-space:nowrap">'+timeStr+'</span>':'')
               +(sg?'✅':(w.ot?'✍️':''))
               +reasonHtml+'</span>';
             return chip;
