@@ -3609,14 +3609,21 @@ const PRINT={
 
     const buildTable=(depts2,sched2,di,showHeader=true)=>{
       // หัวตารางแสดงเสมอ ติดกับวันนั้น — เพิ่มคอลัมน์ "ลงชื่อ" ต่อท้ายรายชื่อของแต่ละกะ
+      // colgroup กำหนดความกว้างคอลัมน์ตายตัว ให้ทุกวันตรงกันเป๊ะ ไม่ขึ้นกับความยาวข้อความ OT
+      const colg=`<colgroup>
+        <col style="width:13%">
+        <col style="width:18%"><col style="width:11%">
+        <col style="width:18%"><col style="width:11%">
+        <col style="width:18%"><col style="width:11%">
+      </colgroup>`;
       const head=`<thead><tr>
         <th style="border:${bd};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
         <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
+        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">ลงชื่อ</th>
         <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
+        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">ลงชื่อ</th>
         <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center;width:13%">ลงชื่อ</th>
+        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">ลงชื่อ</th>
       </tr></thead>`;
       let rows='<tbody>';
       depts2.forEach((dept,ri)=>{
@@ -3626,7 +3633,7 @@ const PRINT={
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
           const names=ws2.map(w=>{
-            if(!w.ot)return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
+            if(!w.ot)return`<div style="flex:1;overflow-wrap:break-word;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
@@ -3634,7 +3641,7 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="color:#666;font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
+            return`<div style="flex:1;overflow-wrap:break-word;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="color:#666;font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
           }).join('');
           const namesWrapped=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${names}</div>`:'';
           const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1;border-bottom:1px solid rgba(0,0,0,.12);min-height:10pt">&nbsp;</div>`).join('')}</div>`:'';
@@ -3644,7 +3651,7 @@ const PRINT={
         rows+='</tr>';
       });
       rows+='</tbody>';
-      return`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:auto">${head}${rows}</table>`;
+      return`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:fixed">${colg}${head}${rows}</table>`;
     };
 
     const procSched=D.getSched('proc')[wk]||{};
@@ -3653,13 +3660,13 @@ const PRINT={
     const fillDepts=D.getDepts('fill').filter(d=>d!==AL);
 
     let body='';
-    daysToShow.forEach(di=>{
+    daysToShow.forEach((di,idx)=>{
       const d2=new Date(ws);d2.setDate(ws.getDate()+di);
       const ds2=DAYTH_FULL[di]+'ที่ '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
 
       if(isFill){
         // Filling: วันละหน้า มี Process + Filling รวมกัน
-        body+=`<div class="day-page">`;
+        body+=`<div class="day-page${idx===0?' day-page-first':''}">`;
         body+=`<div class="day-header">${ds2}</div>`;
         body+=`<div style="font-size:6pt;font-weight:900;color:#1e3a5f;padding:1px 4px;background:#dbeafe;margin-bottom:1px">🔧 Process</div>`;
         body+=buildTable(procDepts,procSched,di);
@@ -3704,7 +3711,7 @@ const PRINT={
     doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
     doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
-    doc.write('.day-page:first-of-type{page-break-before:auto;break-before:auto;}');
+    doc.write('.day-page.day-page-first{page-break-before:auto;break-before:auto;}');
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
