@@ -4508,6 +4508,9 @@ const SCHED={
       });
     });
     all[wk]=sched;markUnsaved();D.saveSched(all);
+    // เปิดวันปลายทางที่เพิ่งคัดลอกไปให้เห็นในตารางทันที (เผื่อกำลังกรองดูแค่บางวันอยู่)
+    toDis.forEach(di=>{if(!this.viewDays.includes(di))this.viewDays.push(di);});
+    this.viewDays.sort((a,b)=>a-b);
     this.render();DASH.render();
     toast('✅ คัดลอกตารางกะเรียบร้อย');
     if(skipped.length){
