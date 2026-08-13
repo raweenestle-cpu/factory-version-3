@@ -3458,7 +3458,7 @@ const PRINT={
               else{const eH={morning:14,afternoon:22,night:30}[sh]||14;
                    tStart=String(shStartH).padStart(2,'0')+':00';
                    tEnd=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-              rows.push({rowNum,name:w.name,dept,dayTh,sh,otHrs,tStart,tEnd,sg,sigImg:emp?.signature||null});
+              rows.push({rowNum,name:w.name,dept,dayTh,sh,otHrs,tStart,tEnd,sg,sigImg:emp?.signature||null,reason:w.otReason||''});
             });
           });
         });
@@ -3472,13 +3472,14 @@ const PRINT={
     const dateStr=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
     const tbl=`<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt">
       <colgroup>
-        <col style="width:5%">
-        <col style="width:22%">
-        <col style="width:17%">
-        <col style="width:12%">
+        <col style="width:4%">
+        <col style="width:16%">
         <col style="width:14%">
-        <col style="width:8%">
-        <col style="width:22%">
+        <col style="width:9%">
+        <col style="width:11%">
+        <col style="width:6%">
+        <col style="width:20%">
+        <col style="width:20%">
       </colgroup>
       <thead><tr style="background:#e8eeff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact">
         <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">#</th>
@@ -3487,6 +3488,7 @@ const PRINT={
         <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">กะ</th>
         <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">เวลา OT</th>
         <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">ชม.</th>
+        <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">เหตุผล OT</th>
         <th style="border:${bd};padding:4px 5px;color:#000!important;background:#e8eeff!important;text-align:center">ลายเซ็นยินยอม</th>
       </tr></thead>
       <tbody>
@@ -3497,6 +3499,7 @@ const PRINT={
         <td style="border:${bd};padding:5px;color:#000;text-align:center">${SHTH[r.sh]}</td>
         <td style="border:${bd};padding:5px;color:#b45309;text-align:center;font-weight:800;white-space:nowrap">${r.tStart}–${r.tEnd}</td>
         <td style="border:${bd};padding:5px;color:#b45309;text-align:center;font-weight:900">${r.otHrs}</td>
+        <td style="border:${bd};padding:5px;color:#000;text-align:center;font-size:8pt">${r.reason||'<span style="color:#ccc">-</span>'}</td>
         <td style="border:${bd};padding:5px;text-align:center;height:45pt">
           ${r.sigImg?`<img src="${r.sigImg}" style="max-height:38pt;max-width:80pt;object-fit:contain">`:r.sg?`<span style="font-family:'Brush Script MT',cursive;font-size:12pt;color:#1e3a5f">${r.sg}</span>`:''}
         </td>
@@ -3631,7 +3634,7 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
+            return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="color:#666;font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
           }).join('');
           const namesWrapped=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${names}</div>`:'';
           const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1;border-bottom:1px solid rgba(0,0,0,.12);min-height:10pt">&nbsp;</div>`).join('')}</div>`:'';
