@@ -3793,7 +3793,7 @@ const PRINT={
 
 const SCHED={
   curDi:0,
-  viewDays:[0,1,2,3,4,5], // default จันทร์–เสาร์ — อาทิตย์ต้องกดเลือกเองถึงจะโชว์/โหลด
+  viewDays:[0], // default จันทร์วันเดียว — วันอื่นต้องกดเลือกเองถึงจะโชว์/โหลด
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
   nextDay(){this.curDi=Math.min(6,this.curDi+1);this.render();},
   toggleViewDay(di){
@@ -3809,7 +3809,7 @@ const SCHED={
     this.render();
   },
   toggleAllDays(){
-    this.viewDays=(this.viewDays.length===7)?[0,1,2,3,4,5]:[0,1,2,3,4,5,6];
+    this.viewDays=(this.viewDays.length===7)?[0]:[0,1,2,3,4,5,6];
     this.renderDayPicker();
     this.render();
   },
