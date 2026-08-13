@@ -3465,9 +3465,7 @@ const PRINT={
       }
     });
 
-    const prev=document.getElementById('pr-ot-preview');
-    if(!prev)return;
-    if(!rows.length){prev.innerHTML='<div style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล OT</div>';return;}
+    if(!rows.length)return'<div style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล OT</div>';
 
     const dateStr=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
     const tbl=`<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt">
@@ -3507,7 +3505,7 @@ const PRINT={
       </tbody>
     </table>`;
 
-    prev.innerHTML=`<div style="font-family:'Sarabun',sans-serif;color:#000">
+    return`<div style="font-family:'Sarabun',sans-serif;color:#000">
       <div style="font-size:13pt;font-weight:900;color:#1e3a5f;margin-bottom:2px">ใบยินยอมทำงานล่วงเวลา (OT)</div>
       <div style="font-size:9pt;color:#666;margin-bottom:8px">${dateStr} — ${s2==='proc'?'Process':'Filling'}</div>
       ${tbl}
@@ -3522,65 +3520,18 @@ const PRINT={
     </div>`;
   },
   confirmOT(){
-    const sysSel=document.getElementById('pr-sys')?.value||'proc';
-    const sys=sysSel==='both'?S.sys:sysSel;
-    // สร้าง HTML ใหม่โดยตรง ไม่ copy จาก preview
-    const wk=wKey(S.wkStart);
-    const sched=D.getSched(sys)[wk]||{};
-    const depts=D.getDepts(sys).filter(d=>d!==AL);
-    const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
-    const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    let rows=[];let rowNum=0;
-    for(let di=0;di<7;di++){
-      const d2=new Date(S.wkStart);d2.setDate(S.wkStart.getDate()+di);
-      const dayTh=DAYTH[di]+' '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
-      SHS.forEach(sh=>{
-        depts.forEach(dept=>{
-          (sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).forEach(w=>{
-            if(!w.ot)return;
-            rowNum++;
-            const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh);
-            const emp=D.getEmps(sys).find(e=>e.name===w.name);
-            const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
-            const isPreOT=w.otBefore;const otHrs=Math.round(w.otHrs||4);
-            let tStart,tEnd;
-            if(sh==='night'&&w.ot){
-              tStart=String((22-otHrs+24)%24).padStart(2,'0')+':00';tEnd='06:00';
-            } else if(isPreOT&&sh==='morning'){
-              tStart='06:00';tEnd='18:00';
-            } else {
-              const eH={morning:14,afternoon:22,night:30}[sh]||14;
-              tStart=String(shStartH).padStart(2,'0')+':00';
-              tEnd=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';
-            }
-            // dummy to match
-            if(false){const eH2=0;tStart=String(shStartH).padStart(2,'0')+':00';
-                 tEnd=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            const sigHtml=emp?.signature?`<img src="${emp.signature}" style="max-height:35pt;max-width:80pt;object-fit:contain">`:sg?`<span style="font-family:cursive;font-size:12pt">${sg}</span>`:'';
-            rows.push({rowNum,name:w.name,dept,dayTh,sh,otHrs,tStart,tEnd,sigHtml});
-          });
-        });
-      });
-    }
-    if(!rows.length){toast('❌ ไม่มีข้อมูล OT');return;}
-    const now=new Date();
-    const dateStr=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
-    const SHTH2={morning:'เช้า',afternoon:'บ่าย',night:'ดึก'};
-    const tbl='<table><thead><tr><th>#</th><th>ชื่อ-สกุล</th><th>วันที่</th><th>กะ</th><th>เวลา OT</th><th>ชม.</th><th>ลายเซ็นยินยอม</th></tr></thead><tbody>'
-      +rows.map((r,i)=>'<tr><td>'+r.rowNum+'</td><td>'+r.name+'</td><td>'+r.dayTh+'</td><td>'+SHTH2[r.sh]+'</td><td>'+r.tStart+'–'+r.tEnd+'</td><td>'+r.otHrs+'</td><td style="height:45pt;text-align:center">'+r.sigHtml+'</td></tr>').join('')
-      +'</tbody></table>';
-    const footer='<div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px"><div style="border:1px solid #aaa;border-radius:4px;padding:8px;min-height:60px;text-align:center"><div style="margin-top:40px;font-size:8pt;color:#666">ผู้จัดทำ / ผู้จัดกะ</div></div><div style="border:1px solid #aaa;border-radius:4px;padding:8px;min-height:60px;text-align:center"><div style="margin-top:40px;font-size:8pt;color:#666">ผู้อนุมัติ</div></div></div>';
+    const mode=document.getElementById('pr-mode')?.value||'week';
+    const sys=document.getElementById('pr-sys')?.value||'both';
+    const html=this.buildOTHTML(mode,sys);
+    if(!html||html.indexOf('ไม่มีข้อมูล OT')>=0){toast('❌ ไม่มีข้อมูล OT');return;}
     const pw=window.open('','_blank');
     const doc=pw.document;
     doc.open();
     doc.write('<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">');
     doc.write('<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap" rel="stylesheet">');
-    doc.write('<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Sarabun,sans-serif;background:#fff;color:#000;padding:8mm;}table{width:100%;border-collapse:collapse;table-layout:auto;}th{border:1px solid #8090b0;padding:5px 8px;background:#e8eeff;color:#000;font-weight:700;font-size:9pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}td{border:1px solid #8090b0;padding:5px 8px;font-size:9pt;color:#000;vertical-align:middle;}tr:nth-child(even) td{background:#f8faff;}@page{size:A4;margin:8mm;}@media print{body{padding:0;}}</style>');
+    doc.write('<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Sarabun,sans-serif;background:#fff;color:#000;padding:6mm;}table{width:100%;border-collapse:collapse;table-layout:fixed;}th{border:1px solid #8090b0;padding:4px 5px;background:#fff;color:#000;font-weight:700;font-size:9pt;}td{border:1px solid #8090b0;padding:5px;font-size:9pt;color:#000;vertical-align:middle;background:#fff;}@page{size:A4 landscape;margin:6mm;}@media print{body{padding:0;}}</style>');
     doc.write('</head><body>');
-    doc.write("<div style=\"font-size:13pt;font-weight:900;color:#1e3a5f;margin-bottom:2px\">ใบยินยอมทำงานล่วงเวลา (OT)</div>");
-    doc.write("<div style=\"font-size:9pt;color:#666;margin-bottom:8px\">" + dateStr + " — " + (sys==='proc'?'Process':'Filling') + "</div>");
-    doc.write(tbl);
-    doc.write(footer);
+    doc.write(html);
     doc.write('</body></html>');
     doc.close();
     setTimeout(()=>pw.print(),600);
