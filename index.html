@@ -3923,7 +3923,8 @@ const SCHED={
     const procSched=isFill?(D.getSched('proc')[wk]||{}):null;
     this.renderDayPicker();
     const vDays=this.viewDays.map(di=>[DAYS[di],di]); // [[label,di],...] เฉพาะวันที่เลือก
-    const colSpan=vDays.length*6+1;
+    const otReasons=D.getReasons()||[]; // เหตุผล OT จาก Settings — ใช้แปะใต้ชื่อคนที่เปิด OT ในชิปเดียวกัน
+    const colSpan=vDays.length*3+1;
     // อัปเดต week label แสดงวันที่+ระบบ
     {const wlEl=document.getElementById('swl');
     if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+6);
@@ -3933,9 +3934,9 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="6" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th class="sc2"></th>'
-        +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th><th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">เหตุผล OT</th>`).join('')).join('')
+        +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
     }
     const makeRow=(dept,sc,readOnly)=>{
@@ -3961,12 +3962,23 @@ const SCHED={
             const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
             const subBadge=isSub?'<span style="display:block;font-size:8px;color:#ea580c;font-weight:900">⚠️ มือรอง</span>':'';
             const draggable=(!readOnly&&S.user?.isAdmin)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
+            let reasonHtml='';
+            if(w.ot){
+              if(S.user?.isAdmin){
+                const curReason=w.otReason||'';
+                const opts='<option value="">— เหตุผล OT —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${(curReason&&!otReasons.includes(curReason))?'selected':''}>อื่นๆ (ระบุ)</option>`;
+                reasonHtml=`<select onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onchange="event.stopPropagation();SCHED.setOTReason('${ne}','${dept}',${di},'${sh}',this.value,this)" style="display:block;width:100%;margin-top:2px;font-size:8px;padding:1px 2px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:'Sarabun',sans-serif">${opts}</select>`;
+              }else if(w.otReason){
+                reasonHtml='<span style="display:block;font-size:8px;color:var(--text3);margin-top:2px">📝 '+w.otReason+'</span>';
+              }
+            }
             const chip='<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+(isSub?' sub':'')+'" '
-              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab">'
+              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:column;align-items:stretch">'
               +'<span style="font-size:11px;font-weight:800">'+w.name+'</span>'
               +subBadge
               +(w.ot?'<span style="display:block;font-size:9px;color:var(--amber);font-weight:700">'+timeStr+'</span>':'')
-              +(sg?'✅':(w.ot?'✍️':''))+'</span>';
+              +(sg?'✅':(w.ot?'✍️':''))
+              +reasonHtml+'</span>';
             return chip;
           }).join('');
           const addBtn=(S.user?.isAdmin&&!readOnly)?('<button class="aw-btn" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" onclick="SCHED.openAdd(this.dataset.dept,parseInt(this.dataset.di),this.dataset.sh)">+</button>'):'';
@@ -4015,18 +4027,6 @@ const SCHED={
           const _dc=DAY_COLORS[di];
           const _dayBorder=(sh==='morning')?('border-left:3px solid rgba('+_dc+',.55) !important;'):'';
           row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));'+_dayBorder+'">'+cells+addBtn+'</td>';
-          // คอลัมน์เหตุผล OT — โชว์เฉพาะคนที่เปิด OT ในกะนี้ เป็น dropdown ดึงจากเหตุผลที่ตั้งไว้ใน Settings
-          const otReasons=D.getReasons()||[];
-          const reasonCells=ws2.filter(w=>w.ot).map(w=>{
-            const ne2=w.name.replace(/'/g,"\\'");
-            const curReason=w.otReason||'';
-            if(!S.user?.isAdmin){
-              return '<div style="font-size:10px;color:var(--text2);padding:2px 0;white-space:nowrap">'+(curReason||'<span style=\"color:var(--text3)\">— ยังไม่ระบุ —</span>')+'</div>';
-            }
-            const opts='<option value="">— เลือกเหตุผล —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${(curReason&&!otReasons.includes(curReason))?'selected':''}>อื่นๆ (ระบุ)</option>`;
-            return `<select onchange="SCHED.setOTReason('${ne2}','${dept}',${di},'${sh}',this.value,this)" style="width:100%;font-size:9px;padding:2px;margin:1px 0;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Sarabun',sans-serif">${opts}</select>`;
-          }).join('');
-          row+='<td class="sh-'+sh+'" style="min-width:80px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));">'+reasonCells+'</td>';
         });
       });
       row+='</tr>';
