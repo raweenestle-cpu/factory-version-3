@@ -3607,7 +3607,7 @@ const PRINT={
     const daysToShow=selDays||[0,1,2,3,4,5];
     const isFill=sys==='fill';
 
-    const buildTable=(depts2,sched2,di,showHeader=true)=>{
+    const buildTable=(depts2,sched2,di,dayLabel)=>{
       // หัวตารางแสดงเสมอ ติดกับวันนั้น — เพิ่มคอลัมน์ "ลงชื่อ" ต่อท้ายรายชื่อของแต่ละกะ
       // colgroup กำหนดความกว้างคอลัมน์ตายตัว ให้ทุกวันตรงกันเป๊ะ ไม่ขึ้นกับความยาวข้อความ OT
       const colg=`<colgroup>
@@ -3616,24 +3616,25 @@ const PRINT={
         <col style="width:23%"><col style="width:6%">
         <col style="width:23%"><col style="width:6%">
       </colgroup>`;
-      const head=`<thead><tr>
-        <th style="border:${bd};padding:1px 3px;background:#e8eeff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
-        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#dbeafe;color:#1e40af;font-weight:700;text-align:center">ลงชื่อ</th>
-        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#fef3c7;color:#92400e;font-weight:700;text-align:center">ลงชื่อ</th>
-        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
-        <th style="border:${bd};padding:1px 3px;background:#f1f5f9;color:#475569;font-weight:700;text-align:center">ลงชื่อ</th>
+      // แถวชื่อวัน อยู่ใน thead ด้วย — จะได้ขึ้นซ้ำทุกหน้าอัตโนมัติถ้าตารางยาวเกิน 1 หน้ากระดาษ (ไม่หลุดหายไปกับหน้าแรกเท่านั้น)
+      const dayRow=dayLabel?`<tr><th colspan="7" style="border:${bd};padding:2px 6px;background:#fff;color:#000;font-weight:900;text-align:left;border-left:3px solid #000">${dayLabel}</th></tr>`:'';
+      const head=`<thead>${dayRow}<tr>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:left;white-space:nowrap">แผนก</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">กะเช้า 06:00-14:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">ลงชื่อ</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">กะบ่าย 14:00-22:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">ลงชื่อ</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">กะดึก 22:00-06:00</th>
+        <th style="border:${bd};padding:1px 3px;background:#fff;color:#000;font-weight:700;text-align:center">ลงชื่อ</th>
       </tr></thead>`;
       let rows='<tbody>';
-      depts2.forEach((dept,ri)=>{
-        const bg=ri%2===0?'#fff':'#f8faff';
-        rows+=`<tr style="background:${bg}">`;
+      depts2.forEach((dept)=>{
+        rows+=`<tr style="background:#fff">`;
         rows+=`<td style="border:${bd};padding:1px 3px;font-weight:700">${dept}</td>`;
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
           const names=ws2.map(w=>{
-            if(!w.ot)return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
+            if(!w.ot)return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:12pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
@@ -3641,11 +3642,11 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:16pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="color:#666;font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
+            return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:12pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
           }).join('');
           const namesWrapped=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${names}</div>`:'';
-          const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(w=>`<div style="flex:1 1 auto;border-bottom:1px solid rgba(0,0,0,.12);min-height:${w.ot?'16pt':'10pt'}">&nbsp;</div>`).join('')}</div>`:'';
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${namesWrapped||'<span style="color:#ccc">-</span>'}</td>`;
+          const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1 1 auto;border-bottom:1px solid rgba(0,0,0,.12);min-height:12pt">&nbsp;</div>`).join('')}</div>`:'';
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${namesWrapped||'<span style="color:#999">-</span>'}</td>`;
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${sigLines}</td>`;
         });
         rows+='</tr>';
@@ -3667,17 +3668,15 @@ const PRINT={
       if(isFill){
         // Filling: วันละหน้า มี Process + Filling รวมกัน
         body+=`<div class="day-page${idx===0?' day-page-first':''}">`;
-        body+=`<div class="day-header">${ds2}</div>`;
-        body+=`<div style="font-size:6pt;font-weight:900;color:#1e3a5f;padding:1px 4px;background:#dbeafe;margin-bottom:1px">🔧 Process</div>`;
-        body+=buildTable(procDepts,procSched,di);
-        body+=`<div style="font-size:6pt;font-weight:800;color:#92400e;padding:1px 4px;background:#fef3c7;margin:3px 0 1px">🏭 Filling</div>`;
-        body+=buildTable(fillDepts,fillSched,di,false);
+        body+=`<div style="font-size:6pt;font-weight:900;color:#000;padding:1px 4px;border-bottom:1px solid #000;margin-bottom:1px">🔧 Process</div>`;
+        body+=buildTable(procDepts,procSched,di,ds2);
+        body+=`<div style="font-size:6pt;font-weight:800;color:#000;padding:1px 4px;border-bottom:1px solid #000;margin:3px 0 1px">🏭 Filling</div>`;
+        body+=buildTable(fillDepts,fillSched,di,null);
         body+='</div>';
       } else {
         // Process: รวมทุกวันในหน้าเดียว
         body+=`<div class="day-block">`;
-        body+=`<div class="day-header">${ds2}</div>`;
-        body+=buildTable(procDepts,procSched,di);
+        body+=buildTable(procDepts,procSched,di,ds2);
         body+='</div>';
       }
     });
@@ -3708,16 +3707,14 @@ const PRINT={
     doc.write('<style>');
     doc.write('*{margin:0;padding:0;box-sizing:border-box;}');
     doc.write('html,body{width:289mm;font-family:Sarabun,sans-serif;font-size:6.5pt;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}');
-    doc.write('.day-header{font-size:7pt;font-weight:900;color:#1e3a5f;margin:3px 0 1px;padding:2px 6px;background:#e8eeff;border-left:3px solid #2563eb;}');
     doc.write('.day-block{margin-bottom:3px;}');
     doc.write('.day-page{margin-bottom:3px;page-break-before:always;break-before:always;}');
     doc.write('.day-page.day-page-first{page-break-before:auto;break-before:auto;}');
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;page-break-inside:avoid;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('.day-page{page-break-inside:avoid;break-inside:avoid;}');
-    doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#e8eeff;color:#000;text-align:center;}');
-    doc.write('td{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;color:#000;vertical-align:top;}');
-    doc.write('tr:nth-child(even) td{background:#f8faff;}');
+    doc.write('th{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;font-weight:700;background:#fff;color:#000;text-align:center;}');
+    doc.write('td{border:1px solid #8090b0;padding:1px 3px;font-size:6.5pt;color:#000;vertical-align:top;background:#fff;}');
     doc.write('@page{size:A4 landscape;margin:4mm;}');
     doc.write('@media print{html,body{padding:0;}}');
     doc.write('</style></head><body>');
