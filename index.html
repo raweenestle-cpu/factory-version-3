@@ -3623,7 +3623,7 @@ const PRINT={
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
           const names=ws2.map(w=>{
-            if(!w.ot)return`<div style="white-space:nowrap">${w.name}</div>`;
+            if(!w.ot)return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
@@ -3631,10 +3631,11 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="white-space:nowrap"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
+            return`<div style="flex:1;white-space:nowrap;min-height:10pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="color:#b45309">OT ${tS}–${tE} ✍️</span></div>`;
           }).join('');
-          const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1;border-bottom:1px solid #999;min-height:10pt">&nbsp;</div>`).join('')}</div>`:'';
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${names||'<span style="color:#ccc">-</span>'}</td>`;
+          const namesWrapped=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${names}</div>`:'';
+          const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1;border-bottom:1px solid rgba(0,0,0,.12);min-height:10pt">&nbsp;</div>`).join('')}</div>`:'';
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${namesWrapped||'<span style="color:#ccc">-</span>'}</td>`;
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${sigLines}</td>`;
         });
         rows+='</tr>';
