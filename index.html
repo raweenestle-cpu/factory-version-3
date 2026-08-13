@@ -3923,7 +3923,7 @@ const SCHED={
     const procSched=isFill?(D.getSched('proc')[wk]||{}):null;
     this.renderDayPicker();
     const vDays=this.viewDays.map(di=>[DAYS[di],di]); // [[label,di],...] เฉพาะวันที่เลือก
-    const colSpan=vDays.length*3+1;
+    const colSpan=vDays.length*6+1;
     // อัปเดต week label แสดงวันที่+ระบบ
     {const wlEl=document.getElementById('swl');
     if(wlEl){const we9=new Date(ws);we9.setDate(ws.getDate()+6);
@@ -3933,9 +3933,9 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="6" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th class="sc2"></th>'
-        +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
+        +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th><th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">เหตุผล OT</th>`).join('')).join('')
         +'</tr>';
     }
     const makeRow=(dept,sc,readOnly)=>{
@@ -4015,6 +4015,18 @@ const SCHED={
           const _dc=DAY_COLORS[di];
           const _dayBorder=(sh==='morning')?('border-left:3px solid rgba('+_dc+',.55) !important;'):'';
           row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));'+_dayBorder+'">'+cells+addBtn+'</td>';
+          // คอลัมน์เหตุผล OT — โชว์เฉพาะคนที่เปิด OT ในกะนี้ เป็น dropdown ดึงจากเหตุผลที่ตั้งไว้ใน Settings
+          const otReasons=D.getReasons()||[];
+          const reasonCells=ws2.filter(w=>w.ot).map(w=>{
+            const ne2=w.name.replace(/'/g,"\\'");
+            const curReason=w.otReason||'';
+            if(!S.user?.isAdmin){
+              return '<div style="font-size:10px;color:var(--text2);padding:2px 0;white-space:nowrap">'+(curReason||'<span style=\"color:var(--text3)\">— ยังไม่ระบุ —</span>')+'</div>';
+            }
+            const opts='<option value="">— เลือกเหตุผล —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${(curReason&&!otReasons.includes(curReason))?'selected':''}>อื่นๆ (ระบุ)</option>`;
+            return `<select onchange="SCHED.setOTReason('${ne2}','${dept}',${di},'${sh}',this.value,this)" style="width:100%;font-size:9px;padding:2px;margin:1px 0;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Sarabun',sans-serif">${opts}</select>`;
+          }).join('');
+          row+='<td class="sh-'+sh+'" style="min-width:80px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));">'+reasonCells+'</td>';
         });
       });
       row+='</tr>';
@@ -4178,6 +4190,26 @@ const SCHED={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     const w=(sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);
     if(w){w.otHrs=h;all[wk]=sched;D.saveSched(all);this.render();}
+  },
+  setOTReason(name,dept,di,sh,reason,selEl){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    if(reason==='__other__'){
+      const custom=prompt('ระบุเหตุผล OT ของ '+name+':','');
+      if(!custom){if(selEl)selEl.value='';return;}
+      reason=custom.trim();
+    }
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    const w=(sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);
+    if(!w)return;
+    w.otReason=reason;
+    all[wk]=sched;markUnsaved();D.saveSched(all);
+    // sync ไป otLog เพื่อให้ Dashboard (Pareto เหตุผล OT) เห็นด้วย
+    const otLog=D.getOTLog(S.sys)||[];
+    const existing=otLog.find(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===sh&&l.wk===wk);
+    if(existing){existing.reason=reason;existing.hrs=w.otHrs||4;}
+    else{otLog.push({name,dept,di,sh,hrs:w.otHrs||4,reason,wk,date:new Date().toISOString()});}
+    D.saveOTLog(otLog,S.sys);
+    this.render();DASH.render();toast('✅ บันทึกเหตุผล OT — '+name);
   },
   setSR(name,dept,di,range,sh2){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
