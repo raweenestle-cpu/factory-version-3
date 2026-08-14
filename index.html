@@ -34,8 +34,17 @@ function installPWA(){
       _deferredPrompt=null;
     });
   } else {
-    // iOS — แสดงคำแนะนำ
-    alert('บน iPhone:\n1. กด Share (แชร์) ที่แถบด้านล่าง\n2. เลือก "Add to Home Screen"\n3. กด "Add"\n\nแอปจะปรากฏที่หน้าจอหลักของคุณ');
+    // ไม่มี prompt ค้างอยู่ (อาจเพราะกด X ปิด banner ไปก่อนหน้านี้ หรือเบราว์เซอร์ยังไม่ยิง event ให้รอบนี้) — แนะนำวิธีติดตั้งเองตามเครื่อง
+    const ua=navigator.userAgent;
+    const isIOS=/iPhone|iPad|iPod/.test(ua);
+    const isAndroid=/Android/.test(ua);
+    if(isIOS){
+      alert('บน iPhone/iPad:\n1. กด Share (แชร์) ที่แถบด้านล่างหรือด้านบนของเบราว์เซอร์\n2. เลือก "Add to Home Screen"\n3. กด "Add"\n\nแอปจะปรากฏที่หน้าจอหลักของคุณ');
+    }else if(isAndroid){
+      alert('บนมือถือ Android:\n1. กดเมนู ⋮ (จุด 3 จุด) มุมขวาบนของเบราว์เซอร์\n2. เลือก "ติดตั้งแอป" หรือ "Add to Home screen"\n3. กดยืนยัน\n\nถ้าไม่เจอตัวเลือกนี้ ลองปิดแล้วเปิดเบราว์เซอร์ใหม่ก่อน');
+    }else{
+      alert('บนคอมพิวเตอร์ (Chrome/Edge):\n1. มองหาไอคอนติดตั้ง ⊕ หรือรูปจอคอมมีลูกศร ที่ด้านขวาของแถบที่อยู่เว็บ (address bar) แล้วกด\n\nถ้าไม่เจอไอคอนนั้น:\n2. กดเมนู ⋮ มุมขวาบนของเบราว์เซอร์\n3. เลือก "Cast, save, and share" หรือ "ติดตั้ง Factory Scheduling..."\n\nถ้ายังไม่เจอ ลองปิดแท็บนี้แล้วเปิดเว็บใหม่อีกครั้ง (บางครั้งเบราว์เซอร์ต้องโหลดใหม่ก่อนตัวเลือกติดตั้งจะขึ้น)');
+    }
   }
 }
 // Service Worker — ต้องเป็นไฟล์จริง (service-worker.js) เพราะ Chrome/Firefox ห้าม register service worker จาก blob URL โดยเด็ดขาด
@@ -3194,6 +3203,11 @@ const SET={
     const maxOT=D.getMaxOT();const reasons=D.getReasons();
     const isFill=S.sys==='fill';
     el.innerHTML=`<div style="padding:14px">
+      <div style="background:var(--card);border:1px solid var(--blue);border-radius:var(--radius);padding:14px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:900;color:var(--blue2);margin-bottom:8px">📲 ติดตั้งเป็นแอป</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">ติดตั้งลงเครื่อง/มือถือ เปิดใช้งานได้เหมือนแอปจริงโดยไม่ต้องเข้าเบราว์เซอร์ทุกครั้ง — กดปุ่มนี้ได้ตลอด แม้เคยปิด popup แนะนำติดตั้งไปก่อนหน้านี้แล้ว</div>
+        <button onclick="installPWA()" style="width:100%;padding:10px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">📲 ติดตั้งแอป</button>
+      </div>
       ${S.user?.isAdmin?`<div style="background:var(--card);border:1px solid #16a34a;border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:900;color:#15803d;margin-bottom:8px">☁️ Sync ข้อมูลขึ้น Firebase</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:10px">กดเพื่อ upload ข้อมูลทั้งหมดจากมือถือเครื่องนี้ขึ้น Firebase ให้ทุกเครื่องใช้งานได้</div>
