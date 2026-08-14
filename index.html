@@ -4456,6 +4456,12 @@ const SCHED={
     const skipped=[]; // {name,di,dept,reason}
     const otLog=D.getOTLog(S.sys)||[]; // โหลดครั้งเดียว แก้ในหน่วยความจำ แล้วเซฟทีเดียวตอนจบ
     let otLogChanged=false;
+    const maxOT=D.getMaxOT();
+    const otDaysCount=(name)=>{
+      const daysSet=new Set();
+      depts.forEach(d=>{for(let di2=0;di2<7;di2++){const hasOT=SHS.some(s=>(sched[d]?.[di2]?.[s]||sched[d]?.[String(di2)]?.[s]||[]).some(x=>x.name===name&&x.ot));if(hasOT)daysSet.add(di2);}});
+      return daysSet.size;
+    };
     toDis.forEach(toDi=>{
       // ล้างวันปลายทางทุกแผนก (รวม AL) ก่อนคัดลอกใหม่
       Object.keys(sched).forEach(dept=>{
@@ -4472,12 +4478,18 @@ const SCHED={
             if(!checkRest(w.name,toDi,sh,sched)){skipped.push({name:w.name,di:toDi,reason:'พักไม่ครบ 12 ชม.'});return;}
             if(!fitsMax6Consec(w.name,toDi,S.sys,wk,sched)){skipped.push({name:w.name,di:toDi,reason:'เกิน 6 วันติดต่อกัน'});return;}
             if(isDoubleBooked(w.name,toDi,sched)){skipped.push({name:w.name,di:toDi,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
-            sched[dept][toDi][sh].push({...w});
+            const copy={...w};
+            // เช็คโควตา OT สูงสุด/สัปดาห์ — ถ้าเต็มแล้ว คัดลอกคนนี้ไปทำงานตามปกติ แต่ตัด OT ออก (ไม่ข้ามคนไปเลย)
+            if(copy.ot&&otDaysCount(w.name)>=maxOT){
+              copy.ot=false;copy.otHrs=4;copy.otReason='';
+              skipped.push({name:w.name,di:toDi,reason:'OT เต็มโควตา '+maxOT+' วัน/สัปดาห์ — คัดลอกแบบไม่มี OT แทน'});
+            }
+            sched[dept][toDi][sh].push(copy);
             // ถ้าคนนี้มี OT ติดมาด้วย → สร้าง/อัปเดต log เหตุผล OT ให้วันปลายทางด้วย กัน Dashboard (Pareto) ไม่นับวันที่คัดลอกไป
-            if(w.ot){
+            if(copy.ot){
               const existing=otLog.find(l=>l.name===w.name&&l.dept===dept&&l.di===toDi&&l.sh===sh&&l.wk===wk);
-              if(existing){existing.reason=w.otReason||existing.reason;existing.hrs=w.otHrs||4;}
-              else{otLog.push({name:w.name,dept,di:toDi,sh,hrs:w.otHrs||4,reason:w.otReason||'',wk,date:new Date().toISOString()});}
+              if(existing){existing.reason=copy.otReason||existing.reason;existing.hrs=copy.otHrs||4;}
+              else{otLog.push({name:w.name,dept,di:toDi,sh,hrs:copy.otHrs||4,reason:copy.otReason||'',wk,date:new Date().toISOString()});}
               otLogChanged=true;
             }
           });
@@ -4499,6 +4511,20 @@ const SCHED={
       });
       const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม '+byName[name].join(', '));
       alert2('⚠️ มีบางคนคัดลอกไม่ได้ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ คัดลอกไม่ครบ');
+      // คนที่ติดกฎ 6 วันติดต่อกันโดยเฉพาะ → ใส่ลงกล่อง "ว่าง — Line ไม่ได้เดิน" ระบุว่าต้องหยุดวันไหนบ้าง
+      const sixDaySkips=skipped.filter(s=>s.reason==='เกิน 6 วันติดต่อกัน');
+      if(sixDaySkips.length){
+        const byName6={};
+        sixDaySkips.forEach(s=>{if(!byName6[s.name])byName6[s.name]=[];byName6[s.name].push(DAYS[s.di]);});
+        const idleEl=document.getElementById('idle-chips');
+        if(idleEl){
+          const chips=Object.keys(byName6).map(name=>
+            `<div style="display:inline-flex;align-items:center;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.35);border-radius:6px;padding:3px 8px;margin:2px;font-size:10px;font-weight:700;color:var(--red2)">🛑 ${name} ต้องหยุด ${byName6[name].join(', ')} (เกิน 6 วันติดต่อกัน)</div>`
+          ).join('');
+          const cur=idleEl.innerHTML;
+          idleEl.innerHTML=(cur.includes('ไม่มี')?'':cur)+chips;
+        }
+      }
     }
   },
   printSched(){PLAN.confirmSched();},
