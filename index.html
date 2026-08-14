@@ -477,11 +477,10 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 <div id="pg-login">
   <div class="login-card">
     <div class="login-logo"><div class="icon">🏭</div><h1>Factory Scheduling</h1><p>ระบบจัดตารางกะโรงงาน v2</p></div>
-    <label class="login-label" id="ll">รหัสผ่าน Admin (6 หลัก)</label>
-    <input type="password" class="login-input" id="lp" maxlength="6" inputmode="numeric" placeholder="••••••" oninput="AUTH.onPin(this.value)">
+    <label class="login-label" id="ll">รหัสผ่าน (พนักงาน 4 หลัก / Admin 6 หลัก)</label>
+    <input type="password" class="login-input" id="lp" maxlength="6" inputmode="numeric" placeholder="••••" oninput="AUTH.onPin(this.value)">
     <div class="login-err" id="le"></div>
     <button class="login-btn" onclick="AUTH.submit()">เข้าสู่ระบบ</button>
-    <div class="login-switch"><span onclick="AUTH.switchMode()">👤 เข้าสู่ระบบแบบพนักงาน</span></div>
   </div>
 </div>
 
@@ -1273,25 +1272,15 @@ function updEmpCnt(){
 }
 
 const AUTH={
-  mode:'admin',
-  switchMode(){
-    this.mode=this.mode==='admin'?'emp':'admin';
-    const a=this.mode==='admin';
-    document.getElementById('ll').textContent=a?'รหัสผ่าน Admin (6 หลัก)':'PIN พนักงาน (4 หลัก)';
-    document.getElementById('lp').maxLength=a?6:4;
-    document.querySelector('.login-switch span').textContent=a?'👤 เข้าสู่ระบบแบบพนักงาน':'👑 เข้าสู่ระบบแบบ Admin';
-    document.getElementById('lp').value='';
-    document.getElementById('le').textContent='';
-  },
   onPin(v){
-    if(this.mode==='admin'&&v.length===6)this.submit();
-    if(this.mode==='emp'&&v.length===4)this.submit();
+    // เด้งเข้าอัตโนมัติเฉพาะครบ 6 หลัก (ยาวสุดแล้ว ไม่มีทางกดต่อ) — ถ้าครบ 4 หลัก ไม่เด้งอัตโนมัติ เพราะอาจจะพิมพ์รหัส Admin 6 หลักต่ออยู่ ต้องกดปุ่ม "เข้าสู่ระบบ" เอง
+    if(v.length===6)this.submit();
   },
   submit(){
     const pin=document.getElementById('lp').value.trim();
     const err=document.getElementById('le');
-    if(this.mode==='admin'){
-      // เช็ค PIN 6 หลักของพนักงานที่เป็น Admin
+    if(pin.length===6){
+      // รหัส 6 หลัก → เช็คเป็น Admin
       const allEmps=[...D.getEmps('proc'),...D.getEmps('fill')];
       const adminEmp=allEmps.find(e=>e.isAdmin&&e.pin===pin);
       if(adminEmp){
@@ -1301,7 +1290,8 @@ const AUTH={
       // fallback: master admin pin
       if(pin===D.getPin()){S.user={name:'Admin',isAdmin:true};this.enter();}
       else{err.textContent='❌ รหัสผ่านไม่ถูกต้อง';document.getElementById('lp').value='';}
-    }else{
+    }else if(pin.length===4){
+      // รหัส 4 หลัก → เช็คเป็น PIN พนักงาน
       const emps=[...D.getEmps('proc'),...D.getEmps('fill')];
       const emp=emps.find(e=>e.pin===pin);
       if(emp){S.user={name:emp.name,isAdmin:false,emp};this.enter();}
@@ -1325,8 +1315,6 @@ const AUTH={
       document.getElementById('pg-login').classList.remove('hide');
       document.getElementById('lp').value='';
       document.getElementById('le').textContent='';
-      this.mode='admin';
-      document.getElementById('ll').textContent='รหัสผ่าน Admin (6 หลัก)';
     });
   }
 };
