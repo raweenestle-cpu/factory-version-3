@@ -5670,21 +5670,4 @@ function forceSync(){
 
 
 </body>
-</html>  id="pg-leave">
-    <!-- Header -->
-    <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
-      <h2 style="font-size:15px;font-weight:900;flex:1">🏖️ การขอลา</h2>
-      <div id="leave-pending-badge" style="display:none;background:var(--red2);color:#fff;font-size:11px;font-weight:800;padding:3px 8px;border-radius:10px">รออนุมัติ 0</div>
-    </div>
-
-    <!-- Tabs -->
-    <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
-      <button class="ot-stab active" id="lv-tab-req" onclick="LEAVE.setTab('req')" style="flex:1;padding:10px;font-size:12px;font-weight:700;border:none;background:transparent;color:var(--text2);font-family:'Sarabun',sans-serif;cursor:pointer">📅 ขอลา</button>
-      <button class="ot-stab" id="lv-tab-pending" onclick="LEAVE.setTab('pending')" style="flex:1;padding:10px;font-size:12px;font-weight:700;border:none;background:transparent;color:var(--text2);font-family:'Sarabun',sans-serif;cursor:pointer">⏳ รออนุมัติ</button>
-      <button class="ot-stab" id="lv-tab-approved" onclick="LEAVE.setTab('approved')" style="flex:1;padding:10px;font-size:12px;font-weight:700;border:none;background:transparent;color:var(--text2);font-family:'Sarabun',sans-serif;cursor:pointer">✅ อนุมัติแล้ว</button>
-      <button class="ot-stab" id="lv-tab-all" onclick="LEAVE.setTab('all')" style="flex:1;padding:10px;font-size:12px;font-weight:700;border:none;background:transparent;color:var(--text2);font-family:'Sarabun',sans-serif;cursor:pointer">📋 ทั้งหมด</button>
-    </div>
-
-    <!-- Content -->
-    <div id="leave-list" style="flex:1;overflow-y:auto;padding:12px 14px"></div>    setTimeout(function(){try{SCHED.render();DASH.render();PLAN.render();EMP.render();}catch(e){}},2000);
-
+</html>
