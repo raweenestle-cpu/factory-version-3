@@ -4454,6 +4454,8 @@ const SCHED={
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     const depts=D.getDepts().filter(d=>d!==AL);
     const skipped=[]; // {name,di,dept,reason}
+    const otLog=D.getOTLog(S.sys)||[]; // โหลดครั้งเดียว แก้ในหน่วยความจำ แล้วเซฟทีเดียวตอนจบ
+    let otLogChanged=false;
     toDis.forEach(toDi=>{
       // ล้างวันปลายทางทุกแผนก (รวม AL) ก่อนคัดลอกใหม่
       Object.keys(sched).forEach(dept=>{
@@ -4471,11 +4473,19 @@ const SCHED={
             if(!fitsMax6Consec(w.name,toDi,S.sys,wk,sched)){skipped.push({name:w.name,di:toDi,reason:'เกิน 6 วันติดต่อกัน'});return;}
             if(isDoubleBooked(w.name,toDi,sched)){skipped.push({name:w.name,di:toDi,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
             sched[dept][toDi][sh].push({...w});
+            // ถ้าคนนี้มี OT ติดมาด้วย → สร้าง/อัปเดต log เหตุผล OT ให้วันปลายทางด้วย กัน Dashboard (Pareto) ไม่นับวันที่คัดลอกไป
+            if(w.ot){
+              const existing=otLog.find(l=>l.name===w.name&&l.dept===dept&&l.di===toDi&&l.sh===sh&&l.wk===wk);
+              if(existing){existing.reason=w.otReason||existing.reason;existing.hrs=w.otHrs||4;}
+              else{otLog.push({name:w.name,dept,di:toDi,sh,hrs:w.otHrs||4,reason:w.otReason||'',wk,date:new Date().toISOString()});}
+              otLogChanged=true;
+            }
           });
         });
       });
     });
     all[wk]=sched;markUnsaved();D.saveSched(all);
+    if(otLogChanged)D.saveOTLog(otLog,S.sys);
     // เปิดวันปลายทางที่เพิ่งคัดลอกไปให้เห็นในตารางทันที (เผื่อกำลังกรองดูแค่บางวันอยู่)
     toDis.forEach(di=>{if(!this.viewDays.includes(di))this.viewDays.push(di);});
     this.viewDays.sort((a,b)=>a-b);
