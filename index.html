@@ -3407,7 +3407,8 @@ const PRINT={
               const isPreOT=w.otBefore;
               const otHrs=Math.round(w.otHrs||4);
               let tStart,tEnd;
-              if(isPreOT&&sh==='morning'){tStart='06:00';tEnd='18:00';}
+              if(w.sr){const sp=w.sr.split('-');tStart=sp[0];tEnd=sp[1];}
+              else if(isPreOT&&sh==='morning'){tStart='06:00';tEnd='18:00';}
               else if(sh==='night'){tStart=String((22-otHrs+24)%24).padStart(2,'0')+':00';tEnd='06:00';}
               else{const eH={morning:14,afternoon:22,night:30}[sh]||14;
                    tStart=String(shStartH).padStart(2,'0')+':00';
@@ -3543,7 +3544,7 @@ const PRINT={
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
-            if(w.sr){const sp=w.sr.split('-');tS=String(sp[0]).padStart(2,'0')+':00';tE=String(sp[1]).padStart(2,'0')+':00';}
+            if(w.sr){const sp=w.sr.split('-');tS=sp[0];tE=sp[1];}
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
@@ -3871,7 +3872,7 @@ const SCHED={
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const isPreOT=w.otBefore;const otHrs=Math.round(w.otHrs||4);
             let dS,dE;
-            if(w.sr){const sp=w.sr.split('-');dS=String(sp[0]).padStart(2,'0')+':00';dE=String(sp[1]).padStart(2,'0')+':00';}
+            if(w.sr){const sp=w.sr.split('-');dS=sp[0];dE=sp[1];}
             else if(sh==='night'&&w.ot){dS=String((22-otHrs+24)%24).padStart(2,'0')+':00';dE='06:00';}
             else if(isPreOT&&sh==='morning'){dS='06:00';dE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;dS=String(shStartH).padStart(2,'0')+':00';dE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
@@ -4040,25 +4041,18 @@ const SCHED={
       html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'🟡 ปิด OT':'⚡ เปิด OT'}</button>`;
       if(!isMe&&w.ot&&!sg){html+='<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.25);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;color:var(--blue2)">ℹ️ พนักงานต้อง Login แล้วกดยืนยัน OT ด้วยตัวเอง</div>';}
       if(w.ot){
-        if(sh==='afternoon'){
-          html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
-            <option value="14-22" ${(w.sr||'14-22')==='14-22'?'selected':''}>14:00-22:00 (ปกติ ไม่ OT)</option>
-            <option value="10-22" ${w.sr==='10-22'?'selected':''}>10:00-22:00 (OT ก่อนงาน 4ชม.)</option>
-            <option value="14-02" ${w.sr==='14-02'?'selected':''}>14:00-02:00 (OT หลังงาน 4ชม.)</option>
-          </select>`;
-        }else if(sh==='morning'){
-          html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
-            <option value="06-18" ${(w.sr||'06-18')==='06-18'?'selected':''}>06:00-18:00 (OT 4ชม.)</option>
-            <option value="06-14" ${w.sr==='06-14'?'selected':''}>06:00-14:00 (ปกติ ไม่ OT)</option>
-          </select>`;
-        }else if(sh==='night'){
-          html+=`<select onchange="SCHED.setSR('${ne}','${dept}',${di},this.value,'${sh}')" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif;margin-bottom:6px">
-            <option value="18-06" ${(w.sr||'18-06')==='18-06'?'selected':''}>18:00-06:00 (OT 4ชม.)</option>
-            <option value="22-06" ${w.sr==='22-06'?'selected':''}>22:00-06:00 (ปกติ ไม่ OT)</option>
-          </select>`;
-        }else{
-          html+=`<div style="display:flex;gap:6px;margin-bottom:6px">${[2,3,4].map(h=>`<button onclick="SCHED.setH('${ne}','${dept}',${di},'${sh}',${h});closeMo('mo-w')" style="flex:1;padding:8px;border:none;border-radius:8px;background:${(w.otHrs||4)===h?'var(--amber)':'var(--bg3)'};color:${(w.otHrs||4)===h?'#000':'var(--text2)'};font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif">${h}\u0e0a\u0e21.</button>`).join('')}</div>`;
-        }
+        const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[sh]||[6,14];
+        const fmtB=(h)=>String(((Math.floor(h)%24)+24)%24).padStart(2,'0')+':00';
+        let curStart,curEnd;
+        if(w.sr){const sp=w.sr.split('-');curStart=sp[0];curEnd=sp[1];}
+        else{curStart=fmtB(bounds[0]);curEnd=fmtB(bounds[1]);}
+        const startId='otst-'+di+'-'+sh;const endId='oten-'+di+'-'+sh;
+        html+=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input type="time" id="${startId}" value="${curStart}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <span style="color:var(--text3);font-size:12px">–</span>
+          <input type="time" id="${endId}" value="${curEnd}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">กะปกติ ${fmtB(bounds[0])}-${fmtB(bounds[1])} — ปรับเวลาเริ่ม/เลิกงานจริงได้อิสระ</div>`;
       }
       html+=`<button onclick="SCHED.removeW('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif">🗑️ ลบออกจากกะ</button>`;
     }
@@ -4102,21 +4096,27 @@ const SCHED={
       // เช็คพัก 12 ชม. ก่อนทำ OT
       if(!checkRest(name,di,sh,sched)){alert2('😴 พักครบ 12 ชั่วโมง!\n\n'+name+' ยังพักไม่ครบก่อนกะนี้','❌');return;}
     }
-    w.ot=!w.ot;if(!w.ot)w.otHrs=4;
+    w.ot=!w.ot;
     if(!w.ot){
+      w.otHrs=4;w.sr='';
       // ปิด OT แล้ว → ลบ log เหตุผล OT ที่ตรงกันออกด้วย กัน Dashboard (Pareto) ค้างข้อมูลเก่า
       const otLog=D.getOTLog(S.sys)||[];
       const idx2=otLog.findIndex(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===sh&&l.wk===wk);
       if(idx2>=0){otLog.splice(idx2,1);D.saveOTLog(otLog,S.sys);}
       w.otReason='';
+    }else{
+      // เพิ่งเปิด OT — ตั้งค่าเริ่มต้นเป็น 4 ชม. เหมือนเดิม (ปรับต่อได้จากช่องเวลา)
+      const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[sh]||[6,14];
+      const defBefore=sh==='night'; // กะดึก default OT ก่อนกะ, กะเช้า/บ่าย default OT หลังกะ
+      const startH=defBefore?bounds[0]-4:bounds[0];
+      const endH=defBefore?bounds[1]:bounds[1]+4;
+      const fmtB=(h)=>String(((Math.floor(h)%24)+24)%24).padStart(2,'0')+':00';
+      w.sr=fmtB(startH)+'-'+fmtB(endH);
+      w.otHrs=4;
+      w.otBefore=defBefore;
     }
     all[wk]=sched;markUnsaved();D.saveSched(all);
     this.render();DASH.render();toast(w.ot?'✅ เปิด OT':'✅ ปิด OT');
-  },
-  setH(name,dept,di,sh,h){
-    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
-    const w=(sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);
-    if(w){w.otHrs=h;all[wk]=sched;D.saveSched(all);this.render();}
   },
   setOTReason(name,dept,di,sh,reason,selEl){
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
@@ -4138,25 +4138,26 @@ const SCHED={
     D.saveOTLog(otLog,S.sys);
     this.render();DASH.render();toast('✅ บันทึกเหตุผล OT — '+name);
   },
-  setSR(name,dept,di,range,sh2){
+  setTimeRange(name,dept,di,sh2,startVal,endVal){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
-    // ค้นหาใน sh ที่ส่งมา หรือทุก shift
     let w=null;let foundSh=sh2||'afternoon';
     if(sh2){w=(sched[dept]?.[di]?.[sh2]||sched[dept]?.[String(di)]?.[sh2]||[]).find(x=>x.name===name);}
     else{['morning','afternoon','night'].forEach(s=>{if(!w){const ws=sched[dept]?.[di]?.[s]||sched[dept]?.[String(di)]?.[s]||[];const found=ws.find(x=>x.name===name);if(found){w=found;foundSh=s;}}});}
-    if(w){
-      w.sr=range;
-      // ตาราง OT ที่ถูกต้องตามช่วงเวลาจริง
-      // กะบ่าย: 14-22=ปกติ(0OT), 10-22=OTก่อน4ชม., 14-02=OTหลัง4ชม.
-      // กะเช้า: 06-14=ปกติ(0OT), 06-18=OTหลัง4ชม.
-      // กะดึก: 22-06=ปกติ(0OT), 18-06=OTก่อน4ชม.
-      const otMap={'14-22':0,'06-14':0,'22-06':0,'10-22':4,'14-02':4,'06-18':4,'18-06':4};
-      const otBefMap={'10-22':true,'18-06':true}; // OT ก่อนเริ่มกะ
-      const otHrsCalc=otMap[range]??4;
-      w.ot=otHrsCalc>0;
-      w.otHrs=otHrsCalc;
-      w.otBefore=!!otBefMap[range];
-      all[wk]=sched;markUnsaved();D.saveSched(all);this.render();closeMo('mo-w');toast('✅ อัพเดทเวลาแล้ว');
+    if(w&&startVal&&endVal){
+      const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[foundSh]||[6,14];
+      const toH=(t)=>{const p=t.split(':').map(Number);return p[0]+p[1]/60;};
+      let startH=toH(startVal);let endH=toH(endVal);
+      // ถ้าเวลาเริ่มดูเหมือนเลยเที่ยงคืนมาแล้ว (เช่นกะดึกเริ่มก่อนเที่ยงคืนของวันก่อน) หรือเวลาเลิกข้ามเที่ยงคืน ให้ปรับให้ต่อเนื่องกับกะปกติ
+      if(foundSh==='night'&&startH>12)startH-=24; // เผื่อกด AM ผิดสำหรับกะดึกที่เริ่มก่อนเที่ยงคืน (ไม่ค่อยเกิด แต่กันไว้)
+      if(endH<=startH)endH+=24;
+      const totalHrs=endH-startH;
+      const baseHrs=bounds[1]-bounds[0];
+      const otHrs=Math.max(0.5,Math.round((totalHrs-baseHrs)*2)/2);
+      w.sr=startVal+'-'+endVal;
+      w.ot=true;
+      w.otHrs=otHrs;
+      w.otBefore=startH<bounds[0];
+      all[wk]=sched;markUnsaved();D.saveSched(all);this.render();toast('✅ อัพเดทเวลาแล้ว');
     }
   },
   sign(name,dept,di,sh){
