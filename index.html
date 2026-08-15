@@ -3560,11 +3560,13 @@ const PRINT={
       let rows='<tbody>';
       depts2.forEach((dept)=>{
         rows+=`<tr style="background:#fff">`;
-        rows+=`<td style="border:${bd};padding:1px 3px;font-weight:700">${dept}</td>`;
+        rows+=`<td style="border:${bd};padding:1px 3px;font-weight:700;background-image:repeating-linear-gradient(to bottom,transparent,transparent 13pt,rgba(0,0,0,.12) 13pt,rgba(0,0,0,.12) 13.5pt)">${dept}</td>`;
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
+          // เส้นบรรทัดพื้นหลังไล่ยาวเต็มความสูงเซลล์เองอัตโนมัติ (ไม่ขึ้นกับจำนวนคน กันช่องว่างไม่มีเส้น)
+          const lineBg='background-image:repeating-linear-gradient(to bottom,transparent,transparent 13pt,rgba(0,0,0,.12) 13pt,rgba(0,0,0,.12) 13.5pt);background-position:0 1pt';
           const names=ws2.map(w=>{
-            if(!w.ot)return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:12pt;border-bottom:1px solid rgba(0,0,0,.12)">${w.name}</div>`;
+            if(!w.ot)return`<div style="min-height:13pt;line-height:13pt;overflow-wrap:break-word">${w.name}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=Math.round(w.otHrs||4);
             let tS,tE;
@@ -3572,12 +3574,10 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="flex:1 1 auto;overflow-wrap:break-word;min-height:12pt;border-bottom:1px solid rgba(0,0,0,.12)"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
+            return`<div style="min-height:13pt;line-height:13pt;overflow-wrap:break-word"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
           }).join('');
-          const namesWrapped=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${names}</div>`:'';
-          const sigLines=ws2.length?`<div style="display:flex;flex-direction:column;height:100%">${ws2.map(()=>`<div style="flex:1 1 auto;border-bottom:1px solid rgba(0,0,0,.12);min-height:12pt">&nbsp;</div>`).join('')}</div>`:'';
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${namesWrapped||'<span style="color:#999">-</span>'}</td>`;
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;height:1px">${sigLines}</td>`;
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;${lineBg}">${names||'<span style="color:#999">-</span>'}</td>`;
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;${lineBg}"></td>`;
         });
         rows+='</tr>';
       });
