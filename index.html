@@ -604,6 +604,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <div id="sched-day-picker" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
         <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
         <button onclick="SCHED.openCopyDay()" style="background:rgba(22,163,74,.2);color:var(--green2);border:1px solid rgba(22,163,74,.4)">📋 คัดลอกวัน</button>
+        <button onclick="SCHED.openCopyWeek()" style="background:rgba(124,58,237,.2);color:#a78bfa;border:1px solid rgba(124,58,237,.4)">📆 คัดลอก/ย้ายสัปดาห์</button>
       </div>
     </div>
     <div id="save-info" style="font-size:9px;color:var(--text3);padding:2px 14px 2px;text-align:right"></div>
@@ -911,6 +912,34 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div class="md-foot">
       <button class="btn-cancel" onclick="closeMo('mo-copy-day')">ยกเลิก</button>
       <button class="btn-confirm" onclick="SCHED.doCopyDay()">📋 คัดลอก</button>
+    </div>
+  </div>
+</div>
+<div class="mo hide" id="mo-copy-week" style="align-items:flex-start;padding-top:20px">
+  <div class="md" style="max-width:min(500px,95vw);margin:0 auto">
+    <div class="md-handle"></div>
+    <div class="md-hdr">
+      <div class="md-title">📆 คัดลอก/ย้ายไปสัปดาห์อื่น</div>
+      <button class="md-close" onclick="closeMo('mo-copy-week')">✕</button>
+    </div>
+    <div class="md-body">
+      <div style="margin-bottom:14px">
+        <label class="fl">จากสัปดาห์ (เลือกวันใดก็ได้ในสัปดาห์นั้น)</label>
+        <input type="date" class="fi" id="cpw-from">
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="fl">ไปสัปดาห์ (เลือกวันใดก็ได้ในสัปดาห์ปลายทาง)</label>
+        <input type="date" class="fi" id="cpw-to">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:8px">
+        <input type="checkbox" id="cpw-move">
+        ย้าย (ลบข้อมูลสัปดาห์ต้นทางออกหลังคัดลอกเสร็จ — เผื่อจัดผิดสัปดาห์แล้วอยากย้ายไปที่ถูก)
+      </label>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">⚠️ ระบบจะล้างตารางเดิมของสัปดาห์ปลายทางทั้งหมดก่อนคัดลอกทั้ง 7 วัน และจะข้ามคนที่คัดลอกไปแล้วผิดกฎ (พัก 12 ชม. / ทำงานเกิน 6 วันติดต่อกัน / ซ้อนกะวันนั้น) โดยอัตโนมัติ พร้อมสรุปให้หลังคัดลอกเสร็จ</div>
+    </div>
+    <div class="md-foot">
+      <button class="btn-cancel" onclick="closeMo('mo-copy-week')">ยกเลิก</button>
+      <button class="btn-confirm" onclick="SCHED.doCopyWeek()">📆 ดำเนินการ</button>
     </div>
   </div>
 </div>
@@ -4605,6 +4634,81 @@ const SCHED={
           idleEl.innerHTML=(cur.includes('ไม่มี')?'':cur)+chips;
         }
       }
+    }
+  },
+  openCopyWeek(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    const fromInp=document.getElementById('cpw-from');
+    const toInp=document.getElementById('cpw-to');
+    if(fromInp)fromInp.value=S.wkStart.toISOString().slice(0,10);
+    if(toInp)toInp.value='';
+    const mv=document.getElementById('cpw-move');if(mv)mv.checked=false;
+    openMo('mo-copy-week');
+  },
+  doCopyWeek(){
+    const fromStr=document.getElementById('cpw-from')?.value;
+    const toStr=document.getElementById('cpw-to')?.value;
+    const moveMode=!!document.getElementById('cpw-move')?.checked;
+    if(!fromStr||!toStr){toast('❌ เลือกสัปดาห์ต้นทาง/ปลายทางให้ครบ');return;}
+    const fromDate=new Date(fromStr+'T00:00:00');const toDate=new Date(toStr+'T00:00:00');
+    const fromWk=wKey(fromDate);const toWk=wKey(toDate);
+    if(fromWk===toWk){toast('❌ สัปดาห์ต้นทางกับปลายทางต้องไม่ใช่สัปดาห์เดียวกัน');return;}
+    const all=D.getSched();
+    if(!all[fromWk]||!Object.keys(all[fromWk]).length){toast('❌ สัปดาห์ต้นทางไม่มีข้อมูลตารางกะเลย');return;}
+    const actionLabel=moveMode?'ย้าย':'คัดลอก';
+    confirm2('📆 '+actionLabel+'ตารางกะทั้งสัปดาห์\n\nจาก W'+wNum(fromDate)+' ไป W'+wNum(toDate)+'\n\nระบบจะล้างข้อมูลสัปดาห์ปลายทางทั้งหมดก่อนคัดลอกทั้ง 7 วัน'+(moveMode?' และลบข้อมูลสัปดาห์ต้นทางออกหลังคัดลอกเสร็จ':'')+' ยืนยันหรือไม่?',()=>{
+      closeMo('mo-copy-week');
+      this._runCopyWeek(fromWk,toWk,moveMode);
+    });
+  },
+  _runCopyWeek(fromWk,toWk,moveMode){
+    const all=D.getSched();
+    const srcSched=all[fromWk]||{};
+    const depts=D.getDepts().filter(d=>d!==AL);
+    const skipped=[]; // {name,di,reason}
+    const otLog=D.getOTLog(S.sys)||[];
+    let otLogChanged=false;
+    const destSched={};
+    depts.forEach(dept=>{
+      destSched[dept]={};
+      for(let di=0;di<7;di++)destSched[dept][di]={morning:[],afternoon:[],night:[]};
+    });
+    all[toWk]=destSched;
+    const sched=destSched;
+    depts.forEach(dept=>{
+      for(let di=0;di<7;di++){
+        SHS.forEach(sh=>{
+          const srcArr=srcSched[dept]?.[di]?.[sh]||srcSched[dept]?.[String(di)]?.[sh]||[];
+          srcArr.forEach(w=>{
+            if(!checkRest(w.name,di,sh,sched)){skipped.push({name:w.name,di,reason:'พักไม่ครบ 12 ชม.'});return;}
+            if(!fitsMax6Consec(w.name,di,S.sys,toWk,sched)){skipped.push({name:w.name,di,reason:'เกิน 6 วันติดต่อกัน'});return;}
+            if(isDoubleBooked(w.name,di,sched)){skipped.push({name:w.name,di,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
+            sched[dept][di][sh].push({...w});
+            if(w.ot){
+              const existing=otLog.find(l=>l.name===w.name&&l.dept===dept&&l.di===di&&l.sh===sh&&l.wk===toWk);
+              if(existing){existing.reason=w.otReason||existing.reason;existing.hrs=w.otHrs||4;}
+              else{otLog.push({name:w.name,dept,di,sh,hrs:w.otHrs||4,reason:w.otReason||'',wk:toWk,date:new Date().toISOString()});}
+              otLogChanged=true;
+            }
+          });
+        });
+      }
+    });
+    if(moveMode){delete all[fromWk];FB.remove(S.sys+'/sched/'+fromWk);}
+    D.saveSched(all);
+    if(otLogChanged)D.saveOTLog(otLog,S.sys);
+    // สลับไปดูสัปดาห์ปลายทางให้เลย จะได้เห็นผลทันที
+    S.wkStart=getMonday(new Date(toWk));
+    this.render();DASH.render();
+    toast('✅ '+(moveMode?'ย้าย':'คัดลอก')+'ตารางกะไปสัปดาห์ใหม่เรียบร้อย');
+    if(skipped.length){
+      const byName={};
+      skipped.forEach(s=>{
+        if(!byName[s.name])byName[s.name]=[];
+        byName[s.name].push(DAYS[s.di]+' ('+s.reason+')');
+      });
+      const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม '+byName[name].join(', '));
+      alert2('⚠️ มีบางคนคัดลอกไม่ได้ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ คัดลอกไม่ครบ');
     }
   },
   printSched(){PLAN.confirmSched();},
