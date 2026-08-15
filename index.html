@@ -3246,7 +3246,7 @@ const SET={
         <div style="display:flex;gap:6px;align-items:center">
           <select id="admin-add-sel" style="flex:1;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
             <option value="">-- เลือกพนักงาน --</option>
-            ${[...D.getEmps('proc'),...D.getEmps('fill')].filter(e=>!e.isAdmin).map(e=>`<option value="${e.name}|${e.sys||S.sys}">${e.name} (${e.mainDept||'-'})</option>`).join('')}
+            ${['proc','fill'].map(sys2=>D.getEmps(sys2).filter(e=>!e.isAdmin).map(e=>`<option value="${e.name}|${sys2}">${e.name} (${e.mainDept||'-'}) [${sys2==='proc'?'Process':'Filling'}]</option>`).join('')).join('')}
           </select>
           <button onclick="SET.addAdmin()" style="padding:7px 14px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">+ เพิ่ม</button>
         </div>
@@ -3784,7 +3784,7 @@ const SCHED={
   onDragLeave(e){
     e.currentTarget.style.background='';
   },
-  onDrop(e,toDept,toDi,toSh){
+  onDrop(e,toDept,toDi,toSh,beforeName){
     e.preventDefault();e.currentTarget.style.background='';
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
     let payload;
@@ -3792,8 +3792,9 @@ const SCHED={
     const{name,fromDept,fromDi,fromSh,sys}=payload;
     // ห้ามลากข้ามระบบ
     if(sys!==S.sys){toast('❌ ห้ามลากข้าม Process ↔ Filling');return;}
-    // ถ้าปลายทางเหมือนต้นทาง
-    if(fromDept===toDept&&fromDi===toDi&&fromSh===toSh)return;
+    // ถ้าปลายทางเหมือนต้นทางเป๊ะ และไม่ได้ลากไปทับใครเพื่อจัดลำดับ ก็ไม่ต้องทำอะไร
+    if(fromDept===toDept&&fromDi===toDi&&fromSh===toSh&&!beforeName)return;
+    if(fromDept===toDept&&fromDi===toDi&&fromSh===toSh&&name===beforeName)return; // ลากทับตัวเอง
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     // หา worker object จากต้นทาง
     const srcArr=sched[fromDept]?.[fromDi]?.[fromSh]||[];
@@ -3819,7 +3820,13 @@ const SCHED={
     if(!sched[toDept][toDi][toSh])sched[toDept][toDi][toSh]=[];
     // ป้องกัน duplicate
     if(!sched[toDept][toDi][toSh].find(w=>w.name===name)){
-      sched[toDept][toDi][toSh].push(worker);
+      const destArr=sched[toDept][toDi][toSh];
+      if(beforeName){
+        const insertIdx=destArr.findIndex(w=>w.name===beforeName);
+        destArr.splice(insertIdx<0?destArr.length:insertIdx,0,worker);
+      }else{
+        destArr.push(worker);
+      }
     }
     all[wk]=sched;D.saveSched(all);markUnsaved();
     // ถ้าคนนี้เคยมี log เหตุผล OT ผูกกับตำแหน่งเดิม ให้ย้าย log ตามไปที่ตำแหน่งใหม่ด้วย กัน Dashboard (Pareto) ข้อมูลเพี้ยน
@@ -3829,7 +3836,12 @@ const SCHED={
       if(logEntry){logEntry.dept=toDept;logEntry.di=toDi;logEntry.sh=toSh;logEntry.hrs=worker.otHrs||4;D.saveOTLog(otLog,S.sys);}
     }
     this.render();
-    toast('✅ ย้าย '+name+' → '+toDept+' '+SHTH[toSh]+' '+(DAYS[toDi]||''));
+    const sameCell=(fromDept===toDept&&fromDi===toDi&&fromSh===toSh);
+    toast(sameCell?('✅ จัดลำดับ '+name+' แล้ว'):('✅ ย้าย '+name+' → '+toDept+' '+SHTH[toSh]+' '+(DAYS[toDi]||'')));
+  },
+  onDropOnChip(e,toDept,toDi,toSh,targetName){
+    e.stopPropagation();
+    this.onDrop(e,toDept,toDi,toSh,targetName);
   },
   onDropCell(td,e){
     e.preventDefault();td.style.background='';
@@ -3917,7 +3929,8 @@ const SCHED={
               }
             }
             const chip='<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+(isSub?' sub':'')+'" '
-              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:row;align-items:center;flex-wrap:wrap">'
+              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:row;align-items:center;flex-wrap:wrap"'
+              +((!readOnly&&S.user?.isAdmin)?(' ondragover="SCHED.onDragOver(event)" ondragleave="SCHED.onDragLeave(event)" ondrop="SCHED.onDropOnChip(event,\''+dept+'\','+di+',\''+sh+'\',\''+ne+'\')"'):'')+'>'
               +'<span style="font-size:11px;font-weight:800;white-space:nowrap">'+w.name+'</span>'
               +subBadge
               +(w.ot?'<span style="font-size:9px;color:var(--amber);font-weight:700;white-space:nowrap">'+timeStr+'</span>':'')
