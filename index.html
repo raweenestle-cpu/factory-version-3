@@ -3836,6 +3836,41 @@ const SCHED={
     const sameCell=(fromDept===toDept&&fromDi===toDi&&fromSh===toSh);
     toast(sameCell?('✅ จัดลำดับ '+name+' แล้ว'):('✅ ย้าย '+name+' → '+toDept+' '+SHTH[toSh]+' '+(DAYS[toDi]||'')));
   },
+  moveToLine(name,fromDept,di,sh,toDept){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    if(!toDept||toDept===fromDept)return;
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    const srcArr=sched[fromDept]?.[di]?.[sh]||sched[fromDept]?.[String(di)]?.[sh]||[];
+    const wIdx=srcArr.findIndex(w=>w.name===name);
+    if(wIdx<0){toast('❌ ไม่พบพนักงานในกะต้นทาง');return;}
+    const worker={...srcArr[wIdx]};
+    srcArr.splice(wIdx,1);
+    if(!sched[fromDept])sched[fromDept]={};
+    if(!sched[fromDept][di])sched[fromDept][di]={morning:[],afternoon:[],night:[]};
+    sched[fromDept][di][sh]=srcArr;
+    if(!checkRest(name,di,sh,sched)){toast('😴 '+name+' พักไม่ครบ 12 ชม. ก่อนกะนี้');return;}
+    if(!checkMax6Consec(name,di,S.sys,wk,sched))return;
+    if(isDoubleBooked(name,di,sched)){toast('⚠️ '+name+' มีกะอยู่แล้วในวันนั้น (แผนก/กะอื่น) — 1 คนทำได้แค่ 1 กะต่อวัน');return;}
+    const emp=D.getEmps().find(x=>x.name===name);
+    const empMain=emp?.mainDept||emp?.dept||'';
+    const allSubs=[...(emp?.subs||[])];if(emp?.sub1&&!allSubs.includes(emp.sub1))allSubs.push(emp.sub1);if(emp?.sub2&&!allSubs.includes(emp.sub2))allSubs.push(emp.sub2);
+    worker.isSub=(empMain!==toDept&&allSubs.includes(toDept));
+    if(!sched[toDept])sched[toDept]={};
+    if(!sched[toDept][di])sched[toDept][di]={morning:[],afternoon:[],night:[]};
+    if(!sched[toDept][di][sh])sched[toDept][di][sh]=[];
+    if(!sched[toDept][di][sh].find(w=>w.name===name)){
+      sched[toDept][di][sh].push(worker);
+    }
+    all[wk]=sched;D.saveSched(all);markUnsaved();
+    if(worker.ot){
+      const otLog=D.getOTLog(S.sys)||[];
+      const logEntry=otLog.find(l=>l.name===name&&l.dept===fromDept&&l.di===di&&l.sh===sh&&l.wk===wk);
+      if(logEntry){logEntry.dept=toDept;D.saveOTLog(otLog,S.sys);}
+    }
+    closeMo('mo-w');
+    this.render();DASH.render();
+    toast('✅ ย้าย '+name+' → '+toDept+' ('+SHTH[sh]+' '+DAYS[di]+')');
+  },
   onDropOnChip(e,toDept,toDi,toSh,targetName){
     e.stopPropagation();
     this.onDrop(e,toDept,toDi,toSh,targetName);
@@ -4072,6 +4107,14 @@ const SCHED={
     let html=`<div class="md"><div class="md-handle"></div><div class="md-hdr"><div class="md-title">${name}</div><button class="md-close" onclick="closeMo('mo-w')">\u2715</button></div><div class="md-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${dept} \u2014 ${SHTH[sh]} \u2014 ${DAYS[di]}</div>`;
     if(isAdmin){
+      const allDepts=D.getDepts().filter(d=>d!==AL&&d!==dept);
+      html+=`<div style="margin-bottom:8px">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">🔀 ย้ายไปไลน์อื่น (วัน/กะเดิม)</label>
+        <select onchange="if(this.value)SCHED.moveToLine('${ne}','${dept}',${di},'${sh}',this.value);this.value=''" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <option value="">-- เลือกไลน์ปลายทาง --</option>
+          ${allDepts.map(d2=>`<option value="${d2.replace(/'/g,"\\'")}">${d2}</option>`).join('')}
+        </select>
+      </div>`;
       html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'🟡 ปิด OT':'⚡ เปิด OT'}</button>`;
       if(!isMe&&w.ot&&!sg){html+='<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.25);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;color:var(--blue2)">ℹ️ พนักงานต้อง Login แล้วกดยืนยัน OT ด้วยตัวเอง</div>';}
       if(w.ot){
