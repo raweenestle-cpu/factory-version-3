@@ -1288,24 +1288,18 @@ const AUTH={
   submit(){
     const pin=document.getElementById('lp').value.trim();
     const err=document.getElementById('le');
-    if(pin.length===6){
-      // รหัส 6 หลัก → เช็คเป็น Admin
-      const allEmps=[...D.getEmps('proc'),...D.getEmps('fill')];
-      const adminEmp=allEmps.find(e=>e.isAdmin&&e.pin===pin);
-      if(adminEmp){
-        S.user={name:adminEmp.name,isAdmin:true,emp:adminEmp};
-        this.enter();return;
-      }
-      // fallback: master admin pin
-      if(pin===D.getPin()){S.user={name:'Admin',isAdmin:true};this.enter();}
-      else{err.textContent='❌ รหัสผ่านไม่ถูกต้อง';document.getElementById('lp').value='';}
-    }else if(pin.length===4){
-      // รหัส 4 หลัก → เช็คเป็น PIN พนักงาน
-      const emps=[...D.getEmps('proc'),...D.getEmps('fill')];
-      const emp=emps.find(e=>e.pin===pin);
-      if(emp){S.user={name:emp.name,isAdmin:false,emp};this.enter();}
-      else{err.textContent='❌ ไม่พบ PIN นี้';document.getElementById('lp').value='';}
+    // หาพนักงานที่ pin ตรงกันก่อนเสมอ (ไม่ว่าจะพิมพ์กี่หลัก) แล้วใช้สถานะ isAdmin จริงของคนนั้น
+    const allEmps=[...D.getEmps('proc'),...D.getEmps('fill')];
+    const emp=allEmps.find(e=>e.pin===pin);
+    if(emp){
+      S.user={name:emp.name,isAdmin:!!emp.isAdmin,emp};
+      this.enter();return;
     }
+    // ไม่เจอพนักงานที่ pin ตรง — เช็ค master admin pin (6 หลัก) เป็นทางเลือกสุดท้าย
+    if(pin.length===6&&pin===D.getPin()){
+      S.user={name:'Admin',isAdmin:true};this.enter();return;
+    }
+    err.textContent='❌ รหัสผ่านไม่ถูกต้อง';document.getElementById('lp').value='';
   },
   enter(){
     document.getElementById('pg-login').classList.add('hide');
