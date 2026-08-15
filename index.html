@@ -1289,8 +1289,10 @@ const AUTH={
     const pin=document.getElementById('lp').value.trim();
     const err=document.getElementById('le');
     // หาพนักงานที่ pin ตรงกันก่อนเสมอ (ไม่ว่าจะพิมพ์กี่หลัก) แล้วใช้สถานะ isAdmin จริงของคนนั้น
+    // ถ้ามีชื่อซ้ำกันหลายระบบ (proc/fill) ให้เลือกตัวที่เป็น Admin ก่อนเสมอ กันปัญหา pin ชนกันแล้วได้สถานะผิดคน
     const allEmps=[...D.getEmps('proc'),...D.getEmps('fill')];
-    const emp=allEmps.find(e=>e.pin===pin);
+    const matches=allEmps.filter(e=>e.pin===pin);
+    const emp=matches.find(e=>e.isAdmin)||matches[0];
     if(emp){
       S.user={name:emp.name,isAdmin:!!emp.isAdmin,emp};
       this.enter();return;
