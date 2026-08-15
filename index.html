@@ -4653,20 +4653,39 @@ const SCHED={
     const fromDate=new Date(fromStr+'T00:00:00');const toDate=new Date(toStr+'T00:00:00');
     const fromWk=wKey(fromDate);const toWk=wKey(toDate);
     if(fromWk===toWk){toast('❌ สัปดาห์ต้นทางกับปลายทางต้องไม่ใช่สัปดาห์เดียวกัน');return;}
-    const all=D.getSched();
-    if(!all[fromWk]||!Object.keys(all[fromWk]).length){toast('❌ สัปดาห์ต้นทางไม่มีข้อมูลตารางกะเลย');return;}
+    const hasData=['proc','fill'].some(sys=>{const s=D.getSched(sys);return s[fromWk]&&Object.keys(s[fromWk]).length;});
+    if(!hasData){toast('❌ สัปดาห์ต้นทางไม่มีข้อมูลตารางกะเลยทั้ง Process และ Filling');return;}
     const actionLabel=moveMode?'ย้าย':'คัดลอก';
-    confirm2('📆 '+actionLabel+'ตารางกะทั้งสัปดาห์\n\nจาก W'+wNum(fromDate)+' ไป W'+wNum(toDate)+'\n\nระบบจะล้างข้อมูลสัปดาห์ปลายทางทั้งหมดก่อนคัดลอกทั้ง 7 วัน'+(moveMode?' และลบข้อมูลสัปดาห์ต้นทางออกหลังคัดลอกเสร็จ':'')+' ยืนยันหรือไม่?',()=>{
+    confirm2('📆 '+actionLabel+'ตารางกะทั้งสัปดาห์ (Process + Filling ทั้งคู่)\n\nจาก W'+wNum(fromDate)+' ไป W'+wNum(toDate)+'\n\nระบบจะล้างข้อมูลสัปดาห์ปลายทางทั้งหมดก่อนคัดลอกทั้ง 7 วัน ทั้ง 2 ระบบ'+(moveMode?' และลบข้อมูลสัปดาห์ต้นทางออกหลังคัดลอกเสร็จ':'')+' ยืนยันหรือไม่?',()=>{
       closeMo('mo-copy-week');
-      this._runCopyWeek(fromWk,toWk,moveMode);
+      const allSkipped=[];
+      ['proc','fill'].forEach(sys=>{
+        const r=this._runCopyWeek(fromWk,toWk,moveMode,sys);
+        if(r&&r.length)allSkipped.push(...r.map(s=>({...s,sys})));
+      });
+      // สลับไปดูสัปดาห์ปลายทางให้เลย จะได้เห็นผลทันที
+      S.wkStart=getMonday(new Date(toWk));
+      this.render();DASH.render();
+      toast('✅ '+actionLabel+'ตารางกะไปสัปดาห์ใหม่เรียบร้อย (ทั้ง Process และ Filling)');
+      if(allSkipped.length){
+        const byName={};
+        allSkipped.forEach(s=>{
+          const key=s.name+' ['+(s.sys==='proc'?'Process':'Filling')+']';
+          if(!byName[key])byName[key]=[];
+          byName[key].push(DAYS[s.di]+' ('+s.reason+')');
+        });
+        const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม '+byName[name].join(', '));
+        alert2('⚠️ มีบางคนคัดลอกไม่ได้ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ คัดลอกไม่ครบ');
+      }
     });
   },
-  _runCopyWeek(fromWk,toWk,moveMode){
-    const all=D.getSched();
+  _runCopyWeek(fromWk,toWk,moveMode,sys){
+    const all=D.getSched(sys);
     const srcSched=all[fromWk]||{};
-    const depts=D.getDepts().filter(d=>d!==AL);
+    if(!Object.keys(srcSched).length)return [];
+    const depts=D.getDepts(sys).filter(d=>d!==AL);
     const skipped=[]; // {name,di,reason}
-    const otLog=D.getOTLog(S.sys)||[];
+    const otLog=D.getOTLog(sys)||[];
     let otLogChanged=false;
     const destSched={};
     depts.forEach(dept=>{
@@ -4681,7 +4700,7 @@ const SCHED={
           const srcArr=srcSched[dept]?.[di]?.[sh]||srcSched[dept]?.[String(di)]?.[sh]||[];
           srcArr.forEach(w=>{
             if(!checkRest(w.name,di,sh,sched)){skipped.push({name:w.name,di,reason:'พักไม่ครบ 12 ชม.'});return;}
-            if(!fitsMax6Consec(w.name,di,S.sys,toWk,sched)){skipped.push({name:w.name,di,reason:'เกิน 6 วันติดต่อกัน'});return;}
+            if(!fitsMax6Consec(w.name,di,sys,toWk,sched)){skipped.push({name:w.name,di,reason:'เกิน 6 วันติดต่อกัน'});return;}
             if(isDoubleBooked(w.name,di,sched)){skipped.push({name:w.name,di,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
             sched[dept][di][sh].push({...w});
             if(w.ot){
@@ -4694,22 +4713,10 @@ const SCHED={
         });
       }
     });
-    if(moveMode){delete all[fromWk];FB.remove(S.sys+'/sched/'+fromWk);}
-    D.saveSched(all);
-    if(otLogChanged)D.saveOTLog(otLog,S.sys);
-    // สลับไปดูสัปดาห์ปลายทางให้เลย จะได้เห็นผลทันที
-    S.wkStart=getMonday(new Date(toWk));
-    this.render();DASH.render();
-    toast('✅ '+(moveMode?'ย้าย':'คัดลอก')+'ตารางกะไปสัปดาห์ใหม่เรียบร้อย');
-    if(skipped.length){
-      const byName={};
-      skipped.forEach(s=>{
-        if(!byName[s.name])byName[s.name]=[];
-        byName[s.name].push(DAYS[s.di]+' ('+s.reason+')');
-      });
-      const lines=Object.keys(byName).map(name=>'• '+name+' → ข้าม '+byName[name].join(', '));
-      alert2('⚠️ มีบางคนคัดลอกไม่ได้ '+Object.keys(byName).length+' คน\n\n'+lines.join('\n')+'\n\nช่องที่ขาดยังว่างอยู่ กรุณาตรวจสอบและจัดคนอื่นแทนถ้าจำเป็น','⚠️ คัดลอกไม่ครบ');
-    }
+    if(moveMode){delete all[fromWk];FB.remove(sys+'/sched/'+fromWk);}
+    D.saveSched(all,sys);
+    if(otLogChanged)D.saveOTLog(otLog,sys);
+    return skipped;
   },
   printSched(){PLAN.confirmSched();},
   printOT(){PLAN.confirmOT();}
