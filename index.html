@@ -3954,7 +3954,9 @@ const SCHED={
             if(w.ot){
               if(S.user?.isAdmin){
                 const curReason=w.otReason||'';
-                const opts='<option value="">— เหตุผล OT —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${(curReason&&!otReasons.includes(curReason))?'selected':''}>อื่นๆ (ระบุ)</option>`;
+                const isCustom=curReason&&!otReasons.includes(curReason);
+                const otherLabel=isCustom?('อื่นๆ: '+curReason):'อื่นๆ (ระบุ)';
+                const opts='<option value="">— เหตุผล OT —</option>'+otReasons.map(r=>`<option value="${r}" ${curReason===r?'selected':''}>${r}</option>`).join('')+`<option value="__other__" ${isCustom?'selected':''}>${otherLabel}</option>`;
                 reasonHtml=`<select onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onchange="event.stopPropagation();SCHED.setOTReason('${ne}','${dept}',${di},'${sh}',this.value,this)" style="flex:1;min-width:90px;font-size:8px;padding:1px 2px;background:rgba(30,41,59,.12);border:1px solid rgba(30,41,59,.25);border-radius:3px;color:#0F172A;font-weight:700;font-family:'Sarabun',sans-serif">${opts}</select>`;
               }else if(w.otReason){
                 reasonHtml='<span style="font-size:8px;color:var(--text3);white-space:nowrap">📝 '+w.otReason+'</span>';
