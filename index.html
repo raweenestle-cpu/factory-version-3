@@ -3178,7 +3178,8 @@ const SET={
     this.render();toast('✅ ลบ Admin: '+name);
   },
   resetAllData(){
-    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    // ให้เฉพาะ Master Admin (ล็อกอินด้วยรหัสผ่าน Admin 6 หลักของระบบ ไม่ใช่ PIN ของพนักงานคนใดคนหนึ่ง) กดปุ่มนี้ได้เท่านั้น กันกดผิดโดยพนักงานที่ถูกตั้งเป็น Admin
+    if(!S.user?.isAdmin||S.user?.emp){toast('❌ ปุ่มนี้ใช้ได้เฉพาะ Master Admin (ล็อกอินด้วยรหัสผ่าน Admin 6 หลักของระบบเท่านั้น)');return;}
     confirm2('⚠️ ยืนยันการล้างข้อมูลทั้งหมด?\n\nจะลบพนักงาน, ตารางกะทุกสัปดาห์, แผนผลิต, ประวัติ OT, การลา, ทีม, PIN Admin — ทั้งเครื่องนี้และ Firebase (ทุกเครื่อง) ถาวร กู้คืนไม่ได้',()=>{
       confirm2('🚨 ยืนยันครั้งสุดท้าย — แน่ใจจริงๆ ใช่ไหม?\n\nกดยืนยันแล้วระบบจะล้างข้อมูลทันทีและรีโหลดหน้าใหม่',()=>{
         try{
@@ -3208,8 +3209,8 @@ const SET={
         <div style="font-size:13px;font-weight:900;color:#15803d;margin-bottom:8px">☁️ Sync ข้อมูลขึ้น Firebase</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:10px">กดเพื่อ upload ข้อมูลทั้งหมดจากมือถือเครื่องนี้ขึ้น Firebase ให้ทุกเครื่องใช้งานได้</div>
         <button onclick="forceSync()" style="width:100%;padding:10px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">☁️ Upload ข้อมูลทั้งหมดขึ้น Firebase</button>
-      </div>
-      <div style="background:var(--card);border:1.5px solid #DC2626;border-radius:var(--radius);padding:14px;margin-bottom:12px">
+      </div>`:''}
+      ${(S.user?.isAdmin&&!S.user?.emp)?`<div style="background:var(--card);border:1.5px solid #DC2626;border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:900;color:#DC2626;margin-bottom:8px">⚠️ Danger Zone — ล้างข้อมูลทั้งหมด</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:10px">ลบ<b>ทุกอย่างถาวร</b> — พนักงาน, ตารางกะทุกสัปดาห์, แผนผลิต, ประวัติ OT, การลา, การตั้งค่าทีม, PIN Admin ฯลฯ ทั้งในเครื่องนี้และบน Firebase (ทุกเครื่องจะโดนล้างด้วย) <b>กู้คืนไม่ได้เด็ดขาด</b> — ใช้เฉพาะก่อนเริ่มใช้งานจริงครั้งแรกเท่านั้น</div>
         <button onclick="SET.resetAllData()" style="width:100%;padding:10px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">🗑️ ล้างข้อมูลทั้งหมด</button>
