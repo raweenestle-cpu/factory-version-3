@@ -3296,6 +3296,32 @@ const SET={
     });
     this.render();toast('✅ ลบ Admin: '+name);
   },
+  repairOTLog(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    confirm2('🔧 ซ่อมข้อมูล OT log ทั้งหมด?\n\nระบบจะไล่เช็ค log เหตุผล OT ทุกรายการ (ทั้ง Process และ Filling) เทียบกับตารางกะจริงในสัปดาห์นั้นๆ:\n- ถ้าชั่วโมงไม่ตรงกับเวลาจริง → แก้ให้ถูกต้อง\n- ถ้าไม่พบข้อมูลในตารางกะแล้ว หรือไม่มี OT แล้ว → ลบ log ทิ้ง\n\n(ข้ามสัปดาห์ที่ไม่มีข้อมูลตารางกะเหลืออยู่แล้ว เพราะตรวจสอบไม่ได้)\n\nดำเนินการต่อ?',()=>{
+      let fixed=0,removed=0,checked=0;
+      ['proc','fill'].forEach(sys=>{
+        const otLog=D.getOTLog(sys)||[];
+        const allSched=D.getSched(sys)||{};
+        const newLog=[];
+        otLog.forEach(l=>{
+          checked++;
+          const wkSched=allSched[l.wk];
+          if(!wkSched){newLog.push(l);return;} // ไม่มีข้อมูลสัปดาห์นั้นแล้ว ตรวจสอบไม่ได้ — เก็บไว้เหมือนเดิม ไม่แตะ
+          const arr=wkSched[l.dept]?.[l.di]?.[l.sh]||wkSched[l.dept]?.[String(l.di)]?.[l.sh]||[];
+          const w=arr.find(x=>x.name===l.name);
+          if(!w||!w.ot){removed++;return;} // ไม่พบคนนี้ในกะนั้นแล้ว หรือไม่มี OT แล้ว — ลบ log ทิ้ง
+          const correctHrs=otHrsOf(w,l.sh);
+          if(correctHrs<=0){removed++;return;} // คำนวณแล้วไม่ใช่ OT จริง — ลบทิ้ง
+          if(Math.abs((l.hrs||4)-correctHrs)>0.01){l.hrs=correctHrs;fixed++;}
+          newLog.push(l);
+        });
+        D.saveOTLog(newLog,sys);
+      });
+      DASH.render();if(typeof EXEC!=='undefined')EXEC.render();
+      alert2('🔧 ซ่อมข้อมูลเสร็จแล้ว\n\nตรวจสอบทั้งหมด: '+checked+' รายการ\nแก้ไขชั่วโมงให้ถูกต้อง: '+fixed+' รายการ\nลบรายการที่ไม่ตรงกับตารางกะจริงแล้ว: '+removed+' รายการ','✅ เสร็จสิ้น');
+    });
+  },
   resetAllData(){
     // ให้เฉพาะ Master Admin (ล็อกอินด้วยรหัสผ่าน Admin 6 หลักของระบบ ไม่ใช่ PIN ของพนักงานคนใดคนหนึ่ง) กดปุ่มนี้ได้เท่านั้น กันกดผิดโดยพนักงานที่ถูกตั้งเป็น Admin
     if(!S.user?.isAdmin||S.user?.emp){toast('❌ ปุ่มนี้ใช้ได้เฉพาะ Master Admin (ล็อกอินด้วยรหัสผ่าน Admin 6 หลักของระบบเท่านั้น)');return;}
@@ -3328,6 +3354,11 @@ const SET={
         <div style="font-size:13px;font-weight:900;color:#15803d;margin-bottom:8px">☁️ Sync ข้อมูลขึ้น Firebase</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:10px">กดเพื่อ upload ข้อมูลทั้งหมดจากมือถือเครื่องนี้ขึ้น Firebase ให้ทุกเครื่องใช้งานได้</div>
         <button onclick="forceSync()" style="width:100%;padding:10px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">☁️ Upload ข้อมูลทั้งหมดขึ้น Firebase</button>
+      </div>
+      <div style="background:var(--card);border:1px solid #0D9488;border-radius:var(--radius);padding:14px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:900;color:var(--teal);margin-bottom:8px">🔧 ซ่อมข้อมูล OT log</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">ถ้าเจอตัวเลขชั่วโมง OT ใน Dashboard/สรุปข้อมูล/Pareto ไม่ตรงกับเวลาจริงในตารางกะ (เช่นเป็นข้อมูลเก่าค้างจากก่อนหน้านี้) กดปุ่มนี้เพื่อไล่ตรวจสอบและซ่อมให้ตรงกับตารางกะจริงทั้งหมดทีเดียว</div>
+        <button onclick="SET.repairOTLog()" style="width:100%;padding:10px;background:var(--teal);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">🔧 ซ่อมข้อมูล OT log ทั้งหมด</button>
       </div>`:''}
       ${(S.user?.isAdmin&&!S.user?.emp)?`<div style="background:var(--card);border:1.5px solid #DC2626;border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:900;color:#DC2626;margin-bottom:8px">⚠️ Danger Zone — ล้างข้อมูลทั้งหมด</div>
