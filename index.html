@@ -499,6 +499,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div style="display:flex;gap:4px">
       <button class="sys-btn active" id="sp" onclick="APP.setSys('proc')">⚙️ Process</button>
       <button class="sys-btn" id="sf" onclick="APP.setSys('fill')">🏭 Filling</button>
+      <button onclick="APP.softReload()" title="รีโหลดข้อมูล" style="padding:0 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:15px;cursor:pointer">🔄</button>
     </div>
     
     <div class="topbar-user" onclick="AUTH.logout()">
@@ -708,6 +709,14 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     </div>
     <!-- Calendar section — ไม่ถูก destroy เมื่อ switch tab -->
     <div id="lv-cal-section" style="display:none;overflow-y:auto;flex:1;padding:14px"></div>
+    <!-- Filter/Search/Export bar (เฉพาะแท็บที่ไม่ใช่ ขอลา) -->
+    <div id="lv-filter-bar" style="display:none;padding:10px 14px 0;flex-shrink:0">
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input type="text" id="lv-search" placeholder="🔍 ค้นหาชื่อพนักงาน..." oninput="LEAVE.renderList()" style="flex:1;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        <button onclick="LEAVE.exportCSV()" style="padding:8px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);border-radius:8px;color:#22C55E;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap">⬇️ Export</button>
+      </div>
+      <div id="lv-dept-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    </div>
     <!-- List section -->
     <div id="lv-list-section" style="overflow-y:auto;flex:1;padding:14px"></div>
   </div>
@@ -1625,6 +1634,18 @@ const APP={
     FB.on('leave_req',v=>{if(v){LS.set('leave_req',v);LEAVE.render();LEAVE.updBadge();}});
     FB.on('lsvc/data',v=>{if(v){LS.set('lsvc_data',v);LSVC.render();DASH.render();}});
     FB.on('leave_hist',v=>{if(v)LS.set('leave_hist',v);});
+  },
+  softReload(){
+    // รีโหลดข้อมูล/หน้าจอใหม่ทั้งหมด โดยไม่ต้อง login ใหม่ (ไม่ได้ทำ location.reload() จริงๆ)
+    toast('🔄 กำลังรีโหลด...');
+    const renders=[
+      ()=>DASH.render(),()=>PLAN.render(),()=>SCHED.render(),
+      ()=>OT.render(),()=>EMP.render(),()=>SET.render(),
+      ()=>LEAVE.render(),()=>LEAVE.updBadge(),
+      ()=>LSVC.render()
+    ];
+    renders.forEach(fn=>{try{fn();}catch(e){console.log('render error:',e.message);}});
+    setTimeout(()=>toast('✅ รีโหลดเรียบร้อย'),400);
   },
   setSys(sys){
     S.sys=sys;
@@ -5479,7 +5500,7 @@ const LHIST={
 };
 
 const LEAVE={
-  tab:'req', selDates:new Set(), calMo:new Date().getMonth(), calYr:new Date().getFullYear(),
+  tab:'req', selDates:new Set(), calMo:new Date().getMonth(), calYr:new Date().getFullYear(), deptFilter:null,
   setTab(t){
     this.tab=t;
     ['req','pending','approved','all'].forEach(x=>{
@@ -5490,9 +5511,11 @@ const LEAVE={
     // ป้องกัน selDates และ calendar state โดน reset
     const calSection=document.getElementById('lv-cal-section');
     const listSection=document.getElementById('lv-list-section');
+    const filterBar=document.getElementById('lv-filter-bar');
     if(calSection&&listSection){
       calSection.style.display=t==='req'?'block':'none';
       listSection.style.display=t!=='req'?'block':'none';
+      if(filterBar)filterBar.style.display=t!=='req'?'block':'none';
       if(t!=='req')this.renderList(); // render เฉพาะ list tabs
     } else {
       this.render(); // fallback
@@ -5536,9 +5559,11 @@ const LEAVE={
     this.renderCal();
     const calSection=document.getElementById('lv-cal-section');
     const listSection=document.getElementById('lv-list-section');
+    const filterBar=document.getElementById('lv-filter-bar');
     if(calSection&&listSection){
       calSection.style.display=this.tab==='req'?'block':'none';
       listSection.style.display=this.tab!=='req'?'block':'none';
+      if(filterBar)filterBar.style.display=this.tab!=='req'?'block':'none';
     }
     if(this.tab!=='req')this.renderList();
   },
@@ -5595,35 +5620,77 @@ const LEAVE={
   renderList(){
     const el=document.getElementById('lv-list-section');if(!el)return;
     const reqs=D.getLeaveReq();
-    const myEmps=new Set(D.getEmps().map(e=>e.name));
+    const myEmps=D.getEmps();
+    const myEmpNames=new Set(myEmps.map(e=>e.name));
     const isAdmin=S.user?.isAdmin;
+    const getDept=(name)=>{const emp=myEmps.find(e=>e.name===name);return emp?.mainDept||emp?.dept||'-';};
     // Tab อื่นๆ
     let list=reqs;
-    if(this.tab==='pending') list=reqs.filter(r=>(r.status==='pending'||r.status==='cancel_req')&&(isAdmin?myEmps.has(r.name):r.name===(S.user?.name||'')));
-    else if(this.tab==='approved') list=reqs.filter(r=>r.status==='approved'&&(isAdmin?myEmps.has(r.name):r.name===(S.user?.name||'')));
-    else list=reqs.filter(r=>isAdmin?myEmps.has(r.name):r.name===(S.user?.name||''));
+    if(this.tab==='pending') list=reqs.filter(r=>(r.status==='pending'||r.status==='cancel_req')&&(isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||'')));
+    else if(this.tab==='approved') list=reqs.filter(r=>r.status==='approved'&&(isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||'')));
+    else list=reqs.filter(r=>isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||''));
+    // ปุ่มกรองแผนก — สร้างจากรายชื่อแผนกที่ปรากฏในแท็บนี้ (ก่อนกรองค้นหา/แผนกเพิ่ม เพื่อให้ปุ่มไม่กระโดดหายระหว่างพิมพ์ค้นหา)
+    const deptsInList=[...new Set(list.map(r=>getDept(r.name)))].sort();
+    const deptFilterEl=document.getElementById('lv-dept-filter');
+    if(deptFilterEl){
+      const chip=(label,val,active)=>`<button onclick="LEAVE.setDeptFilter(${val===null?'null':`'${val.replace(/'/g,"\\'")}'`})" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid ${active?'var(--blue)':'var(--border)'};background:${active?'var(--blue)':'var(--bg3)'};color:${active?'#fff':'var(--text2)'}">${label}</button>`;
+      deptFilterEl.innerHTML=chip('ทั้งหมด',null,!this.deptFilter)+deptsInList.map(d=>chip(d,d,this.deptFilter===d)).join('');
+    }
+    // กรองคำค้นหา + แผนกที่เลือก
+    const searchVal=(document.getElementById('lv-search')?.value||'').trim().toLowerCase();
+    if(searchVal)list=list.filter(r=>r.name.toLowerCase().includes(searchVal));
+    if(this.deptFilter)list=list.filter(r=>getDept(r.name)===this.deptFilter);
     if(!list.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">ไม่มีรายการ</div>';return;}
-    el.innerHTML=list.map(r=>{
-      const stMap={pending:'⏳ รออนุมัติ',approved:'✅ อนุมัติแล้ว',rejected:'❌ ไม่อนุมัติ',cancel_req:'🔄 ขอยกเลิก'};
-      const stCol={pending:'var(--amber)',approved:'var(--green2)',rejected:'var(--red2)',cancel_req:'var(--blue2)'};
-      return`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div style="font-size:13px;font-weight:800">${r.name}</div>
-          <div style="font-size:11px;font-weight:800;color:${stCol[r.status]||'var(--text3)'}">${stMap[r.status]||r.status}</div>
-        </div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">📅 ${r.dates?.join(', ')||'-'}</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">📝 ${r.reason||'ไม่ระบุ'}</div>
-        ${isAdmin&&r.status==='pending'?`
-        <div style="display:flex;gap:6px">
-          <button onclick="LEAVE.approve('${r.id}')" style="flex:1;padding:7px;background:var(--green);border:none;border-radius:7px;color:#fff;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">✅ อนุมัติ</button>
-          <button onclick="LEAVE.reject('${r.id}')" style="flex:1;padding:7px;background:var(--red2);border:none;border-radius:7px;color:#fff;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">❌ ไม่อนุมัติ</button>
-        </div>`:''}
-        ${!isAdmin&&r.status==='approved'?`<button onclick="LEAVE.confirmCancel('${r.id}')" style="width:100%;padding:7px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text3);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer">ขอยกเลิก</button>`:''}
-      </div>`;
+    // เรียงวันที่ขอลาล่าสุดก่อน (เอาวันแรกของแต่ละคำขอมาเทียบ)
+    list=[...list].sort((a,b)=>{const da=(a.dates&&a.dates[0])||'';const db=(b.dates&&b.dates[0])||'';return db.localeCompare(da);});
+    const stCfg={
+      pending:{label:'รออนุมัติ',bg:'rgba(245,158,11,.18)',fg:'#F59E0B',dot:'🟠'},
+      approved:{label:'อนุมัติแล้ว',bg:'rgba(34,197,94,.18)',fg:'#22C55E',dot:'🟢'},
+      rejected:{label:'ไม่อนุมัติ',bg:'rgba(239,68,68,.18)',fg:'#EF4444',dot:'🔴'},
+      cancel_req:{label:'ขอยกเลิก',bg:'rgba(59,130,246,.18)',fg:'#3B82F6',dot:'🔵'}
+    };
+    const fmtDates=(dates)=>{
+      if(!dates||!dates.length)return'-';
+      const short=dates.map(d=>{const p=d.split('-');return p[2]+'/'+p[1];});
+      if(short.length<=2)return short.join(', ');
+      return short[0]+' <span style="color:var(--text3)">+'+(short.length-1)+' วัน</span>';
+    };
+    const rows=list.map((r,i)=>{
+      const emp=myEmps.find(e=>e.name===r.name);
+      const dept=emp?.mainDept||emp?.dept||'-';
+      const st=stCfg[r.status]||{label:r.status,bg:'rgba(148,163,184,.15)',fg:'var(--text3)',dot:'⚪'};
+      const bg=i%2===0?'transparent':'rgba(255,255,255,.02)';
+      const actions=(isAdmin&&r.status==='pending')?`<div style="display:flex;gap:4px">
+          <button onclick="LEAVE.approve('${r.id}')" title="อนุมัติ" style="padding:5px 8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);border-radius:6px;color:#22C55E;font-size:11px;font-weight:800;cursor:pointer">✅</button>
+          <button onclick="LEAVE.reject('${r.id}')" title="ไม่อนุมัติ" style="padding:5px 8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:6px;color:#EF4444;font-size:11px;font-weight:800;cursor:pointer">❌</button>
+        </div>`:(!isAdmin&&r.status==='approved'?`<button onclick="LEAVE.confirmCancel('${r.id}')" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer">ยกเลิก</button>`:'');
+      return`<tr style="background:${bg}">
+        <td style="padding:9px 8px;font-size:11px;color:var(--text2);white-space:nowrap">${dept}</td>
+        <td style="padding:9px 8px;font-size:12px;font-weight:800;color:var(--text)">${r.name}</td>
+        <td style="padding:9px 8px;font-size:11px;color:var(--text2);white-space:nowrap">${fmtDates(r.dates)}</td>
+        <td style="padding:9px 8px"><span style="display:inline-flex;align-items:center;gap:4px;background:${st.bg};color:${st.fg};padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800;white-space:nowrap">${st.dot} ${st.label}</span></td>
+        <td style="padding:9px 8px;font-size:11px;color:var(--text2);white-space:nowrap">${r.approver||(r.status==='pending'||r.status==='cancel_req'?'—':'-')}</td>
+        <td style="padding:9px 8px">${actions}</td>
+      </tr>`;
     }).join('');
+    el.innerHTML=`<div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:560px">
+        <thead>
+          <tr style="background:var(--bg3);position:sticky;top:0">
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase">แผนก</th>
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase">ชื่อ</th>
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase">วันที่จะลา</th>
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase">สถานะ</th>
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase">ผู้อนุมัติ</th>
+            <th style="padding:9px 8px;text-align:left;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
     this.updBadge();
   },
-  approve(id){const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='approved';D.saveLeaveReq(reqs);this.render();this.updBadge();SCHED.render();toast('✅ อนุมัติแล้ว');}},
+  approve(id){const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='approved';r.approver=S.user?.name||'Admin';D.saveLeaveReq(reqs);this.render();this.updBadge();SCHED.render();toast('✅ อนุมัติแล้ว');}},
   approveByName(name,evt){
     if(evt)evt.stopPropagation();
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
@@ -5638,7 +5705,7 @@ const LEAVE={
       if(r.name!==name)return;
       const dates=r.dates||[r.date]||[];
       const inWk=dates.some(d=>wkDates.includes(d));
-      if(inWk&&r.status==='pending'){r.status='approved';changed++;}
+      if(inWk&&r.status==='pending'){r.status='approved';r.approver=S.user?.name||'Admin';changed++;}
     });
     if(changed>0){
       D.saveLeaveReq(reqs);this.render();this.updBadge();SCHED.render();
@@ -5647,10 +5714,40 @@ const LEAVE={
       toast('ไม่พบคำขอที่รออนุมัติ');
     }
   },
-  reject(id){const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='rejected';D.saveLeaveReq(reqs);this.render();this.updBadge();toast('❌ ไม่อนุมัติ');}},
+  reject(id){const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='rejected';r.approver=S.user?.name||'Admin';D.saveLeaveReq(reqs);this.render();this.updBadge();toast('❌ ไม่อนุมัติ');}},
   confirmCancel(id){confirm2('ยืนยันขอยกเลิกวันลานี้?',()=>{const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='cancel_req';D.saveLeaveReq(reqs);this.render();this.updBadge();toast('🔄 ส่งคำขอยกเลิกแล้ว');}});},
   del(id){confirm2('ลบรายการนี้?',()=>{const reqs=D.getLeaveReq().filter(r=>r.id!==id);D.saveLeaveReq(reqs);this.render();this.updBadge();toast('🗑️ ลบแล้ว');});},
-  archivePast(){const today=new Date().toISOString().slice(0,10);const reqs=D.getLeaveReq().filter(r=>r.dates?.some(d=>d>=today));D.saveLeaveReq(reqs);this.render();}
+  archivePast(){const today=new Date().toISOString().slice(0,10);const reqs=D.getLeaveReq().filter(r=>r.dates?.some(d=>d>=today));D.saveLeaveReq(reqs);this.render();},
+  setDeptFilter(d){this.deptFilter=d;this.renderList();},
+  exportCSV(){
+    const reqs=D.getLeaveReq();
+    const myEmps=D.getEmps();
+    const myEmpNames=new Set(myEmps.map(e=>e.name));
+    const isAdmin=S.user?.isAdmin;
+    const getDept=(name)=>{const emp=myEmps.find(e=>e.name===name);return emp?.mainDept||emp?.dept||'-';};
+    let list=reqs;
+    if(this.tab==='pending')list=reqs.filter(r=>(r.status==='pending'||r.status==='cancel_req')&&(isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||'')));
+    else if(this.tab==='approved')list=reqs.filter(r=>r.status==='approved'&&(isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||'')));
+    else list=reqs.filter(r=>isAdmin?myEmpNames.has(r.name):r.name===(S.user?.name||''));
+    const searchVal=(document.getElementById('lv-search')?.value||'').trim().toLowerCase();
+    if(searchVal)list=list.filter(r=>r.name.toLowerCase().includes(searchVal));
+    if(this.deptFilter)list=list.filter(r=>getDept(r.name)===this.deptFilter);
+    if(!list.length){toast('❌ ไม่มีข้อมูลให้ export');return;}
+    list=[...list].sort((a,b)=>{const da=(a.dates&&a.dates[0])||'';const db=(b.dates&&b.dates[0])||'';return db.localeCompare(da);});
+    const stLabel={pending:'รออนุมัติ',approved:'อนุมัติแล้ว',rejected:'ไม่อนุมัติ',cancel_req:'ขอยกเลิก'};
+    const esc=(v)=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const header=['แผนก','ชื่อ','วันที่จะลา','สถานะ','ผู้อนุมัติ','เหตุผล'];
+    const rows=list.map(r=>[getDept(r.name),r.name,(r.dates||[]).join(' '),stLabel[r.status]||r.status,r.approver||'',r.reason||'']);
+    const csv='\uFEFF'+[header,...rows].map(row=>row.map(esc).join(',')).join('\r\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const today=new Date().toISOString().slice(0,10);
+    a.href=url;a.download='การลา_'+today+'.csv';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('✅ Export สำเร็จ ('+list.length+' รายการ)');
+  }
 };
 
 const TEAM={
