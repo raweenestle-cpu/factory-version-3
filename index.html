@@ -606,6 +606,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
         <button onclick="SCHED.openCopyDay()" style="background:rgba(22,163,74,.2);color:var(--green2);border:1px solid rgba(22,163,74,.4)">📋 คัดลอกวัน</button>
         <button onclick="SCHED.openCopyWeek()" style="background:rgba(124,58,237,.2);color:#a78bfa;border:1px solid rgba(124,58,237,.4)">📆 คัดลอก/ย้ายสัปดาห์</button>
+        <button onclick="SCHED.openClearDay()" style="background:rgba(220,38,38,.15);color:var(--red2);border:1px solid rgba(220,38,38,.4)">🗑️ ล้างวัน</button>
         <button id="multi-ot-btn" onclick="SCHED.toggleMultiSelect()" style="background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.4)">☑️ เลือกหลายคนเปิด OT</button>
       </div>
     </div>
@@ -946,6 +947,26 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div class="md-foot">
       <button class="btn-cancel" onclick="closeMo('mo-copy-day')">ยกเลิก</button>
       <button class="btn-confirm" onclick="SCHED.doCopyDay()">📋 คัดลอก</button>
+    </div>
+  </div>
+</div>
+<div class="mo hide" id="mo-clear-day" style="align-items:flex-start;padding-top:20px">
+  <div class="md" style="max-width:min(500px,95vw);margin:0 auto">
+    <div class="md-handle"></div>
+    <div class="md-hdr">
+      <div class="md-title">🗑️ ล้างข้อมูลตารางกะ (รายวัน)</div>
+      <button class="md-close" onclick="closeMo('mo-clear-day')">✕</button>
+    </div>
+    <div class="md-body">
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:8px">เลือกวันที่จะล้าง (เลือกได้หลายวัน)</div>
+        <div id="clrd-picker" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div style="font-size:11px;color:var(--red2);margin-top:12px;line-height:1.5">⚠️ จะลบข้อมูลตารางกะของวันที่เลือกทั้งหมด (ทุกแผนก ทุกกะ) ในสัปดาห์ที่กำลังดูอยู่ รวมถึงเหตุผล OT ที่ผูกไว้กับวันนั้นด้วย ถาวร กู้คืนไม่ได้ — ไม่กระทบวันอื่นในสัปดาห์เดียวกัน</div>
+    </div>
+    <div class="md-foot">
+      <button class="btn-cancel" onclick="closeMo('mo-clear-day')">ยกเลิก</button>
+      <button class="btn-confirm" onclick="SCHED.doClearDay()" style="background:var(--red2)">🗑️ ล้างข้อมูล</button>
     </div>
   </div>
 </div>
@@ -4707,6 +4728,41 @@ const SCHED={
     const sysLabel=S.sys==='fill'?'Filling':'Process';
     confirm2('⚡ โหลดพนักงานตามทีม ('+sysLabel+') — '+dayLabel+'\n\nระบบจะล้างตารางกะเดิมของ'+dayLabel+'ออกก่อน แล้วโหลดพนักงานใหม่ตามทีม A/B/C ทั้งหมด ยืนยันหรือไม่?',()=>{
       PLAN.autoLoad(dayList);
+    });
+  },
+  openClearDay(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    const picker=document.getElementById('clrd-picker');
+    if(picker){
+      let html='';
+      DAYS.forEach((d,di)=>{
+        html+='<label style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2)"><input type="checkbox" id="clrd-'+di+'" '+(this.viewDays.includes(di)?'checked':'')+'> '+d+'</label>';
+      });
+      picker.innerHTML=html;
+    }
+    openMo('mo-clear-day');
+  },
+  doClearDay(){
+    const days=[];
+    DAYS.forEach((d,di)=>{if(document.getElementById('clrd-'+di)?.checked)days.push(di);});
+    if(!days.length){toast('❌ เลือกวันที่จะล้างก่อน');return;}
+    confirm2('🗑️ ยืนยันล้างข้อมูลตารางกะวัน '+days.map(di=>DAYS[di]).join(', ')+'?\n\nลบถาวร กู้คืนไม่ได้',()=>{
+      const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+      const otLog=D.getOTLog(S.sys)||[];
+      let otLogChanged=false;
+      days.forEach(di=>{
+        Object.keys(sched).forEach(dept=>{
+          if(sched[dept])sched[dept][di]={morning:[],afternoon:[],night:[]};
+        });
+        const before=otLog.length;
+        for(let i=otLog.length-1;i>=0;i--){if(otLog[i].wk===wk&&otLog[i].di===di)otLog.splice(i,1);}
+        if(otLog.length!==before)otLogChanged=true;
+      });
+      all[wk]=sched;markUnsaved();D.saveSched(all);
+      if(otLogChanged)D.saveOTLog(otLog,S.sys);
+      closeMo('mo-clear-day');
+      this.render();DASH.render();
+      toast('✅ ล้างข้อมูลวัน '+days.map(di=>DAYS[di]).join(', ')+' เรียบร้อย');
     });
   },
   openCopyDay(){
