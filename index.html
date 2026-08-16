@@ -744,9 +744,16 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
   </div>
 
   <div class="page" id="pg-exec">
-    <div style="padding:12px 14px;background:linear-gradient(135deg,var(--navy),var(--bg2));border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
-      <h2 style="font-size:15px;font-weight:900;flex:1">📋 สรุปข้อมูล</h2>
-      <button onclick="EXEC.render()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer">🔄</button>
+    <div style="padding:12px 14px;background:linear-gradient(135deg,var(--navy),var(--bg2));border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <h2 style="font-size:15px;font-weight:900;flex:1">📋 สรุปข้อมูล</h2>
+        <button onclick="EXEC.render()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer">🔄</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px">
+        <button onclick="EXEC.prevMo()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;cursor:pointer">◀</button>
+        <span id="exec-mo-label" style="font-size:12px;font-weight:700;color:var(--text);min-width:100px;text-align:center">เดือนนี้</span>
+        <button onclick="EXEC.nextMo()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;cursor:pointer">▶</button>
+      </div>
     </div>
     <div style="overflow-y:auto;flex:1;padding:14px" id="exec-body"></div>
   </div>
@@ -5464,9 +5471,17 @@ const PROD={
 };
 
 const EXEC={
+  _moOff:0,
+  prevMo(){this._moOff--;this.render();},
+  nextMo(){if(this._moOff<0)this._moOff++;this.render();},
   render(){
     const el=document.getElementById('exec-body');if(!el)return;
     if(!S.user?.isAdmin){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">🔒 หน้านี้สำหรับ Admin เท่านั้น</div>';return;}
+    const MN=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const now=new Date();
+    const viewMoDate=new Date(now.getFullYear(),now.getMonth()+this._moOff,1);
+    const lbl=document.getElementById('exec-mo-label');
+    if(lbl)lbl.textContent=(this._moOff===0?'เดือนนี้ — ':'')+MN[viewMoDate.getMonth()]+' '+(viewMoDate.getFullYear()+543);
     try{
       el.innerHTML=this._buildHTML();
     }catch(e){
@@ -5478,22 +5493,82 @@ const EXEC={
     if(l.wk&&typeof l.di==='number'){const d=new Date(l.wk+'T00:00:00');d.setDate(d.getDate()+l.di);return d;}
     return l.date?new Date(l.date):null;
   },
+  showEmpDetail(name,sys){
+    const wk=wKey(S.wkStart);
+    const sched=D.getSched(sys)[wk]||{};
+    const depts=D.getDepts(sys).filter(d=>d!==AL);
+    const monday=getMonday(new Date(wk));
+    const rows=[];
+    depts.forEach(dept=>{
+      for(let di=0;di<7;di++){
+        SHS.forEach(sh=>{
+          const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
+          const w=arr.find(x=>x.name===name);
+          if(!w)return;
+          let tS,tE;
+          if(w.sr){const sp=w.sr.split('-');tS=sp[0];tE=sp[1];}
+          else{
+            const bounds={morning:['06:00','14:00'],afternoon:['14:00','22:00'],night:['22:00','06:00']}[sh]||['06:00','14:00'];
+            tS=bounds[0];tE=bounds[1];
+          }
+          const d2=new Date(monday);d2.setDate(monday.getDate()+di);
+          rows.push({di,dept,sh,tS,tE,ot:w.ot,otHrs:w.otHrs,otReason:w.otReason,dateStr:d2.getDate()+'/'+(d2.getMonth()+1)});
+        });
+      }
+    });
+    rows.sort((a,b)=>a.di-b.di);
+    const mo=document.getElementById('mo-al');
+    if(!mo)return;
+    let body;
+    if(!rows.length){
+      body='<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px">ไม่พบข้อมูลตารางกะของ '+name+' ในสัปดาห์นี้</div>';
+    }else{
+      body=rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);text-align:left">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:var(--text)">${DAYS[r.di]} <span style="font-size:10px;color:var(--text3);font-weight:400">${r.dateStr}</span></div>
+          <div style="font-size:10px;color:var(--text3)">${r.dept} — ${SHTH[r.sh]}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:800;color:${r.ot?'var(--amber)':'var(--text2)'}">${r.tS}–${r.tE}</div>
+          ${r.ot?`<div style="font-size:10px;color:var(--amber)">OT ${r.otHrs||4} ชม.${r.otReason?(' — '+r.otReason):''}</div>`:''}
+        </div>
+      </div>`).join('');
+    }
+    const totalOT=rows.filter(r=>r.ot).reduce((a,r)=>a+(r.otHrs||4),0);
+    mo.innerHTML=`<div class="md" style="max-width:min(420px,95vw);margin:0 auto">
+      <div class="md-hdr">
+        <div class="md-title">📋 ${name} <span style="font-size:11px;color:var(--text3);font-weight:400">[${sys==='proc'?'Process':'Filling'}]</span></div>
+        <button class="md-close" onclick="closeMo('mo-al')">✕</button>
+      </div>
+      <div class="md-body" style="max-height:60vh;overflow-y:auto">
+        <div style="text-align:center;padding:6px 0 12px;font-size:12px;color:var(--text2)">รวม OT สัปดาห์นี้: <b style="color:var(--amber)">${totalOT} ชม.</b></div>
+        ${body}
+      </div>
+      <div class="md-foot">
+        <button class="btn-confirm" onclick="closeMo('mo-al')">ปิด</button>
+      </div>
+    </div>`;
+    openMo('mo-al');
+  },
   _buildHTML(){
     const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     const now=new Date();
-    const thisMoStart=new Date(now.getFullYear(),now.getMonth(),1);
-    const lastMoStart=new Date(now.getFullYear(),now.getMonth()-1,1);
-    const lastMoEnd=new Date(now.getFullYear(),now.getMonth(),0,23,59,59);
+    const viewMoDate=new Date(now.getFullYear(),now.getMonth()+this._moOff,1);
+    const isCurMo=this._moOff===0;
+    const thisMoStart=new Date(viewMoDate.getFullYear(),viewMoDate.getMonth(),1);
+    const thisMoEndCap=isCurMo?now:new Date(viewMoDate.getFullYear(),viewMoDate.getMonth()+1,0,23,59,59);
+    const lastMoStart=new Date(viewMoDate.getFullYear(),viewMoDate.getMonth()-1,1);
+    const lastMoEnd=new Date(viewMoDate.getFullYear(),viewMoDate.getMonth(),0,23,59,59);
 
     const rawLogs=[...D.getOTLog('proc'),...D.getOTLog('fill')];
     const logs=rawLogs.map(l=>({...l,_d:this._shiftDate(l)})).filter(l=>l._d);
-    const thisMoLogs=logs.filter(l=>l._d>=thisMoStart&&l._d<=now);
+    const thisMoLogs=logs.filter(l=>l._d>=thisMoStart&&l._d<=thisMoEndCap);
     const lastMoLogs=logs.filter(l=>l._d>=lastMoStart&&l._d<=lastMoEnd);
     const thisMoHrs=thisMoLogs.reduce((a,l)=>a+(l.hrs||4),0);
     const lastMoHrs=lastMoLogs.reduce((a,l)=>a+(l.hrs||4),0);
     const pctChange=lastMoHrs>0?Math.round((thisMoHrs-lastMoHrs)/lastMoHrs*100):(thisMoHrs>0?100:0);
 
-    // Top 5 แผนก / พนักงาน (เดือนนี้)
+    // Top 5 แผนก / พนักงาน (เดือนที่กำลังดู)
     const byDept={},byName={};
     thisMoLogs.forEach(l=>{
       byDept[l.dept]=(byDept[l.dept]||0)+(l.hrs||4);
@@ -5576,7 +5651,7 @@ const EXEC={
     html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
       <div style="background:linear-gradient(160deg,rgba(239,68,68,.15),var(--card));border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:12px 10px;text-align:center">
         <div style="font-size:20px;font-weight:900;color:#EF4444">${fmt(thisMoHrs)}</div>
-        <div style="font-size:9px;color:var(--text2);margin-top:2px">ชม. OT เดือนนี้</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:2px">ชม. OT ${isCurMo?'เดือนนี้':MN[viewMoDate.getMonth()]}</div>
         <div style="font-size:10px;font-weight:800;color:${trendColor};margin-top:4px">${trendIcon} ${Math.abs(pctChange)}%</div>
       </div>
       <div style="background:linear-gradient(160deg,rgba(59,130,246,.15),var(--card));border:1px solid rgba(59,130,246,.3);border-radius:14px;padding:12px 10px;text-align:center">
@@ -5612,13 +5687,19 @@ const EXEC={
       </div>
     </div>`;
 
-    const quotaDetail=warnQuota.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-      <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
-      <span style="font-size:11px;font-weight:800;color:${x.days>=x.max?'#EF4444':'var(--amber)'}">${x.days}/${x.max} วัน</span>
+    const quotaDetail=warnQuota.map(x=>`<div onclick="event.stopPropagation();EXEC.showEmpDetail('${x.name.replace(/'/g,"\\'")}','${x.sys}')" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer">
+      <span style="font-size:12px;font-weight:700;color:var(--blue2);text-decoration:underline">${x.name}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span>
+        <span style="font-size:11px;font-weight:800;color:${x.days>=x.max?'#EF4444':'var(--amber)'}">${x.days}/${x.max} วัน</span>
+      </span>
     </div>`).join('');
-    const detail6=warn6day.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-      <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
-      <span style="font-size:11px;font-weight:800;color:${x.streak>6?'#EF4444':'var(--amber)'}">${x.streak}/6 วัน</span>
+    const detail6=warn6day.map(x=>`<div onclick="event.stopPropagation();EXEC.showEmpDetail('${x.name.replace(/'/g,"\\'")}','${x.sys}')" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer">
+      <span style="font-size:12px;font-weight:700;color:var(--blue2);text-decoration:underline">${x.name}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span>
+        <span style="font-size:11px;font-weight:800;color:${x.streak>6?'#EF4444':'var(--amber)'}">${x.streak}/6 วัน</span>
+      </span>
     </div>`).join('');
 
     html+=`<div style="display:flex;flex-direction:column;gap:8px">
@@ -5645,7 +5726,7 @@ const EXEC={
     // 4) กราฟเทรนด์ เดือนนี้ vs เดือนก่อน
     const maxTrend=Math.max(thisMoHrs,lastMoHrs,1);
     html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px">
-      <div style="font-size:12px;font-weight:900;color:var(--blue2);margin-bottom:12px">📈 เทรนด์ OT — เดือนนี้ vs เดือนก่อน</div>
+      <div style="font-size:12px;font-weight:900;color:var(--blue2);margin-bottom:12px">📈 เทรนด์ OT — ${isCurMo?'เดือนนี้':MN[viewMoDate.getMonth()]} vs เดือนก่อน</div>
       <div style="display:flex;align-items:flex-end;gap:20px;height:110px;padding:0 10px">
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
           <div style="font-size:11px;font-weight:800;margin-bottom:4px">${fmt(lastMoHrs)}</div>
@@ -5655,7 +5736,7 @@ const EXEC={
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
           <div style="font-size:11px;font-weight:800;margin-bottom:4px;color:#EF4444">${fmt(thisMoHrs)}</div>
           <div style="width:60%;height:${maxTrend>0?(thisMoHrs/maxTrend*100):0}%;background:linear-gradient(180deg,#EF4444,#F59E0B);border-radius:6px 6px 0 0;min-height:2px"></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px">${MN[thisMoStart.getMonth()]} (นี้)</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">${MN[thisMoStart.getMonth()]}${isCurMo?' (นี้)':''}</div>
         </div>
       </div>
     </div>`;
@@ -5677,9 +5758,12 @@ const EXEC={
         ${hasDetail?`<div id="${id}" style="display:none;margin-top:8px;margin-left:26px">${detailRows.join('')}</div>`:''}
       </div>`;
     };
-    const nameRow=(name,sys,valLabel,color)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-      <span style="font-size:12px;font-weight:700">${name} <span style="font-size:9px;color:var(--text3)">[${sys==='proc'?'Process':'Filling'}]</span></span>
-      <span style="font-size:11px;font-weight:800;color:${color}">${valLabel}</span>
+    const nameRow=(name,sys,valLabel,color)=>`<div onclick="event.stopPropagation();EXEC.showEmpDetail('${name.replace(/'/g,"\\'")}','${sys}')" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer">
+      <span style="font-size:12px;font-weight:700;color:var(--blue2);text-decoration:underline">${name}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--text3)">[${sys==='proc'?'Process':'Filling'}]</span>
+        <span style="font-size:11px;font-weight:800;color:${color}">${valLabel}</span>
+      </span>
     </div>`;
     const over6Rows=over6List.map(x=>nameRow(x.name,x.sys,x.streak+'/6 วัน','#EF4444'));
     const ot36Rows=ot36List.map(x=>nameRow(x.name,x.sys,x.hrs+'/36 ชม.','#EF4444'));
