@@ -1952,8 +1952,15 @@ const DASH={
       const base=new Date(now);base.setDate(base.getDate()+(this._wkOff||0)*7);
       wkStart=getMonday(base);wkEnd=new Date(wkStart);wkEnd.setDate(wkEnd.getDate()+6);
     }
+    // ใช้วันที่ของกะจริง (คำนวณจาก wk+di ที่บันทึกไว้) แทนวันที่ตอนกดเลือกเหตุผล — กันปัญหาไปกดเหตุผลย้อนหลัง/ทีหลัง แล้วข้อมูลตกสัปดาห์ผิด
+    const shiftDate=(l)=>{
+      if(l.wk&&typeof l.di==='number'){
+        const d=new Date(l.wk+'T00:00:00');d.setDate(d.getDate()+l.di);return d;
+      }
+      return l.date?new Date(l.date):null; // fallback รายการรุ่นเก่าที่ไม่มี wk/di
+    };
     const flt=logs.filter(l=>{
-      if(!l.date)return false;const d=new Date(l.date);
+      const d=shiftDate(l);if(!d)return false;
       if(per==='week'){return d>=wkStart&&d<=wkEnd;}
       if(per==='month'){const tm=new Date(now.getFullYear(),now.getMonth()+_dashMoOff,1);return d.getMonth()===tm.getMonth()&&d.getFullYear()===tm.getFullYear();}
       return d.getFullYear()===now.getFullYear();
