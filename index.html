@@ -1743,7 +1743,7 @@ const DASH={
       if(typeof wd[d]!=='object')return;
       for(let di=0;di<7;di++){
         const day=wd[d]?.[di]||wd[d]?.[String(di)];if(!day)return;
-        SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));
+        SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=otHrsOf(w,sh);tH+=8+h;oH+=h;}));
       }
     });
     return tH>0?Math.round(oH/tH*10000)/100:null;
@@ -1784,7 +1784,7 @@ const DASH={
         if(typeof wd[d]!=='object')return;
         for(let di=0;di<7;di++){
           const day=wd[d]?.[di]||wd[d]?.[String(di)];if(!day)return;
-          SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;wt+=8+h;wo+=h;}));
+          SHS.forEach(sh=>(day[sh]||[]).forEach(w=>{const h=otHrsOf(w,sh);wt+=8+h;wo+=h;}));
         }
       });
       if(wo>0){tH+=wt;oH+=wo;}
@@ -3524,7 +3524,7 @@ const PRINT={
               const emp=D.getEmps(s2).find(e=>e.name===w.name);
               const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
               const isPreOT=w.otBefore;
-              const otHrs=Math.round(w.otHrs||4);
+              const otHrs=otHrsOf(w,sh);
               let tStart,tEnd;
               if(w.sr){const sp=w.sr.split('-');tStart=sp[0];tEnd=sp[1];}
               else if(isPreOT&&sh==='morning'){tStart='06:00';tEnd='18:00';}
@@ -3663,7 +3663,7 @@ const PRINT={
           const names=ws2.map(w=>{
             if(!w.ot)return`<div style="min-height:13pt;line-height:13pt;overflow-wrap:break-word">${w.name}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
-            const otHrs=Math.round(w.otHrs||4);
+            const otHrs=otHrsOf(w,sh);
             let tS,tE;
             if(w.sr){const sp=w.sr.split('-');tS=sp[0];tE=sp[1];}
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
@@ -3752,14 +3752,14 @@ const PRINT={
   ot(){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};const depts=D.getDepts();const tgt=D.getTarget();
     let tH=0,oH=0;
-    depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
+    depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=otHrsOf(w,sh);tH+=8+h;oH+=h;}));});
     const pct=tH>0?Math.round(oH/tH*10000)/100:0;const ws=S.wkStart;const we=new Date(ws);we.setDate(we.getDate()+6);
     const rows=[];
     for(let di=0;di<7;di++){const d2=new Date(ws);d2.setDate(ws.getDate()+di);const ds=dStr(d2);
       SHS.forEach(sh=>depts.forEach(dept=>(sched[dept]?.[di]?.[sh]||[]).forEach(w=>{if(!w.ot)return;
         const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh)||'';
         const empData=[...D.getEmps('proc'),...D.getEmps('fill')].find(e=>e.name===w.name);
-        rows.push({name:w.name,dept,ds,sh:SHTH[sh],hrs:w.otHrs||4,sg,sigImg:empData?.signature||null});
+        rows.push({name:w.name,dept,ds,sh:SHTH[sh],hrs:otHrsOf(w,sh),sg,sigImg:empData?.signature||null});
       })));
     }
     document.getElementById('print-area').innerHTML=`
@@ -3977,11 +3977,22 @@ const SCHED={
     if(worker.ot){
       const otLog=D.getOTLog(S.sys)||[];
       const logEntry=otLog.find(l=>l.name===name&&l.dept===fromDept&&l.di===fromDi&&l.sh===fromSh&&l.wk===wk);
-      if(logEntry){logEntry.dept=toDept;logEntry.di=toDi;logEntry.sh=toSh;logEntry.hrs=worker.otHrs||4;D.saveOTLog(otLog,S.sys);}
+      if(logEntry){logEntry.dept=toDept;logEntry.di=toDi;logEntry.sh=toSh;logEntry.hrs=otHrsOf(worker,toSh);D.saveOTLog(otLog,S.sys);}
     }
     this.render();
     const sameCell=(fromDept===toDept&&fromDi===toDi&&fromSh===toSh);
     toast(sameCell?('✅ จัดลำดับ '+name+' แล้ว'):('✅ ย้าย '+name+' → '+toDept+' '+SHTH[toSh]+' '+(DAYS[toDi]||'')));
+  },
+  saveNote(name,dept,di,sh,noteStart,noteEnd,noteText){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    const w=(sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);
+    if(!w)return;
+    w.noteStart=noteStart||'';w.noteEnd=noteEnd||'';w.noteText=(noteText||'').trim();
+    if(!w.noteStart&&!w.noteEnd&&!w.noteText){delete w.noteStart;delete w.noteEnd;delete w.noteText;}
+    all[wk]=sched;markUnsaved();D.saveSched(all);
+    closeMo('mo-w');this.render();
+    toast(w.noteText?'✅ บันทึกหมายเหตุแล้ว':'✅ ล้างหมายเหตุแล้ว');
   },
   moveToLine(name,fromDept,di,sh,toDept){
     if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
@@ -4085,7 +4096,7 @@ const SCHED={
             const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh);
             const ne=w.name.replace(/'/g,"\'");
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
-            const isPreOT=w.otBefore;const otHrs=Math.round(w.otHrs||4);
+            const isPreOT=w.otBefore;const otHrs=otHrsOf(w,sh);
             let dS,dE;
             if(w.sr){const sp=w.sr.split('-');dS=sp[0];dE=sp[1];}
             else if(sh==='night'&&w.ot){dS=String((22-otHrs+24)%24).padStart(2,'0')+':00';dE='06:00';}
@@ -4098,6 +4109,7 @@ const SCHED={
             const isSub=!!w.isSub;
             const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
             const subBadge=isSub?'<span style="font-size:8px;color:#ea580c;font-weight:900;white-space:nowrap">⚠️ มือรอง</span>':'';
+            const noteBadge=w.noteText?('<span style="font-size:8px;color:var(--teal);font-weight:700;white-space:nowrap" title="'+w.noteText.replace(/"/g,'&quot;')+'">📝 '+(w.noteStart||'')+(w.noteEnd?('-'+w.noteEnd):'')+' '+w.noteText+'</span>'):'';
             const draggable=(!readOnly&&S.user?.isAdmin&&!this.multiSelectMode)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
             let reasonHtml='';
             if(w.ot){
@@ -4118,6 +4130,7 @@ const SCHED={
               +(this.multiSelectMode?'<span style="font-size:11px">'+(isSelected?'☑️':'⬜')+'</span>':'')
               +'<span style="font-size:11px;font-weight:800;white-space:nowrap">'+w.name+'</span>'
               +subBadge
+              +noteBadge
               +(w.ot?'<span style="font-size:9px;color:var(--amber);font-weight:700;white-space:nowrap">'+timeStr+'</span>':'')
               +(sg?'✅':(w.ot?'✍️':''))
               +reasonHtml+'</span>';
@@ -4153,7 +4166,7 @@ const SCHED={
             _otWorkers.forEach(w=>{
               if(!w.ot||_otNames.has(w.name))return;
               // คำนวณช่วงเวลา OT
-              const _otHrs=Math.round(w.otHrs||4);
+              const _otHrs=otHrsOf(w,s);
               const _sH={morning:6,afternoon:14,night:22}[s]||6;
               const _eH={morning:14,afternoon:22,night:30}[s]||14;
               const _otStart=w.sr?parseInt(w.sr.split('-')[0]):_sH;
@@ -4269,6 +4282,21 @@ const SCHED={
         </select>
       </div>`;
       html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'🟡 ปิด OT':'⚡ เปิด OT'}</button>`;
+      // หมายเหตุ/มอบหมายงาน — แยกจาก OT โดยสิ้นเชิง ไม่นับเป็น OT ไม่เข้ากราฟ OT%/Pareto เลย ใช้กรณีแค่ย้ายจุดทำงานชั่วคราว ไม่ใช่ทำงานล่วงเวลาจริง
+      const noteId='note-'+di+'-'+sh;const noteStId='notest-'+di+'-'+sh;const noteEnId='noteen-'+di+'-'+sh;
+      html+=`<div style="border:1px solid rgba(20,184,166,.35);background:rgba(20,184,166,.08);border-radius:8px;padding:10px;margin-bottom:6px">
+        <div style="font-size:11px;font-weight:800;color:var(--teal);margin-bottom:6px">📝 หมายเหตุ/มอบหมายงาน <span style="font-weight:400;color:var(--text3)">(ไม่นับเป็น OT ไม่เข้ากราฟ OT%/Pareto)</span></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input type="time" id="${noteStId}" value="${w.noteStart||''}" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
+          <span style="color:var(--text3);font-size:11px">–</span>
+          <input type="time" id="${noteEnId}" value="${w.noteEnd||''}" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
+        </div>
+        <textarea id="${noteId}" placeholder="เช่น ไปช่วยที่ Extrud 3" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif;resize:vertical;min-height:36px">${w.noteText||''}</textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="SCHED.saveNote('${ne}','${dept}',${di},'${sh}',document.getElementById('${noteStId}').value,document.getElementById('${noteEnId}').value,document.getElementById('${noteId}').value)" style="flex:1;padding:7px;background:var(--teal);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">💾 บันทึกหมายเหตุ</button>
+          ${(w.noteText||w.noteStart)?`<button onclick="SCHED.saveNote('${ne}','${dept}',${di},'${sh}','','','')" style="padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer">ล้าง</button>`:''}
+        </div>
+      </div>`;
       if(!isMe&&w.ot&&!sg){html+='<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.25);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;color:var(--blue2)">ℹ️ พนักงานต้อง Login แล้วกดยืนยัน OT ด้วยตัวเอง</div>';}
       if(w.ot){
         const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[sh]||[6,14];
@@ -4295,7 +4323,7 @@ const SCHED={
       html+=`<button onclick="SCHED.removeW('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif">🗑️ ลบออกจากกะ</button>`;
     }
     if(isMe&&w.ot&&!sg){ // เฉพาะเจ้าของ OT เท่านั้นที่ยืนยันได้ (ไม่รวม Admin)
-      const otHrs=w.otHrs||4;
+      const otHrs=otHrsOf(w,sh);
       const reasons=D.getReasons()||[];
       const otLog=D.getOTLog(S.sys)||[];
       const wkStr=wKey(S.wkStart);
@@ -4372,8 +4400,8 @@ const SCHED={
     // sync ไป otLog เพื่อให้ Dashboard (Pareto เหตุผล OT) เห็นด้วย
     const otLog=D.getOTLog(S.sys)||[];
     const existing=otLog.find(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===sh&&l.wk===wk);
-    if(existing){existing.reason=reason;existing.hrs=w.otHrs||4;}
-    else{otLog.push({name,dept,di,sh,hrs:w.otHrs||4,reason,wk,date:new Date().toISOString()});}
+    if(existing){existing.reason=reason;existing.hrs=otHrsOf(w,sh);}
+    else{otLog.push({name,dept,di,sh,hrs:otHrsOf(w,sh),reason,wk,date:new Date().toISOString()});}
     D.saveOTLog(otLog,S.sys);
     this.render();DASH.render();toast('✅ บันทึกเหตุผล OT — '+name);
   },
@@ -4430,7 +4458,7 @@ const SCHED={
     const sched2=D.getSched()[wk]||{};
     const ws2=(sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[]);
     const w2=ws2.find(x=>x.name===name);
-    const otHrs2=w2?.otHrs||4;
+    const otHrs2=otHrsOf(w2,sh);
     const reasonSel=document.getElementById('ot-reason-sel');
     const reasonTxt=document.getElementById('ot-reason-txt');
     const reason=(reasonSel?.value==='__other__'?reasonTxt?.value:reasonSel?.value)||'ไม่ระบุ';
@@ -4562,7 +4590,7 @@ const SCHED={
     if(!S.user?.isAdmin){toast('\u274c \u0e40\u0e09\u0e1e\u0e32\u0e30 Admin');return;}
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let tH=0,oH=0;
-    D.getDepts().forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}));});
+    D.getDepts().forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>(sched[d]?.[di]?.[sh]||[]).forEach(w=>{const h=otHrsOf(w,sh);tH+=8+h;oH+=h;}));});
     const tgt=D.getTarget();const pct=tH>0?Math.round(oH/tH*10000)/100:0;
     // หัก OT ที่กระจายไปแล้วในสัปดาห์นี้ออก — เพื่อให้กรอกเฉพาะส่วนที่เพิ่มใหม่
     const log=D.getOTLog(S.sys)||[];
@@ -4739,6 +4767,8 @@ const SCHED={
             if(!fitsMax6Consec(w.name,toDi,S.sys,wk,sched)){skipped.push({name:w.name,di:toDi,reason:'เกิน 6 วันติดต่อกัน'});return;}
             if(isDoubleBooked(w.name,toDi,sched)){skipped.push({name:w.name,di:toDi,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
             const copy={...w};
+            // คำนวณ ชม. OT ใหม่จากเวลาจริงเสมอ (ไม่เชื่อค่าที่ติดมากับต้นฉบับ เผื่อข้อมูลต้นทางเพี้ยนอยู่แล้ว) กันปัญหาเลขไม่ตรงกับเวลาที่โชว์
+            if(copy.ot)copy.otHrs=otHrsOf(copy,sh);
             // เช็คโควตา OT สูงสุด/สัปดาห์ — ถ้าเต็มแล้ว คัดลอกคนนี้ไปทำงานตามปกติ แต่ตัด OT ออก (ไม่ข้ามคนไปเลย)
             if(copy.ot&&otDaysCount(w.name)>=maxOT){
               copy.ot=false;copy.otHrs=4;copy.otReason='';
@@ -4748,8 +4778,8 @@ const SCHED={
             // ถ้าคนนี้มี OT ติดมาด้วย → สร้าง/อัปเดต log เหตุผล OT ให้วันปลายทางด้วย กัน Dashboard (Pareto) ไม่นับวันที่คัดลอกไป
             if(copy.ot){
               const existing=otLog.find(l=>l.name===w.name&&l.dept===dept&&l.di===toDi&&l.sh===sh&&l.wk===wk);
-              if(existing){existing.reason=copy.otReason||existing.reason;existing.hrs=copy.otHrs||4;}
-              else{otLog.push({name:w.name,dept,di:toDi,sh,hrs:copy.otHrs||4,reason:copy.otReason||'',wk,date:new Date().toISOString()});}
+              if(existing){existing.reason=copy.otReason||existing.reason;existing.hrs=otHrsOf(copy,sh);}
+              else{otLog.push({name:w.name,dept,di:toDi,sh,hrs:otHrsOf(copy,sh),reason:copy.otReason||'',wk,date:new Date().toISOString()});}
               otLogChanged=true;
             }
           });
@@ -4853,11 +4883,13 @@ const SCHED={
             if(!checkRest(w.name,di,sh,sched)){skipped.push({name:w.name,di,reason:'พักไม่ครบ 12 ชม.'});return;}
             if(!fitsMax6Consec(w.name,di,sys,toWk,sched)){skipped.push({name:w.name,di,reason:'เกิน 6 วันติดต่อกัน'});return;}
             if(isDoubleBooked(w.name,di,sched)){skipped.push({name:w.name,di,reason:'ซ้อนกะวันนั้นแล้ว'});return;}
-            sched[dept][di][sh].push({...w});
-            if(w.ot){
+            const copy2={...w};
+            if(copy2.ot)copy2.otHrs=otHrsOf(copy2,sh); // คำนวณ ชม. OT ใหม่จากเวลาจริงเสมอ กันข้อมูลต้นทางเพี้ยนติดมาด้วย
+            sched[dept][di][sh].push(copy2);
+            if(copy2.ot){
               const existing=otLog.find(l=>l.name===w.name&&l.dept===dept&&l.di===di&&l.sh===sh&&l.wk===toWk);
-              if(existing){existing.reason=w.otReason||existing.reason;existing.hrs=w.otHrs||4;}
-              else{otLog.push({name:w.name,dept,di,sh,hrs:w.otHrs||4,reason:w.otReason||'',wk:toWk,date:new Date().toISOString()});}
+              if(existing){existing.reason=copy2.otReason||existing.reason;existing.hrs=copy2.otHrs;}
+              else{otLog.push({name:w.name,dept,di,sh,hrs:copy2.otHrs,reason:copy2.otReason||'',wk:toWk,date:new Date().toISOString()});}
               otLogChanged=true;
             }
           });
@@ -4877,7 +4909,7 @@ const OT={
   getEmpOT(name){
     const all=LS.get('sched_'+S.sys,{});const depts=D.getDepts();let oH=0,tH=0;
     const processWk=(wk,wd)=>{
-      depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}});});
+      depts.forEach(d=>{for(let di=0;di<7;di++)SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=otHrsOf(w,sh);tH+=8+h;oH+=h;}});});
     };
     if(this.per==='wk'){
       const ws=new Date(S.wkStart);ws.setDate(ws.getDate()+this.wkOff*7);
@@ -4890,7 +4922,7 @@ const OT={
           const dayLabel=DAYS[di];const d2=new Date(ws);d2.setDate(ws.getDate()+di);
           if(this.per==='mo'&&(d2.getMonth()!==this.mo||d2.getFullYear()!==this.yr2))continue;
           if(this.per==='yr'&&d2.getFullYear()!==this.yr2)continue;
-          depts.forEach(d=>SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=w.ot?(w.otHrs||4):0;tH+=8+h;oH+=h;}}));
+          depts.forEach(d=>SHS.forEach(sh=>{const w=(wd[d]?.[di]?.[sh]||wd[d]?.[String(di)]?.[sh]||[]).find(x=>x.name===name);if(w){const h=otHrsOf(w,sh);tH+=8+h;oH+=h;}}));
         }
       });
     }
@@ -5512,7 +5544,7 @@ const EXEC={
             tS=bounds[0];tE=bounds[1];
           }
           const d2=new Date(monday);d2.setDate(monday.getDate()+di);
-          rows.push({di,dept,sh,tS,tE,ot:w.ot,otHrs:w.otHrs,otReason:w.otReason,dateStr:d2.getDate()+'/'+(d2.getMonth()+1)});
+          rows.push({di,dept,sh,tS,tE,ot:w.ot,otHrs:otHrsOf(w,sh),otReason:w.otReason,dateStr:d2.getDate()+'/'+(d2.getMonth()+1)});
         });
       }
     });
@@ -5597,7 +5629,7 @@ const EXEC={
           SHS.forEach(sh=>{
             const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
             arr.forEach(w=>{
-              if(w.ot)empOtHrs[w.name]=(empOtHrs[w.name]||0)+(w.otHrs||4);
+              if(w.ot)empOtHrs[w.name]=(empOtHrs[w.name]||0)+otHrsOf(w,sh);
               const restKey=w.name+'|'+di+'|'+sh;
               if(!restSeen.has(restKey)){
                 restSeen.add(restKey);
@@ -6263,6 +6295,28 @@ function isDoubleBooked(name,di,sched){
     });
   });
   return found;
+}
+// เก็บ "ชั่วโมง OT" ที่ถูกต้องเสมอ — คำนวณจาก w.sr (เวลาเริ่ม-เลิกจริง) + w.otMode ทุกครั้ง แทนที่จะเชื่อค่า w.otHrs ที่บันทึกแยกไว้ (ซึ่งอาจไม่ตรงกับเวลาจริงได้ถ้าข้อมูลถูกคัดลอก/แก้ไขมาไม่ตรงกัน)
+// ทำให้ไม่ว่าข้อมูลจะมาจากทางไหน (พิมพ์เอง, คัดลอกวัน/สัปดาห์, โหลดพนักงาน) ตัวเลขที่แสดงจะถูกต้องตรงกับเวลาที่ตั้งไว้เสมอ
+function otHrsOf(w,sh){
+  if(!w||!w.ot)return 0;
+  if(w.sr){
+    const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[sh]||[6,14];
+    const toH=(t)=>{const p=String(t).split(':').map(Number);return (p[0]||0)+(p[1]||0)/60;};
+    const sp=w.sr.split('-');
+    if(sp.length===2){
+      let startH=toH(sp[0]);let endH=toH(sp[1]);
+      if(sh==='night'&&startH>12)startH-=24;
+      if(endH<=startH)endH+=24;
+      const totalHrs=endH-startH;
+      const baseHrs=bounds[1]-bounds[0];
+      const mode=w.otMode||'extend';
+      let hrs=(mode==='separate')?totalHrs:(totalHrs-baseHrs);
+      hrs=Math.round(hrs*2)/2;
+      return hrs>0?hrs:0;
+    }
+  }
+  return w.otHrs||4; // fallback สำหรับข้อมูลเก่าที่ไม่มี sr บันทึกไว้
 }
 function checkRest(name,di,sh,sched){
   // เช็คว่าพักครบ 12 ชั่วโมงไหม — คู่ที่ผิดกฎมี 3 คู่:
