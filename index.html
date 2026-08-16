@@ -5648,7 +5648,7 @@ const EXEC={
     const lastMoStart=new Date(viewMoDate.getFullYear(),viewMoDate.getMonth()-1,1);
     const lastMoEnd=new Date(viewMoDate.getFullYear(),viewMoDate.getMonth(),0,23,59,59);
 
-    const rawLogs=[...D.getOTLog('proc'),...D.getOTLog('fill')];
+    const rawLogs=[...D.getOTLog('proc').map(l=>({...l,_sys:'proc'})),...D.getOTLog('fill').map(l=>({...l,_sys:'fill'}))];
     const logs=rawLogs.map(l=>({...l,_d:this._shiftDate(l)})).filter(l=>l._d);
     const thisMoLogs=logs.filter(l=>l._d>=thisMoStart&&l._d<=thisMoEndCap);
     const lastMoLogs=logs.filter(l=>l._d>=lastMoStart&&l._d<=lastMoEnd);
@@ -5656,11 +5656,11 @@ const EXEC={
     const lastMoHrs=lastMoLogs.reduce((a,l)=>a+(l.hrs||4),0);
     const pctChange=lastMoHrs>0?Math.round((thisMoHrs-lastMoHrs)/lastMoHrs*100):(thisMoHrs>0?100:0);
 
-    // Top 5 แผนก / พนักงาน (เดือนที่กำลังดู)
-    const byDept={},byName={};
+    // Top 5 แผนก / พนักงาน (เดือนที่กำลังดู) — ข้ามรายการที่ข้อมูลไม่สมบูรณ์ (ไม่มีชื่อ/แผนก) กัน "undefined" โผล่ในลิสต์
+    const byDept={},byName={},nameSys={};
     thisMoLogs.forEach(l=>{
-      byDept[l.dept]=(byDept[l.dept]||0)+(l.hrs||4);
-      byName[l.name]=(byName[l.name]||0)+(l.hrs||4);
+      if(l.name){byName[l.name]=(byName[l.name]||0)+(l.hrs||4);nameSys[l.name]=l._sys;}
+      if(l.dept)byDept[l.dept]=(byDept[l.dept]||0)+(l.hrs||4);
     });
     const topDepts=Object.entries(byDept).sort((a,b)=>b[1]-a[1]).slice(0,5);
     const topEmps=Object.entries(byName).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -5685,7 +5685,7 @@ const EXEC={
           SHS.forEach(sh=>{
             const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
             arr.forEach(w=>{
-              if(w.ot)empOtHrs[w.name]=(empOtHrs[w.name]||0)+otHrsOf(w,sh);
+              if(w.ot&&w.name)empOtHrs[w.name]=(empOtHrs[w.name]||0)+otHrsOf(w,sh);
               const restKey=w.name+'|'+di+'|'+sh;
               if(!restSeen.has(restKey)){
                 restSeen.add(restKey);
@@ -5800,6 +5800,10 @@ const EXEC={
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="font-weight:700">${label}</span><span style="font-weight:800;color:${color}">${fmt(val)} ชม.</span></div>
       <div style="background:var(--bg3);border-radius:6px;height:7px;overflow:hidden"><div style="width:${max>0?(val/max*100):0}%;height:100%;background:${color};border-radius:6px"></div></div>
     </div>`;
+    const barEmp=(label,val,max,color,sys)=>`<div onclick="EXEC.showEmpDetail('${label.replace(/'/g,"\\'")}','${sys||'proc'}')" style="margin-bottom:9px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="font-weight:700;color:var(--blue2);text-decoration:underline">${label}</span><span style="font-weight:800;color:${color}">${fmt(val)} ชม.</span></div>
+      <div style="background:var(--bg3);border-radius:6px;height:7px;overflow:hidden"><div style="width:${max>0?(val/max*100):0}%;height:100%;background:${color};border-radius:6px"></div></div>
+    </div>`;
     html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px">
         <div style="font-size:12px;font-weight:900;color:var(--purple);margin-bottom:10px">🏭 Top 5 แผนก OT สูงสุด</div>
@@ -5807,7 +5811,7 @@ const EXEC={
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px">
         <div style="font-size:12px;font-weight:900;color:var(--teal);margin-bottom:10px">👤 Top 5 พนักงาน OT สูงสุด</div>
-        ${topEmps.length?topEmps.map(([n,h])=>bar(n,h,maxEmpH,'#0D9488')).join(''):'<div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">ไม่มีข้อมูล</div>'}
+        ${topEmps.length?topEmps.map(([n,h])=>barEmp(n,h,maxEmpH,'#0D9488',nameSys[n])).join(''):'<div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">ไม่มีข้อมูล</div>'}
       </div>
     </div>`;
 
