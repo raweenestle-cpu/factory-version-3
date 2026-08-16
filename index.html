@@ -3721,10 +3721,16 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="min-height:13pt;line-height:13pt;overflow-wrap:break-word"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE} ✍️</span>${w.otReason?` <span style="font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
+            return`<div style="min-height:13pt;line-height:13pt;overflow-wrap:break-word"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE}</span>${w.otReason?` <span style="font-size:6.5pt">(${w.otReason})</span>`:''}</div>`;
+          }).join('');
+          // เครื่องหมายลงชื่อ (✍️ ยังไม่เซ็น / ✅ เซ็นแล้ว) — วางไว้ในคอลัมน์ "ลงชื่อ" ชิดซ้าย ให้ตรงแถวกับชื่อคนนั้นในคอลัมน์ข้างๆ ไม่ปนอยู่ในคอลัมน์ชื่อ
+          const sigMarks=ws2.map(w=>{
+            if(!w.ot)return'<div style="min-height:13pt;line-height:13pt"></div>';
+            const sg=D.getSign(wk+'_'+w.name+'_'+dept+'_'+di+'_'+sh);
+            return`<div style="min-height:13pt;line-height:13pt;text-align:left">${sg?'✅':'✍️'}</div>`;
           }).join('');
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;${lineBg}">${names||'<span style="color:#999">-</span>'}</td>`;
-          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;${lineBg}"></td>`;
+          rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;text-align:left;${lineBg}">${sigMarks}</td>`;
         });
         rows+='</tr>';
       });
