@@ -4311,7 +4311,12 @@ const SCHED={
       w.ot=true;
       w.otHrs=otHrs;
       w.otBefore=startH<bounds[0];
-      all[wk]=sched;markUnsaved();D.saveSched(all);this.render();toast('✅ อัพเดทเวลาแล้ว');
+      all[wk]=sched;markUnsaved();D.saveSched(all);
+      // ถ้าเคยมี log เหตุผล OT ของคนนี้ผูกไว้อยู่แล้ว ให้อัปเดตจำนวนชั่วโมงให้ตรงกับที่แก้ใหม่ด้วย กัน Dashboard (Pareto) ค้างชั่วโมงเก่า
+      const otLog2=D.getOTLog(S.sys)||[];
+      const existing2=otLog2.find(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===foundSh&&l.wk===wk);
+      if(existing2){existing2.hrs=otHrs;D.saveOTLog(otLog2,S.sys);}
+      this.render();toast('✅ อัพเดทเวลาแล้ว');
     }
   },
   sign(name,dept,di,sh){
