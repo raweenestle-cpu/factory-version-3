@@ -743,6 +743,14 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div style="overflow-y:auto;flex:1;padding:14px" id="lh-list"></div>
   </div>
 
+  <div class="page" id="pg-exec">
+    <div style="padding:12px 14px;background:linear-gradient(135deg,var(--navy),var(--bg2));border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
+      <h2 style="font-size:15px;font-weight:900;flex:1">📋 สรุปผู้บริหาร</h2>
+      <button onclick="EXEC.render()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer">🔄</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:14px" id="exec-body"></div>
+  </div>
+
   <!-- PRODUCT MASTER PAGE -->
   <div class="page" id="pg-products">
     <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
@@ -809,6 +817,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="closeMo('mo-more');APP.goPage('pg-lhist')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📊</span><span style="font-size:11px;font-weight:700">ประวัติลา</span></button>
         <button onclick="closeMo('mo-more');APP.goPage('pg-products',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📦</span><span style="font-size:11px;font-weight:700">Product</span></button>
         <button onclick="closeMo('mo-more');APP.goPage('pg-settings',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">⚙️</span><span style="font-size:11px;font-weight:700">ตั้งค่า</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-exec',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📋</span><span style="font-size:11px;font-weight:700">สรุปผู้บริหาร</span></button>
       </div>
     </div>
   </div>
@@ -1691,7 +1700,7 @@ const APP={
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.getElementById(id)?.classList.add('active');
     // ถ้าไปหน้าที่อยู่ใน more menu ให้ highlight nav-more แทน
-    const morePages=['pg-plan','pg-lsvc','pg-emp','pg-team','pg-lhist','pg-products','pg-settings','pg-ot'];
+    const morePages=['pg-plan','pg-lsvc','pg-emp','pg-team','pg-lhist','pg-products','pg-settings','pg-ot','pg-exec'];
     const nid=morePages.includes(id)?'nav-more':'nav-'+id.replace('pg-','');
     document.getElementById(nid)?.classList.add('active');
     if(id==='pg-dash')DASH.render();
@@ -1705,6 +1714,7 @@ const APP={
     else if(id==='pg-leave'){LEAVE.render();}
     else if(id==='pg-lhist'){LHIST.render();}
     else if(id==='pg-products'){PROD.render();}
+    else if(id==='pg-exec'){EXEC.render();}
   }
 };
 const DASH={
@@ -5449,6 +5459,218 @@ const PROD={
       if(prods[p.line])prods[p.line]=prods[p.line].filter(x=>(typeof x==='object'?x.name:x)!==p.name);
       D.saveProds(prods,sys);this.render();PLAN.render();toast('🗑️ ลบแล้ว');
     });
+  }
+};
+
+const EXEC={
+  render(){
+    const el=document.getElementById('exec-body');if(!el)return;
+    if(!S.user?.isAdmin){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3);font-size:13px">🔒 หน้านี้สำหรับ Admin เท่านั้น</div>';return;}
+    try{
+      el.innerHTML=this._buildHTML();
+    }catch(e){
+      el.innerHTML='<div style="text-align:center;padding:40px;color:var(--red2);font-size:12px">เกิดข้อผิดพลาดในการคำนวณ: '+e.message+'</div>';
+      console.log('EXEC render error:',e);
+    }
+  },
+  _shiftDate(l){
+    if(l.wk&&typeof l.di==='number'){const d=new Date(l.wk+'T00:00:00');d.setDate(d.getDate()+l.di);return d;}
+    return l.date?new Date(l.date):null;
+  },
+  _buildHTML(){
+    const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const now=new Date();
+    const thisMoStart=new Date(now.getFullYear(),now.getMonth(),1);
+    const lastMoStart=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const lastMoEnd=new Date(now.getFullYear(),now.getMonth(),0,23,59,59);
+
+    const rawLogs=[...D.getOTLog('proc'),...D.getOTLog('fill')];
+    const logs=rawLogs.map(l=>({...l,_d:this._shiftDate(l)})).filter(l=>l._d);
+    const thisMoLogs=logs.filter(l=>l._d>=thisMoStart&&l._d<=now);
+    const lastMoLogs=logs.filter(l=>l._d>=lastMoStart&&l._d<=lastMoEnd);
+    const thisMoHrs=thisMoLogs.reduce((a,l)=>a+(l.hrs||4),0);
+    const lastMoHrs=lastMoLogs.reduce((a,l)=>a+(l.hrs||4),0);
+    const pctChange=lastMoHrs>0?Math.round((thisMoHrs-lastMoHrs)/lastMoHrs*100):(thisMoHrs>0?100:0);
+
+    // Top 5 แผนก / พนักงาน (เดือนนี้)
+    const byDept={},byName={};
+    thisMoLogs.forEach(l=>{
+      byDept[l.dept]=(byDept[l.dept]||0)+(l.hrs||4);
+      byName[l.name]=(byName[l.name]||0)+(l.hrs||4);
+    });
+    const topDepts=Object.entries(byDept).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const topEmps=Object.entries(byName).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxDeptH=topDepts.length?topDepts[0][1]:1;
+    const maxEmpH=topEmps.length?topEmps[0][1]:1;
+
+    // สัญญาณเตือนล่วงหน้า + เช็คกฎหมายแรงงาน — สแกนสัปดาห์ปัจจุบันทั้ง 2 ระบบ
+    const wk=wKey(S.wkStart);
+    const maxOT=D.getMaxOT();
+    const monday=getMonday(new Date(wk));
+    const warnQuotaMap={},warn6dayMap={};
+    let restViolations=0,ot36Violations=0,over6Violations=0;
+    ['proc','fill'].forEach(sys=>{
+      const sched=D.getSched(sys)[wk]||{};
+      const depts=D.getDepts(sys).filter(d=>d!==AL);
+      const empOtHrs={};
+      const seenPerson=new Set();
+      const restSeen=new Set();
+      depts.forEach(dept=>{
+        for(let di=0;di<7;di++){
+          SHS.forEach(sh=>{
+            const arr=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
+            arr.forEach(w=>{
+              if(w.ot)empOtHrs[w.name]=(empOtHrs[w.name]||0)+(w.otHrs||4);
+              const restKey=w.name+'|'+di+'|'+sh;
+              if(!restSeen.has(restKey)){restSeen.add(restKey);if(!checkRest(w.name,di,sh,sched))restViolations++;}
+              if(!seenPerson.has(w.name)){
+                seenPerson.add(w.name);
+                const otDays=new Set();
+                depts.forEach(d2=>{for(let di2=0;di2<7;di2++){const hasOT=SHS.some(s=>(sched[d2]?.[di2]?.[s]||sched[d2]?.[String(di2)]?.[s]||[]).some(x=>x.name===w.name&&x.ot));if(hasOT)otDays.add(di2);}});
+                if(otDays.size>0&&otDays.size>=Math.max(1,maxOT-1)){
+                  const k=w.name;
+                  if(!warnQuotaMap[k]||otDays.size>warnQuotaMap[k].days)warnQuotaMap[k]={name:w.name,sys,days:otDays.size,max:maxOT};
+                }
+                const targetDate=new Date(monday);targetDate.setDate(monday.getDate()+di);
+                const streak=countConsecutiveIfAdded(w.name,targetDate,sys,wk,sched);
+                if(streak>=5){
+                  const k=w.name;
+                  if(!warn6dayMap[k]||streak>warn6dayMap[k].streak)warn6dayMap[k]={name:w.name,sys,streak};
+                  if(streak>6)over6Violations++;
+                }
+              }
+            });
+          });
+        }
+      });
+      Object.values(empOtHrs).forEach(h=>{if(h>36)ot36Violations++;});
+    });
+    const warnQuota=Object.values(warnQuotaMap).sort((a,b)=>b.days-a.days);
+    const warn6day=Object.values(warn6dayMap).sort((a,b)=>b.streak-a.streak);
+    const atRiskCount=new Set([...warnQuota.map(x=>x.name),...warn6day.map(x=>x.name)]).size;
+
+    // อัตราขาดงาน (เดือนนี้)
+    const leaveReqs=D.getLeaveReq().filter(r=>r.status==='approved');
+    const thisMoStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    let leaveDaysThisMo=0;
+    leaveReqs.forEach(r=>{(r.dates||[]).forEach(d=>{if(d.startsWith(thisMoStr))leaveDaysThisMo++;});});
+    const totalEmps=[...D.getEmps('proc'),...D.getEmps('fill')].length||1;
+    const daysSoFar=now.getDate();
+    const absenceRate=((leaveDaysThisMo/(totalEmps*daysSoFar))*100).toFixed(1);
+
+    // ── เริ่มสร้าง HTML ──
+    const fmt=(n)=>Math.round(n*10)/10;
+    const trendColor=pctChange>0?'#EF4444':(pctChange<0?'#22C55E':'var(--text3)');
+    const trendIcon=pctChange>0?'▲':(pctChange<0?'▼':'—');
+
+    let html=`<div style="display:flex;flex-direction:column;gap:14px">`;
+
+    // 1) การ์ดสรุปหน้าเดียว
+    html+=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <div style="background:linear-gradient(160deg,rgba(239,68,68,.15),var(--card));border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:12px 10px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:#EF4444">${fmt(thisMoHrs)}</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:2px">ชม. OT เดือนนี้</div>
+        <div style="font-size:10px;font-weight:800;color:${trendColor};margin-top:4px">${trendIcon} ${Math.abs(pctChange)}%</div>
+      </div>
+      <div style="background:linear-gradient(160deg,rgba(59,130,246,.15),var(--card));border:1px solid rgba(59,130,246,.3);border-radius:14px;padding:12px 10px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:#3B82F6">${absenceRate}%</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:2px">อัตราขาดงาน</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:4px">${leaveDaysThisMo} วัน-คน</div>
+      </div>
+      <div style="background:linear-gradient(160deg,rgba(245,158,11,.15),var(--card));border:1px solid rgba(245,158,11,.3);border-radius:14px;padding:12px 10px;text-align:center">
+        <div style="font-size:20px;font-weight:900;color:#F59E0B">${atRiskCount}</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:2px">คนใกล้ชนโควตา</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:4px">สัปดาห์นี้</div>
+      </div>
+    </div>`;
+
+    // 2) สัญญาณเตือนล่วงหน้า
+    html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="background:linear-gradient(90deg,rgba(245,158,11,.2),transparent);padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:900;color:var(--amber)">⚠️ สัญญาณเตือนล่วงหน้า (สัปดาห์นี้)</div>
+      </div>
+      <div style="padding:10px 14px">`;
+    if(!warnQuota.length&&!warn6day.length){
+      html+=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px">✅ ไม่มีใครใกล้เกินโควตาในสัปดาห์นี้</div>`;
+    }else{
+      if(warnQuota.length){
+        html+=`<div style="font-size:10px;font-weight:800;color:var(--text3);margin-bottom:6px">🟠 ใกล้เกินโควตา OT (${maxOT} วัน/สัปดาห์)</div>`;
+        html+=warnQuota.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
+          <span style="font-size:11px;font-weight:800;color:var(--amber)">${x.days}/${x.max} วัน</span>
+        </div>`).join('');
+      }
+      if(warn6day.length){
+        html+=`<div style="font-size:10px;font-weight:800;color:var(--text3);margin:10px 0 6px">🔴 ใกล้ครบ 6 วันติดต่อกัน</div>`;
+        html+=warn6day.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
+          <span style="font-size:11px;font-weight:800;color:${x.streak>6?'#EF4444':'var(--amber)'}">${x.streak} วัน</span>
+        </div>`).join('');
+      }
+    }
+    html+=`</div></div>`;
+
+    // 3) Top 5 แผนก / Top 5 พนักงาน
+    const bar=(label,val,max,color)=>`<div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="font-weight:700">${label}</span><span style="font-weight:800;color:${color}">${fmt(val)} ชม.</span></div>
+      <div style="background:var(--bg3);border-radius:6px;height:7px;overflow:hidden"><div style="width:${max>0?(val/max*100):0}%;height:100%;background:${color};border-radius:6px"></div></div>
+    </div>`;
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:900;color:var(--purple);margin-bottom:10px">🏭 Top 5 แผนก OT สูงสุด</div>
+        ${topDepts.length?topDepts.map(([d,h])=>bar(d,h,maxDeptH,'#7C3AED')).join(''):'<div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">ไม่มีข้อมูล</div>'}
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:900;color:var(--teal);margin-bottom:10px">👤 Top 5 พนักงาน OT สูงสุด</div>
+        ${topEmps.length?topEmps.map(([n,h])=>bar(n,h,maxEmpH,'#0D9488')).join(''):'<div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">ไม่มีข้อมูล</div>'}
+      </div>
+    </div>`;
+
+    // 4) กราฟเทรนด์ เดือนนี้ vs เดือนก่อน
+    const maxTrend=Math.max(thisMoHrs,lastMoHrs,1);
+    html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px">
+      <div style="font-size:12px;font-weight:900;color:var(--blue2);margin-bottom:12px">📈 เทรนด์ OT — เดือนนี้ vs เดือนก่อน</div>
+      <div style="display:flex;align-items:flex-end;gap:20px;height:110px;padding:0 10px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+          <div style="font-size:11px;font-weight:800;margin-bottom:4px">${fmt(lastMoHrs)}</div>
+          <div style="width:60%;height:${maxTrend>0?(lastMoHrs/maxTrend*100):0}%;background:var(--bg3);border-radius:6px 6px 0 0;min-height:2px"></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">${MN[lastMoStart.getMonth()]}</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+          <div style="font-size:11px;font-weight:800;margin-bottom:4px;color:#EF4444">${fmt(thisMoHrs)}</div>
+          <div style="width:60%;height:${maxTrend>0?(thisMoHrs/maxTrend*100):0}%;background:linear-gradient(180deg,#EF4444,#F59E0B);border-radius:6px 6px 0 0;min-height:2px"></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">${MN[thisMoStart.getMonth()]} (นี้)</div>
+        </div>
+      </div>
+    </div>`;
+
+    // 5) การ์ดกฎหมายแรงงาน
+    const lawRow=(status,title,desc,note)=>{
+      const cfg={green:{c:'#22C55E',dot:'🟢'},red:{c:'#EF4444',dot:'🔴'},yellow:{c:'#F59E0B',dot:'🟡'}}[status];
+      return`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:16px">${cfg.dot}</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:800;color:${cfg.c}">${title}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${desc}</div>
+          ${note?`<div style="font-size:10px;color:var(--text3);margin-top:3px;font-style:italic">${note}</div>`:''}
+        </div>
+      </div>`;
+    };
+    html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="background:linear-gradient(90deg,rgba(37,99,235,.2),transparent);padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:900;color:var(--blue2)">⚖️ การปฏิบัติตามกฎหมายแรงงาน (สัปดาห์นี้)</div>
+      </div>
+      <div style="padding:4px 14px 10px">
+        ${lawRow(over6Violations>0?'red':'green','ทำงานติดต่อกันไม่เกิน 6 วัน',over6Violations>0?(over6Violations+' คนเกินกำหนด'):'ไม่พบการทำงานเกิน 6 วันติดต่อกัน','อ้างอิง มาตรา 28 พ.ร.บ.คุ้มครองแรงงาน')}
+        ${lawRow(ot36Violations>0?'red':'green','ชั่วโมง OT รวมไม่เกิน 36 ชม./สัปดาห์/คน',ot36Violations>0?(ot36Violations+' คนเกินกำหนด'):'ไม่พบผู้ที่ OT เกิน 36 ชม./สัปดาห์','อ้างอิง มาตรา 26 — คำนวณจากชั่วโมง OT เท่านั้น ยังไม่รวมกรณีมาทำงานในวันหยุดประจำสัปดาห์ของตัวเอง')}
+        ${lawRow(restViolations>0?'red':'yellow',restViolations>0?'พบการพักไม่ครบ 12 ชม.ก่อนเข้ากะ':'พัก 12 ชม. ก่อนเข้ากะใหม่',restViolations>0?(restViolations+' ครั้งที่พักไม่ครบ (ไม่ควรเกิดถ้าจัดผ่านระบบปกติ)'):'ไม่พบการพักไม่ครบตามที่ระบบตรวจสอบ','⚠️ เป็นแนวปฏิบัติที่ดีเพื่อความปลอดภัย ไม่ใช่ตัวเลขที่ระบุตรงๆ ในกฎหมายหลัก')}
+      </div>
+    </div>`;
+
+    html+=`<div style="text-align:center;font-size:10px;color:var(--text3);padding:4px 0 10px">ข้อมูล ณ ${now.getDate()} ${MN[now.getMonth()]} ${now.getFullYear()+543} — คำนวณจากข้อมูลตารางกะ/OT ที่มีในระบบ</div>`;
+
+    html+='</div>';
+    return html;
   }
 };
 
