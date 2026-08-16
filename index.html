@@ -4176,13 +4176,21 @@ const SCHED={
         let curStart,curEnd;
         if(w.sr){const sp=w.sr.split('-');curStart=sp[0];curEnd=sp[1];}
         else{curStart=fmtB(bounds[0]);curEnd=fmtB(bounds[1]);}
-        const startId='otst-'+di+'-'+sh;const endId='oten-'+di+'-'+sh;
-        html+=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <input type="time" id="${startId}" value="${curStart}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
-          <span style="color:var(--text3);font-size:12px">–</span>
-          <input type="time" id="${endId}" value="${curEnd}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        const curMode=w.otMode||'extend';
+        const startId='otst-'+di+'-'+sh;const endId='oten-'+di+'-'+sh;const modeId='otmode-'+di+'-'+sh;
+        html+=`<div style="margin-bottom:6px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">🕐 รูปแบบเวลา OT</label>
+          <select id="${modeId}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,document.getElementById('${endId}').value,this.value)" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+            <option value="extend" ${curMode==='extend'?'selected':''}>➕ ต่อเวลาในจุดเดิม (นับเกินกะปกติ)</option>
+            <option value="separate" ${curMode==='separate'?'selected':''}>🔀 แยกไปทำ OT ที่อื่น (นับตามช่วงที่กรอกตรงๆ)</option>
+          </select>
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">กะปกติ ${fmtB(bounds[0])}-${fmtB(bounds[1])} — ปรับเวลาเริ่ม/เลิกงานจริงได้อิสระ</div>`;
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input type="time" id="${startId}" value="${curStart}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <span style="color:var(--text3);font-size:12px">–</span>
+          <input type="time" id="${endId}" value="${curEnd}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${curMode==='extend'?('กะปกติ '+fmtB(bounds[0])+'-'+fmtB(bounds[1])+' — OT = เวลารวมที่กรอก ลบ '+(bounds[1]-bounds[0])+' ชม.'):'โหมดนี้นับ OT = ช่วงเวลาที่กรอกทั้งหมดตรงๆ (ไม่หักอะไร)'}</div>`;
       }
       html+=`<button onclick="SCHED.removeW('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif">🗑️ ลบออกจากกะ</button>`;
     }
@@ -4244,6 +4252,7 @@ const SCHED={
       w.sr=fmtB(startH)+'-'+fmtB(endH);
       w.otHrs=4;
       w.otBefore=defBefore;
+      w.otMode='extend';
     }
     all[wk]=sched;markUnsaved();D.saveSched(all);
     this.render();DASH.render();toast(w.ot?'✅ เปิด OT':'✅ ปิด OT');
@@ -4268,12 +4277,13 @@ const SCHED={
     D.saveOTLog(otLog,S.sys);
     this.render();DASH.render();toast('✅ บันทึกเหตุผล OT — '+name);
   },
-  setTimeRange(name,dept,di,sh2,startVal,endVal){
+  setTimeRange(name,dept,di,sh2,startVal,endVal,mode){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let w=null;let foundSh=sh2||'afternoon';
     if(sh2){w=(sched[dept]?.[di]?.[sh2]||sched[dept]?.[String(di)]?.[sh2]||[]).find(x=>x.name===name);}
     else{['morning','afternoon','night'].forEach(s=>{if(!w){const ws=sched[dept]?.[di]?.[s]||sched[dept]?.[String(di)]?.[s]||[];const found=ws.find(x=>x.name===name);if(found){w=found;foundSh=s;}}});}
     if(w&&startVal&&endVal){
+      mode=mode||w.otMode||'extend';
       const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[foundSh]||[6,14];
       const toH=(t)=>{const p=t.split(':').map(Number);return p[0]+p[1]/60;};
       let startH=toH(startVal);let endH=toH(endVal);
@@ -4282,8 +4292,22 @@ const SCHED={
       if(endH<=startH)endH+=24;
       const totalHrs=endH-startH;
       const baseHrs=bounds[1]-bounds[0];
-      const otHrs=Math.max(0.5,Math.round((totalHrs-baseHrs)*2)/2);
+      let otHrs=(mode==='separate')?(Math.round(totalHrs*2)/2):Math.round((totalHrs-baseHrs)*2)/2;
+      if(otHrs<=0){
+        // เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ (โหมดต่อเวลา) หรือช่วงเวลาไม่ถูกต้อง (โหมดแยกงาน) — ไม่ถือเป็น OT ปิด OT ให้อัตโนมัติ
+        w.sr=startVal+'-'+endVal;
+        w.ot=false;w.otHrs=4;w.otReason='';w.otMode='extend';
+        all[wk]=sched;markUnsaved();D.saveSched(all);
+        // ลบ log เหตุผล OT ที่ตรงกันออกด้วย (ถ้ามี) กัน Dashboard (Pareto) ค้างข้อมูลเก่า
+        const otLog=D.getOTLog(S.sys)||[];
+        const idx2=otLog.findIndex(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===foundSh&&l.wk===wk);
+        if(idx2>=0){otLog.splice(idx2,1);D.saveOTLog(otLog,S.sys);}
+        this.render();
+        toast(mode==='separate'?'⚠️ ช่วงเวลาที่กรอกไม่ถูกต้อง — ปิด OT ให้อัตโนมัติ':'⚠️ เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ ('+baseHrs+' ชม.) — ปิด OT ให้อัตโนมัติเพราะไม่ถือเป็นการทำ OT');
+        return;
+      }
       w.sr=startVal+'-'+endVal;
+      w.otMode=mode;
       w.ot=true;
       w.otHrs=otHrs;
       w.otBefore=startH<bounds[0];
