@@ -542,8 +542,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div class="pareto-card">
       <div class="pareto-hdr">
         <h3>📈 Pareto — เหตุผล OT เกิน</h3>
-        <select id="pp-sys" onchange="DASH.renderPareto()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif;margin-right:4px"><option value="all">ทุกระบบ</option><option value="proc">Process</option><option value="fill">Filling</option><option value="lsvc">Line Service</option></select><select id="pp-period" style="display:none" onchange="DASH.renderPareto()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif">
-          <option value="week">สัปดาห์นี้</option><option value="month" selected>เดือนนี้</option><option value="year">ปีนี้</option>
+        <select id="pp-sys" onchange="DASH.renderPareto()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif;margin-right:4px"><option value="all">ทุกระบบ</option><option value="proc">Process</option><option value="fill">Filling</option><option value="lsvc">Line Service</option></select><select id="pp-period" onchange="DASH.renderPareto()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif">
+          <option value="week" selected>สัปดาห์นี้</option><option value="month">เดือนนี้</option><option value="year">ปีนี้</option>
         </select>
       </div>
       <div class="pareto-body" id="pb"><div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">ยังไม่มีข้อมูล</div></div>
@@ -1935,8 +1935,11 @@ const DASH={
     </div>`;
     openMo('mo-w');
   },
+  _wkOff:0,
+  prevWk(){this._wkOff--;this.renderPareto();},
+  nextWk(){this._wkOff++;this.renderPareto();},
   renderPareto(){
-    const per=(document.getElementById('chart-period')?.value==='year'?'year':'month');
+    const per=document.getElementById('pp-period')?.value||'week';
     const _dashMoOff=this._moOff||0;
     const lsvcSys=document.getElementById('pp-sys')?.value||'all';
     let logs=[];
@@ -1944,12 +1947,24 @@ const DASH={
     if(lsvcSys==='fill'||lsvcSys==='all')logs=[...logs,...D.getOTLog('fill')];
     if(lsvcSys==='lsvc'||lsvcSys==='all')logs=[...logs,...(LS.get('otlog_lsvc',[])||[])];
     const now=new Date();
+    let wkStart=null,wkEnd=null;
+    if(per==='week'){
+      const base=new Date(now);base.setDate(base.getDate()+(this._wkOff||0)*7);
+      wkStart=getMonday(base);wkEnd=new Date(wkStart);wkEnd.setDate(wkEnd.getDate()+6);
+    }
     const flt=logs.filter(l=>{
       if(!l.date)return false;const d=new Date(l.date);
-      if(per==='week'){const ws=getMonday(now);const we=new Date(ws);we.setDate(we.getDate()+6);return d>=ws&&d<=we;}
+      if(per==='week'){return d>=wkStart&&d<=wkEnd;}
       if(per==='month'){const tm=new Date(now.getFullYear(),now.getMonth()+_dashMoOff,1);return d.getMonth()===tm.getMonth()&&d.getFullYear()===tm.getFullYear();}
       return d.getFullYear()===now.getFullYear();
     });
+    // แถบเลื่อนสัปดาห์ — โชว์เฉพาะตอนเลือก "สัปดาห์นี้"
+    const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const wkNav=per==='week'?`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
+        <button onclick="DASH.prevWk()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer">◀</button>
+        <span style="font-size:12px;font-weight:700;color:var(--text);min-width:170px;text-align:center">W${wNum(wkStart)}: ${wkStart.getDate()} ${MN[wkStart.getMonth()]} – ${wkEnd.getDate()} ${MN[wkEnd.getMonth()]} ${wkEnd.getFullYear()+543}</span>
+        <button onclick="DASH.nextWk()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer">▶</button>
+      </div>`:'';
     const cnt={};
     flt.forEach(l=>{
       // format ใหม่: {reason, hrs, ...}
@@ -1959,7 +1974,7 @@ const DASH={
     });
     const items=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
     const body=document.getElementById('pb');if(!body)return;
-    if(!items.length){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">ยังไม่มีข้อมูล OT เกิน</div>';return;}
+    if(!items.length){body.innerHTML=wkNav+'<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">ยังไม่มีข้อมูล OT เกิน</div>';return;}
     const total=items.reduce((a,[,v])=>a+v,0);
     const COLS=['#EF4444','#F97316','#F59E0B','#22C55E','#3B82F6','#8B5CF6','#EC4899','#14B8A6'];
     // Largest Remainder
@@ -1970,7 +1985,7 @@ const DASH={
     let cum=0;
     const maxH=items[0][1]; // ค่าสูงสุด = item แรก (เรียงแล้ว)
 
-    body.innerHTML=`
+    body.innerHTML=wkNav+`
       <!-- Summary -->
       <div style="display:flex;gap:10px;margin-bottom:16px">
         <div style="flex:1;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 12px;text-align:center">
