@@ -745,7 +745,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
   <div class="page" id="pg-exec">
     <div style="padding:12px 14px;background:linear-gradient(135deg,var(--navy),var(--bg2));border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
-      <h2 style="font-size:15px;font-weight:900;flex:1">📋 สรุปผู้บริหาร</h2>
+      <h2 style="font-size:15px;font-weight:900;flex:1">📋 สรุปข้อมูล</h2>
       <button onclick="EXEC.render()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer">🔄</button>
     </div>
     <div style="overflow-y:auto;flex:1;padding:14px" id="exec-body"></div>
@@ -789,6 +789,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
   <div id="sidebar">
     <button class="side-item active" id="side-dash" onclick="APP.goPage('pg-dash')"><span class="side-icon">📊</span>Dashboard</button>
+    <button class="side-item" id="side-exec" onclick="APP.goPage('pg-exec')"><span class="side-icon">📋</span>สรุปข้อมูล</button>
     <button class="side-item" id="side-plan" onclick="APP.goPage('pg-plan')"><span class="side-icon">📋</span>วางแผน</button>
     <button class="side-item" id="side-sched" onclick="APP.goPage('pg-sched')"><span class="side-icon">📅</span>ตารางกะ</button>
     <button class="side-item" id="side-ot" onclick="APP.goPage('pg-ot')"><span class="side-icon">👤</span>OT</button>
@@ -799,6 +800,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
   </div>
   <div class="bottomnav">
     <button class="nav-item active" id="nav-dash" onclick="APP.goPage('pg-dash')"><span class="nav-icon">📊</span>Dashboard</button>
+    <button class="nav-item" id="nav-exec" onclick="APP.goPage('pg-exec')"><span class="nav-icon">📋</span>สรุปข้อมูล</button>
     <button class="nav-item" id="nav-sched" onclick="APP.goPage('pg-sched')"><span class="nav-icon">📅</span>ตารางกะ</button>
     <button class="nav-item" id="nav-leave" onclick="APP.goPage('pg-leave')"><span class="nav-icon">🗓️</span>การลา</button>
     <button class="nav-item" id="nav-more" onclick="APP.openMore()"><span class="nav-icon">···</span>เพิ่มเติม</button>
@@ -817,7 +819,6 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="closeMo('mo-more');APP.goPage('pg-lhist')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📊</span><span style="font-size:11px;font-weight:700">ประวัติลา</span></button>
         <button onclick="closeMo('mo-more');APP.goPage('pg-products',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📦</span><span style="font-size:11px;font-weight:700">Product</span></button>
         <button onclick="closeMo('mo-more');APP.goPage('pg-settings',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">⚙️</span><span style="font-size:11px;font-weight:700">ตั้งค่า</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-exec',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📋</span><span style="font-size:11px;font-weight:700">สรุปผู้บริหาร</span></button>
       </div>
     </div>
   </div>
@@ -1700,7 +1701,7 @@ const APP={
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.getElementById(id)?.classList.add('active');
     // ถ้าไปหน้าที่อยู่ใน more menu ให้ highlight nav-more แทน
-    const morePages=['pg-plan','pg-lsvc','pg-emp','pg-team','pg-lhist','pg-products','pg-settings','pg-ot','pg-exec'];
+    const morePages=['pg-plan','pg-lsvc','pg-emp','pg-team','pg-lhist','pg-products','pg-settings','pg-ot'];
     const nid=morePages.includes(id)?'nav-more':'nav-'+id.replace('pg-','');
     document.getElementById(nid)?.classList.add('active');
     if(id==='pg-dash')DASH.render();
@@ -5584,31 +5585,40 @@ const EXEC={
       </div>
     </div>`;
 
-    // 2) สัญญาณเตือนล่วงหน้า
-    html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-      <div style="background:linear-gradient(90deg,rgba(245,158,11,.2),transparent);padding:10px 14px;border-bottom:1px solid var(--border)">
-        <div style="font-size:13px;font-weight:900;color:var(--amber)">⚠️ สัญญาณเตือนล่วงหน้า (สัปดาห์นี้)</div>
+    // 2) สัญญาณเตือนล่วงหน้า — แบบย่อ สีเดียวจบ กดดูรายละเอียดได้
+    const worstQuota=warnQuota.length?Math.max(...warnQuota.map(x=>x.days)):0;
+    const quotaStatus=warnQuota.some(x=>x.days>=x.max)?'red':(warnQuota.length?'orange':'green');
+    const quotaCfg={red:{c:'#EF4444',bg:'rgba(239,68,68,.12)',bd:'rgba(239,68,68,.35)',dot:'🔴'},orange:{c:'#F59E0B',bg:'rgba(245,158,11,.12)',bd:'rgba(245,158,11,.35)',dot:'🟠'},green:{c:'#22C55E',bg:'rgba(34,197,94,.12)',bd:'rgba(34,197,94,.35)',dot:'🟢'}}[quotaStatus];
+    const worst6=warn6day.length?Math.max(...warn6day.map(x=>x.streak)):0;
+    const status6=warn6day.some(x=>x.streak>6)?'red':(warn6day.length?'orange':'green');
+    const cfg6={red:{c:'#EF4444',bg:'rgba(239,68,68,.12)',bd:'rgba(239,68,68,.35)',dot:'🔴'},orange:{c:'#F59E0B',bg:'rgba(245,158,11,.12)',bd:'rgba(245,158,11,.35)',dot:'🟠'},green:{c:'#22C55E',bg:'rgba(34,197,94,.12)',bd:'rgba(34,197,94,.35)',dot:'🟢'}}[status6];
+
+    const warnCard=(id,cfg,title,countLine,detailRows)=>`<div style="background:${cfg.bg};border:1.5px solid ${cfg.bd};border-radius:14px;padding:12px 14px;cursor:pointer" onclick="const d=document.getElementById('${id}');d.style.display=d.style.display==='none'?'block':'none';const a=document.getElementById('${id}-arrow');if(a)a.textContent=d.style.display==='none'?'▸':'▾'">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:${cfg.c}">${cfg.dot} ${title}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:3px">${countLine}</div>
+        </div>
+        <span id="${id}-arrow" style="color:var(--text3);font-size:14px">▸</span>
       </div>
-      <div style="padding:10px 14px">`;
-    if(!warnQuota.length&&!warn6day.length){
-      html+=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px">✅ ไม่มีใครใกล้เกินโควตาในสัปดาห์นี้</div>`;
-    }else{
-      if(warnQuota.length){
-        html+=`<div style="font-size:10px;font-weight:800;color:var(--text3);margin-bottom:6px">🟠 ใกล้เกินโควตา OT (${maxOT} วัน/สัปดาห์)</div>`;
-        html+=warnQuota.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
-          <span style="font-size:11px;font-weight:800;color:var(--amber)">${x.days}/${x.max} วัน</span>
-        </div>`).join('');
-      }
-      if(warn6day.length){
-        html+=`<div style="font-size:10px;font-weight:800;color:var(--text3);margin:10px 0 6px">🔴 ใกล้ครบ 6 วันติดต่อกัน</div>`;
-        html+=warn6day.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
-          <span style="font-size:11px;font-weight:800;color:${x.streak>6?'#EF4444':'var(--amber)'}">${x.streak} วัน</span>
-        </div>`).join('');
-      }
-    }
-    html+=`</div></div>`;
+      <div id="${id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid ${cfg.bd}">
+        ${detailRows||'<div style="text-align:center;color:var(--text3);font-size:11px">ไม่มีรายชื่อ</div>'}
+      </div>
+    </div>`;
+
+    const quotaDetail=warnQuota.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+      <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
+      <span style="font-size:11px;font-weight:800;color:${x.days>=x.max?'#EF4444':'var(--amber)'}">${x.days}/${x.max} วัน</span>
+    </div>`).join('');
+    const detail6=warn6day.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+      <span style="font-size:12px;font-weight:700">${x.name} <span style="font-size:9px;color:var(--text3)">[${x.sys==='proc'?'Process':'Filling'}]</span></span>
+      <span style="font-size:11px;font-weight:800;color:${x.streak>6?'#EF4444':'var(--amber)'}">${x.streak}/6 วัน</span>
+    </div>`).join('');
+
+    html+=`<div style="display:flex;flex-direction:column;gap:8px">
+      ${warnCard('exec-q-detail',quotaCfg,'สัญญาณเตือนทำโอทีไม่เกิน '+maxOT+'/สัปดาห์','พนักงานทำงาน จำนวน '+warnQuota.length+' คน '+worstQuota+'/'+maxOT+' วัน',quotaDetail)}
+      ${warnCard('exec-6-detail',cfg6,'สัญญาณเตือนทำงานเกิน 6 วัน','พนักงานทำงานติดต่อกันจำนวน '+warn6day.length+' คน '+worst6+'/6 วัน',detail6)}
+    </div>`;
 
     // 3) Top 5 แผนก / Top 5 พนักงาน
     const bar=(label,val,max,color)=>`<div style="margin-bottom:9px">
