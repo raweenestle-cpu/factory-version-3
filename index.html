@@ -605,9 +605,17 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <button onclick="SCHED.loadTeam()" style="background:rgba(37,99,235,.2);color:var(--blue2);border:1px solid rgba(37,99,235,.4)">⚡ โหลดพนักงาน</button>
         <button onclick="SCHED.openCopyDay()" style="background:rgba(22,163,74,.2);color:var(--green2);border:1px solid rgba(22,163,74,.4)">📋 คัดลอกวัน</button>
         <button onclick="SCHED.openCopyWeek()" style="background:rgba(124,58,237,.2);color:#a78bfa;border:1px solid rgba(124,58,237,.4)">📆 คัดลอก/ย้ายสัปดาห์</button>
+        <button id="multi-ot-btn" onclick="SCHED.toggleMultiSelect()" style="background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.4)">☑️ เลือกหลายคนเปิด OT</button>
       </div>
     </div>
     <div id="save-info" style="font-size:9px;color:var(--text3);padding:2px 14px 2px;text-align:right"></div>
+    <div id="multi-ot-bar" style="display:none;position:sticky;top:0;z-index:20;background:rgba(245,158,11,.95);color:#000;padding:8px 14px;align-items:center;justify-content:space-between;gap:10px">
+      <span style="font-size:12px;font-weight:800" id="multi-ot-count">เลือกไว้ 0 คน</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="SCHED.bulkOpenOT()" style="padding:6px 12px;background:#000;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">⚡ เปิด OT ให้ทุกคนที่เลือก</button>
+        <button onclick="SCHED.toggleMultiSelect()" style="padding:6px 12px;background:rgba(0,0,0,.15);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif;cursor:pointer">ยกเลิก</button>
+      </div>
+    </div>
     <div class="sched-wrap"><table class="sched-tbl"><thead id="sth"></thead><tbody id="stb"></tbody></table></div>
     <div style="background:rgba(37,99,235,.05);border-top:2px solid rgba(37,99,235,.3);padding:10px 14px;flex-shrink:0">
       <h3 style="font-size:12px;font-weight:800;color:var(--blue2);margin-bottom:6px">📋 ว่าง — Line ไม่ได้เดิน</h3>
@@ -3779,6 +3787,55 @@ const PRINT={
 const SCHED={
   curDi:0,
   viewDays:[0], // default จันทร์วันเดียว — วันอื่นต้องกดเลือกเองถึงจะโชว์/โหลด
+  multiSelectMode:false,
+  selectedChips:[], // array ของ key แบบ "dept|di|sh|name"
+  toggleMultiSelect(){
+    this.multiSelectMode=!this.multiSelectMode;
+    this.selectedChips=[];
+    const btn=document.getElementById('multi-ot-btn');
+    if(btn){
+      btn.textContent=this.multiSelectMode?'✕ ยกเลิกเลือกหลายคน':'☑️ เลือกหลายคนเปิด OT';
+      btn.style.background=this.multiSelectMode?'rgba(220,38,38,.2)':'rgba(245,158,11,.2)';
+      btn.style.color=this.multiSelectMode?'var(--red2)':'var(--amber)';
+      btn.style.borderColor=this.multiSelectMode?'rgba(220,38,38,.4)':'rgba(245,158,11,.4)';
+    }
+    const bar=document.getElementById('multi-ot-bar');
+    if(bar)bar.style.display=this.multiSelectMode?'flex':'none';
+    this.render();
+  },
+  toggleSelect(el){
+    const key=el.dataset.dept+'|'+el.dataset.di+'|'+el.dataset.sh+'|'+el.dataset.ne;
+    const idx=this.selectedChips.indexOf(key);
+    if(idx>=0)this.selectedChips.splice(idx,1);
+    else this.selectedChips.push(key);
+    const cEl=document.getElementById('multi-ot-count');
+    if(cEl)cEl.textContent='เลือกไว้ '+this.selectedChips.length+' คน';
+    this.render();
+  },
+  bulkOpenOT(){
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    if(!this.selectedChips.length){toast('❌ ยังไม่ได้เลือกใครเลย');return;}
+    const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
+    let cnt=0,skipCnt=0;
+    this.selectedChips.forEach(key=>{
+      const[dept,diStr,sh,name]=key.split('|');const di=parseInt(diStr);
+      const ws=sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[];
+      const w=ws.find(x=>x.name===name);
+      if(!w||w.ot){skipCnt++;return;} // ข้ามถ้าไม่เจอ หรือเปิด OT อยู่แล้ว (กันไปทับเวลาที่ตั้งไว้)
+      const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[sh]||[6,14];
+      const defBefore=sh==='night';
+      const startH=defBefore?bounds[0]-4:bounds[0];
+      const endH=defBefore?bounds[1]:bounds[1]+4;
+      const fmtB=(h)=>String(((Math.floor(h)%24)+24)%24).padStart(2,'0')+':00';
+      w.sr=fmtB(startH)+'-'+fmtB(endH);
+      w.ot=true;w.otHrs=4;w.otBefore=defBefore;w.otMode='extend';
+      cnt++;
+    });
+    all[wk]=sched;markUnsaved();D.saveSched(all);
+    this.toggleMultiSelect();
+    this.render();DASH.render();
+    toast('✅ เปิด OT ให้ '+cnt+' คนแล้ว'+(skipCnt?(' (ข้าม '+skipCnt+' คนที่เปิด OT อยู่แล้ว)'):''));
+  },
   prevDay(){this.curDi=Math.max(0,this.curDi-1);this.render();},
   nextDay(){this.curDi=Math.min(6,this.curDi+1);this.render();},
   toggleViewDay(di){
@@ -3996,11 +4053,13 @@ const SCHED={
             else if(isPreOT&&sh==='morning'){dS='06:00';dE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;dS=String(shStartH).padStart(2,'0')+':00';dE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
             const timeStr=w.ot?dS+'-'+dE:'';
-            const oc=readOnly?'':('SCHED.chkOpenW(this)');
+            const oc=readOnly?'':(this.multiSelectMode?'SCHED.toggleSelect(this)':'SCHED.chkOpenW(this)');
+            const selKey=dept+'|'+di+'|'+sh+'|'+ne;
+            const isSelected=this.multiSelectMode&&this.selectedChips.includes(selKey);
             const isSub=!!w.isSub;
             const subStyle=isSub?'background:rgba(234,88,12,.15);border-color:rgba(234,88,12,.6);':'';
             const subBadge=isSub?'<span style="font-size:8px;color:#ea580c;font-weight:900;white-space:nowrap">⚠️ มือรอง</span>':'';
-            const draggable=(!readOnly&&S.user?.isAdmin)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
+            const draggable=(!readOnly&&S.user?.isAdmin&&!this.multiSelectMode)?'draggable="true" ondragstart="SCHED.onDragStart(event)"':'';
             let reasonHtml='';
             if(w.ot){
               if(S.user?.isAdmin){
@@ -4013,9 +4072,11 @@ const SCHED={
                 reasonHtml='<span style="font-size:8px;color:var(--text3);white-space:nowrap">📝 '+w.otReason+'</span>';
               }
             }
+            const selStyle=isSelected?'background:rgba(245,158,11,.35)!important;border:2px solid var(--amber)!important;':'';
             const chip='<span class="wc '+(w.ot?'ot':'')+' '+(sg?'sg':'')+(isSub?' sub':'')+'" '
-              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+';cursor:grab;flex-direction:row;align-items:center;flex-wrap:wrap"'
-              +((!readOnly&&S.user?.isAdmin)?(' ondragover="SCHED.onDragOver(event)" ondragleave="SCHED.onDragLeave(event)" ondrop="SCHED.onDropOnChip(event,\''+dept+'\','+di+',\''+sh+'\',\''+ne+'\')"'):'')+'>'
+              +draggable+' onclick="'+oc+'" data-ne="'+ne+'" data-dept="'+dept+'" data-di="'+di+'" data-sh="'+sh+'" data-sys="'+S.sys+'" style="'+subStyle+selStyle+';cursor:grab;flex-direction:row;align-items:center;flex-wrap:wrap"'
+              +((!readOnly&&S.user?.isAdmin&&!this.multiSelectMode)?(' ondragover="SCHED.onDragOver(event)" ondragleave="SCHED.onDragLeave(event)" ondrop="SCHED.onDropOnChip(event,\''+dept+'\','+di+',\''+sh+'\',\''+ne+'\')"'):'')+'>'
+              +(this.multiSelectMode?'<span style="font-size:11px">'+(isSelected?'☑️':'⬜')+'</span>':'')
               +'<span style="font-size:11px;font-weight:800;white-space:nowrap">'+w.name+'</span>'
               +subBadge
               +(w.ot?'<span style="font-size:9px;color:var(--amber);font-weight:700;white-space:nowrap">'+timeStr+'</span>':'')
