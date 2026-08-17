@@ -3798,11 +3798,11 @@ const PRINT={
     const maxRows=this._lastMaxRows||10;
     // เลือกขนาดตัวอักษร/บรรทัด ให้พอดีกับปริมาณเนื้อหาจริง (เนื้อหาน้อย = ตัวใหญ่มาก, เนื้อหาเยอะ = ตัวเล็กลงพอให้พอดี 1 หน้า)
     let tier;
-    if(maxRows<=8)tier={lineH:26,note:'13pt',fs:'13pt',pad:'6px 8px'};
-    else if(maxRows<=15)tier={lineH:20,note:'11pt',fs:'11pt',pad:'4px 6px'};
-    else if(maxRows<=25)tier={lineH:15,note:'9pt',fs:'9pt',pad:'2px 4px'};
-    else if(maxRows<=40)tier={lineH:11,note:'7.5pt',fs:'7.5pt',pad:'1px 3px'};
-    else tier={lineH:9,note:'6.5pt',fs:'6.5pt',pad:'1px 3px'};
+    if(maxRows<=8)tier={lineH:16,note:'9.5pt',fs:'9.5pt',pad:'4px 6px'};
+    else if(maxRows<=15)tier={lineH:13,note:'8.5pt',fs:'8.5pt',pad:'3px 5px'};
+    else if(maxRows<=25)tier={lineH:11,note:'7.5pt',fs:'7.5pt',pad:'2px 4px'};
+    else if(maxRows<=40)tier={lineH:9.5,note:'7pt',fs:'7pt',pad:'1px 3px'};
+    else tier={lineH:8,note:'6.5pt',fs:'6.5pt',pad:'1px 3px'};
     // รอบสอง: สร้างจริงด้วยขนาดที่คำนวณได้
     const html=this.buildSchedHTML(sys,daysArg,tier);
     const fs=tier.fs;
