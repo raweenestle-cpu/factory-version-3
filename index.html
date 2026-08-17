@@ -1023,7 +1023,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.3'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -4384,9 +4384,9 @@ const SCHED={
       html+=`<div style="border:1px solid rgba(20,184,166,.35);background:rgba(20,184,166,.08);border-radius:8px;padding:10px;margin-bottom:6px">
         <div style="font-size:11px;font-weight:800;color:var(--teal);margin-bottom:6px">📝 หมายเหตุ/มอบหมายงาน <span style="font-weight:400;color:var(--text3)">(ไม่นับเป็น OT ไม่เข้ากราฟ OT%/Pareto)</span></div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <input type="time" id="${noteStId}" value="${w.noteStart||''}" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
+          <input type="time" id="${noteStId}" value="${w.noteStart||''}" lang="th" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
           <span style="color:var(--text3);font-size:11px">–</span>
-          <input type="time" id="${noteEnId}" value="${w.noteEnd||''}" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
+          <input type="time" id="${noteEnId}" value="${w.noteEnd||''}" lang="th" style="flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px">
         </div>
         <textarea id="${noteId}" placeholder="เช่น ไปช่วยที่ Extrud 3" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:'Sarabun',sans-serif;resize:vertical;min-height:36px">${w.noteText||''}</textarea>
         <div style="display:flex;gap:6px;margin-top:6px">
@@ -4411,9 +4411,9 @@ const SCHED={
           </select>
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <input type="time" id="${startId}" value="${curStart}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <input type="time" id="${startId}" value="${curStart}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
           <span style="color:var(--text3);font-size:12px">–</span>
-          <input type="time" id="${endId}" value="${curEnd}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <input type="time" id="${endId}" value="${curEnd}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
         </div>
         <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${curMode==='extend'?('กะปกติ '+fmtB(bounds[0])+'-'+fmtB(bounds[1])+' — OT = เวลารวมที่กรอก ลบ '+(bounds[1]-bounds[0])+' ชม.'):'โหมดนี้นับ OT = ช่วงเวลาที่กรอกทั้งหมดตรงๆ (ไม่หักอะไร)'}</div>`;
       }
@@ -4512,7 +4512,7 @@ const SCHED={
       const toH=(t)=>{const p=t.split(':').map(Number);return p[0]+p[1]/60;};
       let startH=toH(startVal);let endH=toH(endVal);
       // ถ้าเวลาเริ่มดูเหมือนเลยเที่ยงคืนมาแล้ว (เช่นกะดึกเริ่มก่อนเที่ยงคืนของวันก่อน) หรือเวลาเลิกข้ามเที่ยงคืน ให้ปรับให้ต่อเนื่องกับกะปกติ
-      if(foundSh==='night'&&startH>12)startH-=24; // เผื่อกด AM ผิดสำหรับกะดึกที่เริ่มก่อนเที่ยงคืน (ไม่ค่อยเกิด แต่กันไว้)
+      // (เดิมมีเงื่อนไขปรับเวลากะดึกที่เริ่มก่อนเที่ยงตรง 12 โมง แต่พบว่าไปครอบคลุมกรณีปกติ เช่น เริ่ม OT ก่อนกะดึกด้วยเวลา 18:00 ทำให้คำนวณผิด จึงตัดออก ให้ endH<=startH ด้านล่างจัดการข้ามเที่ยงคืนแทนอย่างเดียวพอ)
       if(endH<=startH)endH+=24;
       const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
       const finalMode=hasOverlap?(mode||w.otMode||'extend'):'separate';
@@ -6443,7 +6443,6 @@ function otHrsOf(w,sh){
     const sp=w.sr.split('-');
     if(sp.length===2){
       let startH=toH(sp[0]);let endH=toH(sp[1]);
-      if(sh==='night'&&startH>12)startH-=24;
       if(endH<=startH)endH+=24;
       // เช็คทุกครั้งที่คำนวณ (ไม่ใช่แค่ตอนแก้ไขใหม่) ว่าช่วงเวลาคาบเกี่ยวกับกะปกติไหม ถ้าไม่คาบเกี่ยวเลย ให้ถือเป็น "แยกไปทำ OT ที่อื่น" เสมอ ไม่ว่า w.otMode ที่บันทึกไว้จะเป็นอะไร — กันข้อมูลเก่าที่บันทึกไว้ก่อนมีตัวตรวจจับนี้คำนวณผิดค้างอยู่
       const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
