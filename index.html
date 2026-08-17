@@ -4506,13 +4506,15 @@ const SCHED={
     if(sh2){w=(sched[dept]?.[di]?.[sh2]||sched[dept]?.[String(di)]?.[sh2]||[]).find(x=>x.name===name);}
     else{['morning','afternoon','night'].forEach(s=>{if(!w){const ws=sched[dept]?.[di]?.[s]||sched[dept]?.[String(di)]?.[s]||[];const found=ws.find(x=>x.name===name);if(found){w=found;foundSh=s;}}});}
     if(w&&startVal&&endVal){
-      mode=mode||w.otMode||'extend';
       const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[foundSh]||[6,14];
       const toH=(t)=>{const p=t.split(':').map(Number);return p[0]+p[1]/60;};
       let startH=toH(startVal);let endH=toH(endVal);
       // ถ้าเวลาเริ่มดูเหมือนเลยเที่ยงคืนมาแล้ว (เช่นกะดึกเริ่มก่อนเที่ยงคืนของวันก่อน) หรือเวลาเลิกข้ามเที่ยงคืน ให้ปรับให้ต่อเนื่องกับกะปกติ
       if(foundSh==='night'&&startH>12)startH-=24; // เผื่อกด AM ผิดสำหรับกะดึกที่เริ่มก่อนเที่ยงคืน (ไม่ค่อยเกิด แต่กันไว้)
       if(endH<=startH)endH+=24;
+      // ตรวจจับอัตโนมัติ: ถ้าช่วงเวลาที่กรอกไม่คาบเกี่ยวกับกะปกติเลยแม้แต่นิดเดียว ให้ถือเป็น "แยกไปทำ OT ที่อื่น" เสมอ ไม่ว่าจะเลือกโหมดไหนไว้ก็ตาม กันเผลอลืมสลับโหมดแล้วได้ 0 ชม. ผิดๆ แบบที่เจอมา
+      const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
+      mode=hasOverlap?(mode||w.otMode||'extend'):'separate';
       const totalHrs=endH-startH;
       const baseHrs=bounds[1]-bounds[0];
       let otHrs=(mode==='separate')?(Math.round(totalHrs*2)/2):Math.round((totalHrs-baseHrs)*2)/2;
@@ -4539,7 +4541,8 @@ const SCHED={
       const otLog2=D.getOTLog(S.sys)||[];
       const existing2=otLog2.find(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===foundSh&&l.wk===wk);
       if(existing2){existing2.hrs=otHrs;D.saveOTLog(otLog2,S.sys);}
-      this.render();toast('✅ อัพเดทเวลาแล้ว');
+      this.render();
+      toast(!hasOverlap?('✅ อัพเดทเวลาแล้ว (ตรวจพบว่าไม่คาบเกี่ยวกับกะปกติ → นับ OT '+otHrs+' ชม.ตรงๆ อัตโนมัติ)'):'✅ อัพเดทเวลาแล้ว');
     }
   },
   sign(name,dept,di,sh){
