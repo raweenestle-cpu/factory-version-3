@@ -3550,53 +3550,65 @@ const PRINT={
   },
   buildOTHTML(mode,sys){
     const now=new Date();
-    const s2=sys||S.sys;
-    const depts=D.getDepts(s2).filter(d=>d!==AL);
-    const wKeys=[];
-    if(mode==='wk'){
-      const ws=new Date(S.wkStart);ws.setDate(ws.getDate()+OT.wkOff*7);
-      wKeys.push(wKey(ws));
-    } else {
-      const all=D.getSched(s2);Object.keys(all).forEach(k=>{if(k.match(/\d{4}-\d{2}-\d{2}/))wKeys.push(k);});
-    }
+    const sysList=(!sys||sys==='both')?['proc','fill']:[sys];
     const DAYTH=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
     const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     const bd='1px solid #8090b0';
     let rows=[];let rowNum=0;
-    wKeys.forEach(wk4=>{
-      const sched=D.getSched(s2)[wk4]||{};
-      const wsDate=new Date(S.wkStart);
-      for(let di=0;di<7;di++){
-        const d2=new Date(wsDate);d2.setDate(wsDate.getDate()+di);
-        const dayTh=DAYTH[di]+' '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
-        SHS.forEach(sh=>{
-          depts.forEach(dept=>{
-            (sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).forEach(w=>{
-              if(!w.ot)return;
-              rowNum++;
-              const sgKey=wk4+'_'+w.name+'_'+dept+'_'+di+'_'+sh;
-              const sg=D.getSign(sgKey);
-              const emp=D.getEmps(s2).find(e=>e.name===w.name);
-              const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
-              const isPreOT=w.otBefore;
-              const otHrs=otHrsOf(w,sh);
-              let tStart,tEnd;
-              if(w.sr){const sp=w.sr.split('-');tStart=sp[0];tEnd=sp[1];}
-              else if(isPreOT&&sh==='morning'){tStart='06:00';tEnd='18:00';}
-              else if(sh==='night'){tStart=String((22-otHrs+24)%24).padStart(2,'0')+':00';tEnd='06:00';}
-              else{const eH={morning:14,afternoon:22,night:30}[sh]||14;
-                   tStart=String(shStartH).padStart(2,'0')+':00';
-                   tEnd=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-              rows.push({rowNum,name:w.name,dept,dayTh,sh,otHrs,tStart,tEnd,sg,sigImg:emp?.signature||null,reason:w.otReason||''});
-            });
-          });
+    sysList.forEach(s2=>{
+      const depts=D.getDepts(s2).filter(d=>d!==AL);
+      const wKeys=[];
+      if(mode==='week'){
+        // อ่านสัปดาห์จากช่องที่เลือกจริงในหน้าจอ (ไม่ใช่สัปดาห์ที่กำลังเปิดดูตารางกะอยู่)
+        const dv=document.getElementById('pr-week-date')?.value;
+        const baseDate=dv?new Date(dv+'T00:00:00'):new Date(S.wkStart);
+        wKeys.push(wKey(baseDate));
+      } else {
+        // เดือน — กรองเฉพาะสัปดาห์ที่อยู่ในเดือนที่เลือกจริง (ไม่ใช่ทุกสัปดาห์ที่เคยมีข้อมูล)
+        const mv=document.getElementById('pr-month-val')?.value; // "YYYY-MM"
+        const all=D.getSched(s2);
+        Object.keys(all).forEach(k=>{
+          if(!k.match(/^\d{4}-\d{2}-\d{2}$/))return;
+          if(mv){if(k.slice(0,7)===mv)wKeys.push(k);}
+          else{const kd=new Date(k+'T00:00:00');if(kd.getFullYear()===now.getFullYear()&&kd.getMonth()===now.getMonth())wKeys.push(k);}
         });
       }
+      wKeys.forEach(wk4=>{
+        const sched=D.getSched(s2)[wk4]||{};
+        const wsDate=getMonday(new Date(wk4+'T00:00:00')); // ใช้สัปดาห์จริงของรายการนี้ ไม่ใช่สัปดาห์ที่กำลังเปิดดูตารางกะอยู่
+        for(let di=0;di<7;di++){
+          const d2=new Date(wsDate);d2.setDate(wsDate.getDate()+di);
+          const dayTh=DAYTH[di]+' '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
+          SHS.forEach(sh=>{
+            depts.forEach(dept=>{
+              (sched[dept]?.[di]?.[sh]||sched[dept]?.[String(di)]?.[sh]||[]).forEach(w=>{
+                if(!w.ot)return;
+                rowNum++;
+                const sgKey=wk4+'_'+w.name+'_'+dept+'_'+di+'_'+sh;
+                const sg=D.getSign(sgKey);
+                const emp=D.getEmps(s2).find(e=>e.name===w.name);
+                const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
+                const isPreOT=w.otBefore;
+                const otHrs=otHrsOf(w,sh);
+                let tStart,tEnd;
+                if(w.sr){const sp=w.sr.split('-');tStart=sp[0];tEnd=sp[1];}
+                else if(isPreOT&&sh==='morning'){tStart='06:00';tEnd='18:00';}
+                else if(sh==='night'){tStart=String((22-otHrs+24)%24).padStart(2,'0')+':00';tEnd='06:00';}
+                else{const eH={morning:14,afternoon:22,night:30}[sh]||14;
+                     tStart=String(shStartH).padStart(2,'0')+':00';
+                     tEnd=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
+                rows.push({rowNum,name:w.name,dept,dayTh,sh,otHrs,tStart,tEnd,sg,sigImg:emp?.signature||null,reason:w.otReason||'',sys:s2});
+              });
+            });
+          });
+        }
+      });
     });
 
     if(!rows.length)return'<div style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล OT</div>';
 
     const dateStr=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+    const sysLabel=(!sys||sys==='both')?'Process + Filling':(sys==='proc'?'Process':'Filling');
     const tbl=`<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt">
       <colgroup>
         <col style="width:4%">
@@ -3636,7 +3648,7 @@ const PRINT={
 
     return`<div style="font-family:'Sarabun',sans-serif;color:#000">
       <div style="font-size:13pt;font-weight:900;color:#1e3a5f;margin-bottom:2px">ใบยินยอมทำงานล่วงเวลา (OT)</div>
-      <div style="font-size:9pt;color:#666;margin-bottom:8px">${dateStr} — ${s2==='proc'?'Process':'Filling'}</div>
+      <div style="font-size:9pt;color:#666;margin-bottom:8px">${dateStr} — ${sysLabel}</div>
       ${tbl}
       <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:10pt">
         <div style="border:1px solid #aaa;border-radius:4px;padding:8px 12px;min-height:60px;text-align:center">
