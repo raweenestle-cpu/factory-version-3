@@ -1023,7 +1023,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.4'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.5'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -6092,9 +6092,9 @@ const LEAVE={
           else if(isPending){bg='rgba(245,158,11,.2)';color='var(--amber)';border='var(--amber)';}
           else if(isSel){bg='var(--blue)';color='#fff';border='var(--blue)';fw='800';}
           else if(isToday){border='var(--blue2)';}
-          const click=(!isPast&&!isApproved&&!isPending)?('onclick="LEAVE.toggleDate(\''+ds+'\')"'):'';
+          const click=(!isPast&&!isApproved&&!isPending)?('onclick="LEAVE.toggleDate(\''+ds+'\')"'):(isPending?('onclick="LEAVE.withdrawPendingByDate(\''+ds+'\')" title="แตะเพื่อยกเลิกคำขอลาวันนี้"'):'');
           const opacity=isPast?'.4':'1';
-          return'<div '+click+' style="padding:8px 2px;border-radius:8px;background:'+bg+';color:'+color+';border:1.5px solid '+border+';font-size:13px;font-weight:'+fw+';cursor:'+(!isPast&&!isApproved&&!isPending?'pointer':'default')+';opacity:'+opacity+'">'+day+'</div>';
+          return'<div '+click+' style="padding:8px 2px;border-radius:8px;background:'+bg+';color:'+color+';border:1.5px solid '+border+';font-size:13px;font-weight:'+fw+';cursor:'+((!isPast&&!isApproved&&!isPending)||isPending?'pointer':'default')+';opacity:'+opacity+'">'+day+'</div>';
         }).join('')}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px">
@@ -6154,7 +6154,8 @@ const LEAVE={
       const actions=(isAdmin&&r.status==='pending')?`<div style="display:flex;gap:4px">
           <button onclick="LEAVE.approve('${r.id}')" title="อนุมัติ" style="padding:5px 8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);border-radius:6px;color:#22C55E;font-size:11px;font-weight:800;cursor:pointer">✅</button>
           <button onclick="LEAVE.reject('${r.id}')" title="ไม่อนุมัติ" style="padding:5px 8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:6px;color:#EF4444;font-size:11px;font-weight:800;cursor:pointer">❌</button>
-        </div>`:(!isAdmin&&r.status==='approved'?`<button onclick="LEAVE.confirmCancel('${r.id}')" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer">ยกเลิก</button>`:'');
+        </div>`:(!isAdmin&&r.status==='approved'?`<button onclick="LEAVE.confirmCancel('${r.id}')" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer">ยกเลิก</button>`
+        :(r.status==='pending'&&r.name===(S.user?.name||'')?`<button onclick="LEAVE.withdrawPending('${r.id}')" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer">ยกเลิกคำขอ</button>`:''));
       return`<tr style="background:${bg}">
         <td style="padding:9px 8px;font-size:11px;color:var(--text2);white-space:nowrap">${dept}</td>
         <td style="padding:9px 8px;font-size:12px;font-weight:800;color:var(--text)">${r.name}</td>
@@ -6207,6 +6208,24 @@ const LEAVE={
   },
   reject(id){const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='rejected';r.approver=S.user?.name||'Admin';D.saveLeaveReq(reqs);this.render();this.updBadge();toast('❌ ไม่อนุมัติ');}},
   confirmCancel(id){confirm2('ยืนยันขอยกเลิกวันลานี้?',()=>{const reqs=D.getLeaveReq();const r=reqs.find(x=>x.id===id);if(r){r.status='cancel_req';D.saveLeaveReq(reqs);this.render();this.updBadge();toast('🔄 ส่งคำขอยกเลิกแล้ว');}});},
+  withdrawPending(id){
+    // ยกเลิกคำขอลาที่ยังไม่ได้รับการอนุมัติเลย — ทำได้เองทันที ไม่ต้องรอ Admin เพราะยังไม่มีใครอนุมัติอะไรไปแล้ว
+    confirm2('ยืนยันยกเลิกคำขอลานี้?\n\nลบคำขอออกทันที ไม่ต้องรอ Admin อนุมัติ/ปฏิเสธก่อน',()=>{
+      const reqs=D.getLeaveReq();
+      const idx=reqs.findIndex(x=>x.id===id&&x.name===(S.user?.name||'')&&x.status==='pending');
+      if(idx<0){toast('❌ ไม่พบคำขอนี้ หรือถูกดำเนินการไปแล้ว');return;}
+      reqs.splice(idx,1);
+      D.saveLeaveReq(reqs);this.render();this.updBadge();
+      toast('✅ ยกเลิกคำขอลาแล้ว');
+    });
+  },
+  withdrawPendingByDate(ds){
+    // เรียกจากการแตะวันที่ในปฏิทิน — หาใบคำขอ pending ของบัญชีที่ล็อกอินอยู่ที่ครอบวันนี้ แล้วยกเลิกให้ (ครอบคลุมกรณีที่ไม่ใช่พนักงานในระบบด้วย เช่น ทดสอบด้วยบัญชี Master Admin)
+    const reqs=D.getLeaveReq();
+    const r=reqs.find(x=>x.name===(S.user?.name||'')&&x.status==='pending'&&(x.dates||[]).includes(ds));
+    if(!r){toast('❌ ไม่พบคำขอลาที่รออนุมัติของวันนี้');return;}
+    this.withdrawPending(r.id);
+  },
   del(id){confirm2('ลบรายการนี้?',()=>{const reqs=D.getLeaveReq().filter(r=>r.id!==id);D.saveLeaveReq(reqs);this.render();this.updBadge();toast('🗑️ ลบแล้ว');});},
   archivePast(){const today=new Date().toISOString().slice(0,10);const reqs=D.getLeaveReq().filter(r=>r.dates?.some(d=>d>=today));D.saveLeaveReq(reqs);this.render();},
   setDeptFilter(d){this.deptFilter=d;this.renderList();},
