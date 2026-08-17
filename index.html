@@ -1023,7 +1023,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.3'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.4'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -3964,7 +3964,7 @@ const SCHED={
       const endH=defBefore?bounds[1]:bounds[1]+4;
       const fmtB=(h)=>String(((Math.floor(h)%24)+24)%24).padStart(2,'0')+':00';
       w.sr=fmtB(startH)+'-'+fmtB(endH);
-      w.ot=true;w.otHrs=4;w.otBefore=defBefore;w.otMode='extend';
+      w.ot=true;w.otHrs=4;w.otBefore=defBefore;
       cnt++;
     });
     all[wk]=sched;markUnsaved();D.saveSched(all);
@@ -4401,21 +4401,13 @@ const SCHED={
         let curStart,curEnd;
         if(w.sr){const sp=w.sr.split('-');curStart=sp[0];curEnd=sp[1];}
         else{curStart=fmtB(bounds[0]);curEnd=fmtB(bounds[1]);}
-        const curMode=w.otMode||'extend';
-        const startId='otst-'+di+'-'+sh;const endId='oten-'+di+'-'+sh;const modeId='otmode-'+di+'-'+sh;
-        html+=`<div style="margin-bottom:6px">
-          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">🕐 รูปแบบเวลา OT</label>
-          <select id="${modeId}" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,document.getElementById('${endId}').value,this.value)" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
-            <option value="extend" ${curMode==='extend'?'selected':''}>➕ ต่อเวลาในจุดเดิม (นับเกินกะปกติ)</option>
-            <option value="separate" ${curMode==='separate'?'selected':''}>🔀 แยกไปทำ OT ที่อื่น (นับตามช่วงที่กรอกตรงๆ)</option>
-          </select>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <input type="time" id="${startId}" value="${curStart}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        const startId='otst-'+di+'-'+sh;const endId='oten-'+di+'-'+sh;
+        html+=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input type="time" id="${startId}" value="${curStart}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',this.value,document.getElementById('${endId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
           <span style="color:var(--text3);font-size:12px">–</span>
-          <input type="time" id="${endId}" value="${curEnd}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value,document.getElementById('${modeId}').value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+          <input type="time" id="${endId}" value="${curEnd}" lang="th" onchange="SCHED.setTimeRange('${ne}','${dept}',${di},'${sh}',document.getElementById('${startId}').value,this.value)" style="flex:1;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${curMode==='extend'?('กะปกติ '+fmtB(bounds[0])+'-'+fmtB(bounds[1])+' — OT = เวลารวมที่กรอก ลบ '+(bounds[1]-bounds[0])+' ชม.'):'โหมดนี้นับ OT = ช่วงเวลาที่กรอกทั้งหมดตรงๆ (ไม่หักอะไร)'}</div>`;
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">กะปกติ ${fmtB(bounds[0])}-${fmtB(bounds[1])} — ระบบคำนวณ OT ${otHrsOf(w,sh)} ชม. ให้อัตโนมัติจากเวลาที่กรอก (ถ้าคาบเกี่ยวกับกะปกติจะหัก ${bounds[1]-bounds[0]} ชม.ออก ถ้าไม่คาบเกี่ยวเลยจะนับตรงๆ ทั้งหมด)</div>`;
       }
       html+=`<button onclick="SCHED.removeW('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:rgba(220,38,38,.15);color:var(--red2);font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif">🗑️ ลบออกจากกะ</button>`;
     }
@@ -4477,7 +4469,6 @@ const SCHED={
       w.sr=fmtB(startH)+'-'+fmtB(endH);
       w.otHrs=4;
       w.otBefore=defBefore;
-      w.otMode='extend';
     }
     all[wk]=sched;markUnsaved();D.saveSched(all);
     this.render();DASH.render();toast(w.ot?'✅ เปิด OT':'✅ ปิด OT');
@@ -4502,7 +4493,7 @@ const SCHED={
     D.saveOTLog(otLog,S.sys);
     this.render();DASH.render();toast('✅ บันทึกเหตุผล OT — '+name);
   },
-  setTimeRange(name,dept,di,sh2,startVal,endVal,mode){
+  setTimeRange(name,dept,di,sh2,startVal,endVal){
     const wk=wKey(S.wkStart);const all=D.getSched();const sched=all[wk]||{};
     let w=null;let foundSh=sh2||'afternoon';
     if(sh2){w=(sched[dept]?.[di]?.[sh2]||sched[dept]?.[String(di)]?.[sh2]||[]).find(x=>x.name===name);}
@@ -4511,28 +4502,25 @@ const SCHED={
       const bounds={morning:[6,14],afternoon:[14,22],night:[22,30]}[foundSh]||[6,14];
       const toH=(t)=>{const p=t.split(':').map(Number);return p[0]+p[1]/60;};
       let startH=toH(startVal);let endH=toH(endVal);
-      // ถ้าเวลาเริ่มดูเหมือนเลยเที่ยงคืนมาแล้ว (เช่นกะดึกเริ่มก่อนเที่ยงคืนของวันก่อน) หรือเวลาเลิกข้ามเที่ยงคืน ให้ปรับให้ต่อเนื่องกับกะปกติ
-      // (เดิมมีเงื่อนไขปรับเวลากะดึกที่เริ่มก่อนเที่ยงตรง 12 โมง แต่พบว่าไปครอบคลุมกรณีปกติ เช่น เริ่ม OT ก่อนกะดึกด้วยเวลา 18:00 ทำให้คำนวณผิด จึงตัดออก ให้ endH<=startH ด้านล่างจัดการข้ามเที่ยงคืนแทนอย่างเดียวพอ)
       if(endH<=startH)endH+=24;
       const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
-      const finalMode=hasOverlap?(mode||w.otMode||'extend'):'separate';
-      // คำนวณผ่าน otHrsOf() ตัวเดียวกับที่ใช้แสดงผล/พิมพ์/Dashboard ทุกจุด กันไม่ให้สูตรสองที่เพี้ยนออกจากกันอีกในอนาคต
-      const otHrs=otHrsOf({sr:startVal+'-'+endVal,otMode:finalMode,ot:true},foundSh);
+      // คำนวณผ่าน otHrsOf() ตัวเดียวกับที่ใช้แสดงผล/พิมพ์/Dashboard ทุกจุด — โหมดคำนวณจากการคาบเกี่ยวของเวลาเพียงอย่างเดียวเสมอ ไม่มีการเลือกโหมดเองแล้ว กันคำนวณเพี้ยนจากการเลือกผิด
+      const otHrs=otHrsOf({sr:startVal+'-'+endVal,ot:true},foundSh);
       if(otHrs<=0){
-        // เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ (โหมดต่อเวลา) หรือช่วงเวลาไม่ถูกต้อง (โหมดแยกงาน) — ไม่ถือเป็น OT ปิด OT ให้อัตโนมัติ
+        // เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ หรือช่วงเวลาไม่ถูกต้อง — ไม่ถือเป็น OT ปิด OT ให้อัตโนมัติ
         w.sr=startVal+'-'+endVal;
-        w.ot=false;w.otHrs=4;w.otReason='';w.otMode='extend';
+        w.ot=false;w.otHrs=4;w.otReason='';delete w.otMode;
         all[wk]=sched;markUnsaved();D.saveSched(all);
         // ลบ log เหตุผล OT ที่ตรงกันออกด้วย (ถ้ามี) กัน Dashboard (Pareto) ค้างข้อมูลเก่า
         const otLog=D.getOTLog(S.sys)||[];
         const idx2=otLog.findIndex(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===foundSh&&l.wk===wk);
         if(idx2>=0){otLog.splice(idx2,1);D.saveOTLog(otLog,S.sys);}
         this.render();
-        toast(finalMode==='separate'?'⚠️ ช่วงเวลาที่กรอกไม่ถูกต้อง — ปิด OT ให้อัตโนมัติ':'⚠️ เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ ('+(bounds[1]-bounds[0])+' ชม.) — ปิด OT ให้อัตโนมัติเพราะไม่ถือเป็นการทำ OT');
+        toast(!hasOverlap?'⚠️ ช่วงเวลาที่กรอกไม่ถูกต้อง — ปิด OT ให้อัตโนมัติ':'⚠️ เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ ('+(bounds[1]-bounds[0])+' ชม.) — ปิด OT ให้อัตโนมัติเพราะไม่ถือเป็นการทำ OT');
         return;
       }
       w.sr=startVal+'-'+endVal;
-      w.otMode=finalMode;
+      delete w.otMode; // ไม่ต้องเก็บโหมดแยกอีกต่อไป คำนวณจากเวลาสดเสมอ
       w.ot=true;
       w.otHrs=otHrs;
       w.otBefore=startH<bounds[0];
@@ -6433,7 +6421,7 @@ function isDoubleBooked(name,di,sched){
   });
   return found;
 }
-// เก็บ "ชั่วโมง OT" ที่ถูกต้องเสมอ — คำนวณจาก w.sr (เวลาเริ่ม-เลิกจริง) + w.otMode ทุกครั้ง แทนที่จะเชื่อค่า w.otHrs ที่บันทึกแยกไว้ (ซึ่งอาจไม่ตรงกับเวลาจริงได้ถ้าข้อมูลถูกคัดลอก/แก้ไขมาไม่ตรงกัน)
+// เก็บ "ชั่วโมง OT" ที่ถูกต้องเสมอ — คำนวณจาก w.sr (เวลาเริ่ม-เลิกจริง) ทุกครั้ง โดยดูว่าคาบเกี่ยวกับกะปกติหรือไม่เพื่อเลือกวิธีคำนวณเอง แทนที่จะเชื่อค่า w.otHrs/w.otMode ที่บันทึกแยกไว้ (ซึ่งอาจไม่ตรงกับเวลาจริงได้ถ้าข้อมูลถูกคัดลอก/แก้ไขมาไม่ตรงกัน หรือเคยเลือกโหมดผิดไว้)
 // ทำให้ไม่ว่าข้อมูลจะมาจากทางไหน (พิมพ์เอง, คัดลอกวัน/สัปดาห์, โหลดพนักงาน) ตัวเลขที่แสดงจะถูกต้องตรงกับเวลาที่ตั้งไว้เสมอ
 function otHrsOf(w,sh){
   if(!w||!w.ot)return 0;
@@ -6444,11 +6432,11 @@ function otHrsOf(w,sh){
     if(sp.length===2){
       let startH=toH(sp[0]);let endH=toH(sp[1]);
       if(endH<=startH)endH+=24;
-      // เช็คทุกครั้งที่คำนวณ (ไม่ใช่แค่ตอนแก้ไขใหม่) ว่าช่วงเวลาคาบเกี่ยวกับกะปกติไหม ถ้าไม่คาบเกี่ยวเลย ให้ถือเป็น "แยกไปทำ OT ที่อื่น" เสมอ ไม่ว่า w.otMode ที่บันทึกไว้จะเป็นอะไร — กันข้อมูลเก่าที่บันทึกไว้ก่อนมีตัวตรวจจับนี้คำนวณผิดค้างอยู่
+      // คำนวณโหมด "ต่อเวลา" หรือ "แยกงาน" จากการคาบเกี่ยวของเวลาที่กรอกจริงเพียงอย่างเดียวเสมอ ไม่เชื่อค่า w.otMode ที่เคยบันทึกไว้เลย (ไม่ว่าจะเคยตั้งไว้ถูกหรือผิดตอนไหนก็ตาม) รับประกันว่าคำนวณตรงกับเวลาจริงเสมอ ไม่มีทางเพี้ยนจากการเลือกโหมดผิดได้อีก
       const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
       const totalHrs=endH-startH;
       const baseHrs=bounds[1]-bounds[0];
-      const mode=hasOverlap?(w.otMode||'extend'):'separate';
+      const mode=hasOverlap?'extend':'separate';
       let hrs=(mode==='separate')?totalHrs:(totalHrs-baseHrs);
       hrs=Math.round(hrs*2)/2;
       return hrs>0?hrs:0;
