@@ -486,6 +486,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 <div id="pg-login">
   <div class="login-card">
     <div class="login-logo"><div class="icon">🏭</div><h1>Factory Scheduling</h1><p>ระบบจัดตารางกะโรงงาน v2</p></div>
+    <div style="text-align:center;font-size:10px;color:var(--text3);margin-bottom:12px" id="build-tag"></div>
     <label class="login-label" id="ll">รหัสผ่าน (พนักงาน 4 หลัก / Admin 6 หลัก)</label>
     <input type="password" class="login-input" id="lp" maxlength="6" inputmode="numeric" placeholder="••••" oninput="AUTH.onPin(this.value)">
     <div class="login-err" id="le"></div>
@@ -1022,6 +1023,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
+const APP_BUILD='2026-08-17.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+{const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
   try{
@@ -3343,6 +3346,7 @@ const SET={
     const maxOT=D.getMaxOT();const reasons=D.getReasons();
     const isFill=S.sys==='fill';
     el.innerHTML=`<div style="padding:14px">
+      <div style="text-align:center;font-size:10px;color:var(--text3);margin-bottom:10px">📦 Build ${APP_BUILD}</div>
       <div style="background:var(--card);border:1px solid var(--blue);border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:900;color:var(--blue2);margin-bottom:8px">📲 ติดตั้งเป็นแอป</div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:10px">ติดตั้งลงเครื่อง/มือถือ เปิดใช้งานได้เหมือนแอปจริงโดยไม่ต้องเข้าเบราว์เซอร์ทุกครั้ง — กดปุ่มนี้ได้ตลอด แม้เคยปิด popup แนะนำติดตั้งไปก่อนหน้านี้แล้ว</div>
