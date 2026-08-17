@@ -3399,11 +3399,11 @@ const SET={
         </div>
       </div>
       <hr style="border:none;border-top:1px solid var(--border);margin-bottom:12px">
-      <div style="font-size:13px;font-weight:800;margin-bottom:10px">🔐 Admin PIN</div>
+      ${(S.user?.isAdmin&&!S.user?.emp)?`<div style="font-size:13px;font-weight:800;margin-bottom:10px">🔐 Admin PIN <span style="font-size:10px;font-weight:400;color:var(--text3)">(เฉพาะ Master Admin)</span></div>
         <div class="fg"><label class="fl">PIN ใหม่ (6 หลัก)</label>
           <input type="password" class="fi" id="nap" maxlength="6" inputmode="numeric"
             style="letter-spacing:4px;text-align:center" placeholder="ใส่ PIN ใหม่"></div>
-        <button onclick="SET.chgPin()" style="width:100%;padding:8px;background:var(--amber);border:none;border-radius:8px;color:#000;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif">🔑 เปลี่ยน PIN</button>
+        <button onclick="SET.chgPin()" style="width:100%;padding:8px;background:var(--amber);border:none;border-radius:8px;color:#000;font-size:12px;font-weight:800;font-family:'Sarabun',sans-serif">🔑 เปลี่ยน PIN</button>`:`<div style="font-size:11px;color:var(--text3)">🔒 การเปลี่ยนรหัสผ่าน Admin หลัก ใช้ได้เฉพาะ Master Admin เท่านั้น</div>`}
       </div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:800;margin-bottom:10px">🏭 แผนก ${isFill?'Filling':'Process'}</div>
@@ -3435,7 +3435,10 @@ const SET={
     const arr=(document.getElementById('st-rsn')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
     D.saveReasons(arr);toast('✅ บันทึกเหตุผล OT แล้ว');
   },
-  chgPin(){const p=document.getElementById('nap').value.trim();if(p.length!==6||isNaN(p)){toast('❌ ต้องเป็นตัวเลข 6 หลัก');return;}D.savePin(p);document.getElementById('nap').value='';toast('✅ เปลี่ยนรหัสแล้ว');},
+  chgPin(){
+    if(!S.user?.isAdmin||S.user?.emp){toast('❌ เปลี่ยนรหัสผ่าน Admin หลักได้เฉพาะ Master Admin เท่านั้น');return;}
+    const p=document.getElementById('nap').value.trim();if(p.length!==6||isNaN(p)){toast('❌ ต้องเป็นตัวเลข 6 หลัก');return;}D.savePin(p);document.getElementById('nap').value='';toast('✅ เปลี่ยนรหัสแล้ว');
+  },
   clearSched(){confirm2('ล้างตารางกะและ OT ทั้งหมด?\nข้อมูลจะหายถาวร',()=>{
     ['proc','fill'].forEach(sys=>{LS.del('sched_'+sys);LS.del('otlog_'+sys);FB.remove(sys+'/sched');FB.remove(sys+'/otlog');});
     // ล้าง Line Service ด้วย
