@@ -3679,17 +3679,19 @@ const PRINT={
     const prev=document.getElementById('pr-sched-preview');
     if(prev)prev.innerHTML=html;
   },
-  buildSchedHTML(sys,selDays=null){
+  buildSchedHTML(sys,selDays=null,sizeTier=null){
     const wk=wKey(S.wkStart);const ws=S.wkStart;
     const DAYTH_FULL=['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์'];
     const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    // แต่ละวันมีหน้าเป็นของตัวเองอยู่แล้วเสมอ ใช้บรรทัด/ตัวอักษรขนาดใหญ่เต็มพื้นที่ได้ทุกครั้ง ไม่ต้องลดตามจำนวนวันที่เลือก
-    const lineHNum=20;
+    // ขนาดตัวอักษร/ความสูงบรรทัด ปรับตาม sizeTier ที่คำนวณจากปริมาณเนื้อหาจริง (ให้พอดีเต็มหน้ากระดาษ ไม่ล้นไม่ว่าง) — ถ้ายังไม่รู้ (รอบแรกที่แค่นับแถว) ใช้ค่ากลางไปก่อน
+    const tier=sizeTier||{lineH:14,note:'9pt',fs:'9pt',pad:'2px 4px'};
+    const lineHNum=tier.lineH;
     const lineH=lineHNum+'pt';
-    const noteFs='10pt';
+    const noteFs=tier.note;
     const bd='1px solid #8090b0';
     const daysToShow=selDays||[0,1,2,3,4,5];
     const isFill=sys==='fill';
+    let maxRowsPerDay=0,currentDayRowCount=0; // นับจำนวนแถวคนที่เยอะสุดในแต่ละวัน (รวม Process+Filling ถ้าเป็นโหมด Filling) ไว้ใช้เลือกขนาดตัวอักษรให้พอดีหน้ากระดาษ
 
     const buildTable=(depts2,sched2,di,dayLabel)=>{
       // หัวตารางแสดงเสมอ ติดกับวันนั้น — เพิ่มคอลัมน์ "ลงชื่อ" ต่อท้ายรายชื่อของแต่ละกะ
@@ -3715,8 +3717,10 @@ const PRINT={
       depts2.forEach((dept)=>{
         rows+=`<tr style="background:#fff">`;
         rows+=`<td style="border:${bd};padding:1px 3px;font-weight:700;background-image:repeating-linear-gradient(to bottom,transparent,transparent ${lineH},rgba(0,0,0,.12) ${lineH},rgba(0,0,0,.12) ${lineHNum+0.5}pt)">${dept}</td>`;
+        let deptMaxRows=1;
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
+          deptMaxRows=Math.max(deptMaxRows,ws2.length||1);
           // เส้นบรรทัดพื้นหลังไล่ยาวเต็มความสูงเซลล์เองอัตโนมัติ (ไม่ขึ้นกับจำนวนคน กันช่องว่างไม่มีเส้น)
           const lineBg=`background-image:repeating-linear-gradient(to bottom,transparent,transparent ${lineH},rgba(0,0,0,.12) ${lineH},rgba(0,0,0,.12) ${lineHNum+0.5}pt);background-position:0 1pt`;
           const names=ws2.map(w=>{
@@ -3735,6 +3739,7 @@ const PRINT={
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top;${lineBg}"></td>`;
         });
         rows+='</tr>';
+        currentDayRowCount+=deptMaxRows;
       });
       rows+='</tbody>';
       return`<table style="width:100%;border-collapse:collapse;margin-bottom:2px;table-layout:fixed">${colg}${head}${rows}</table>`;
@@ -3751,20 +3756,24 @@ const PRINT={
       const ds2=DAYTH_FULL[di]+'ที่ '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
 
       if(isFill){
-        // Filling: วันละหน้า มี Process + Filling รวมกัน
+        // Filling: วันละหน้า มี Process + Filling รวมกัน — รีเซ็ตตัวนับทุกวัน (แต่ละวันคนละหน้า) แล้วเทียบหาวันที่เนื้อหาเยอะสุด
+        currentDayRowCount=0;
         body+=`<div class="day-page${idx===0?' day-page-first':''}">`;
         body+=`<div style="font-size:6pt;font-weight:900;color:#000;padding:1px 4px;border-bottom:1px solid #000;margin-bottom:1px">🔧 Process</div>`;
         body+=buildTable(procDepts,procSched,di,ds2);
         body+=`<div style="font-size:6pt;font-weight:800;color:#000;padding:1px 4px;border-bottom:1px solid #000;margin:3px 0 1px">🏭 Filling</div>`;
         body+=buildTable(fillDepts,fillSched,di,null);
         body+='</div>';
+        maxRowsPerDay=Math.max(maxRowsPerDay,currentDayRowCount);
       } else {
-        // Process: รวมทุกวันในหน้าเดียว
+        // Process: รวมทุกวันในหน้าเดียว (ไม่ตัดหน้าใหม่ต่อวัน) — ไม่รีเซ็ตตัวนับ ให้สะสมรวมทุกวันไว้ เพราะอยู่หน้าเดียวกันหมด
         body+=`<div class="day-block">`;
         body+=buildTable(procDepts,procSched,di,ds2);
         body+='</div>';
       }
     });
+    if(!isFill)maxRowsPerDay=currentDayRowCount; // โหมด Process: ทุกวันอยู่หน้าเดียวกัน ใช้ยอดรวมสะสมทั้งหมด
+    this._lastMaxRows=maxRowsPerDay; // เก็บไว้ให้ confirmSched() อ่านไปเลือกขนาดตัวอักษรที่พอดีหน้ากระดาษ
 
     const sysName=isFill?'Filling (+ Process)':'Process';
     return`<div style="font-family:Sarabun,sans-serif;color:#000">
@@ -3783,9 +3792,20 @@ const PRINT={
     const sys=sysSel==='current'?S.sys:sysSel;
     const selDays=[];
     for(let i=0;i<6;i++){const cb=document.getElementById('prs-day-'+i);if(cb&&cb.checked)selDays.push(i);}
-    const html=this.buildSchedHTML(sys,selDays.length===6?null:selDays);
-    // แต่ละวันจะมีหน้าเป็นของตัวเองอยู่แล้วเสมอ (day-page แยกทุกวัน ไม่ว่าจะเลือกกี่วันก็ตาม) — เพราะงั้นใช้ตัวอักษรใหญ่เต็มพื้นที่ได้ทุกครั้ง ไม่ต้องลดขนาดตามจำนวนวันที่เลือก
-    const fs='11pt';
+    const daysArg=selDays.length===6?null:selDays;
+    // รอบแรก: สร้างแบบคร่าวๆ เพื่อนับจำนวนแถวเนื้อหาจริงก่อน (ยังไม่ได้ใช้ผลลัพธ์นี้ไปแสดง)
+    this.buildSchedHTML(sys,daysArg);
+    const maxRows=this._lastMaxRows||10;
+    // เลือกขนาดตัวอักษร/บรรทัด ให้พอดีกับปริมาณเนื้อหาจริง (เนื้อหาน้อย = ตัวใหญ่มาก, เนื้อหาเยอะ = ตัวเล็กลงพอให้พอดี 1 หน้า)
+    let tier;
+    if(maxRows<=8)tier={lineH:26,note:'13pt',fs:'13pt',pad:'6px 8px'};
+    else if(maxRows<=15)tier={lineH:20,note:'11pt',fs:'11pt',pad:'4px 6px'};
+    else if(maxRows<=25)tier={lineH:15,note:'9pt',fs:'9pt',pad:'2px 4px'};
+    else if(maxRows<=40)tier={lineH:11,note:'7.5pt',fs:'7.5pt',pad:'1px 3px'};
+    else tier={lineH:9,note:'6.5pt',fs:'6.5pt',pad:'1px 3px'};
+    // รอบสอง: สร้างจริงด้วยขนาดที่คำนวณได้
+    const html=this.buildSchedHTML(sys,daysArg,tier);
+    const fs=tier.fs;
     const pw=window.open('','_blank');
     const doc=pw.document;
     doc.open();
@@ -3800,8 +3820,8 @@ const PRINT={
     doc.write('table{width:100%;border-collapse:collapse;margin-bottom:1px;table-layout:auto;}');
     doc.write('thead{display:table-header-group;}');
     doc.write('tr{page-break-inside:avoid;break-inside:avoid;}');
-    doc.write('th{border:1px solid #8090b0;padding:4px 6px;font-size:'+fs+';font-weight:700;background:#fff;color:#000;text-align:center;}');
-    doc.write('td{border:1px solid #8090b0;padding:4px 6px;font-size:'+fs+';color:#000;vertical-align:top;background:#fff;}');
+    doc.write('th{border:1px solid #8090b0;padding:'+tier.pad+';font-size:'+fs+';font-weight:700;background:#fff;color:#000;text-align:center;}');
+    doc.write('td{border:1px solid #8090b0;padding:'+tier.pad+';font-size:'+fs+';color:#000;vertical-align:top;background:#fff;}');
     doc.write('@page{size:A4 portrait;margin:4mm;}');
     doc.write('@media print{html,body{padding:0;}}');
     doc.write('</style></head><body>');
