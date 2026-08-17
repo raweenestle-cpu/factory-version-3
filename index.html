@@ -1663,8 +1663,6 @@ const APP={
     FB.on('config/mix_stock',v=>{if(v!=null)LS.set('mix_stock',v);});
     FB.on('config/prod_display',v=>{if(v)LS.set('prod_display',v);});
     FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
-    FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
-    FB.on('config/ot_target',v=>{if(v!=null){LS.set('ot_target',v);DASH.render();}});
     FB.on('config/admin_pin',v=>{if(v)LS.set('admin_pin',v);});
     FB.on('config/max_ot',v=>{if(v)LS.set('max_ot',v);});
     FB.on('config/ot_reasons',v=>{if(v&&v.length)LS.set('ot_reasons',v);});
