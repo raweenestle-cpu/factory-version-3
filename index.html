@@ -4510,12 +4510,10 @@ const SCHED={
       // ถ้าเวลาเริ่มดูเหมือนเลยเที่ยงคืนมาแล้ว (เช่นกะดึกเริ่มก่อนเที่ยงคืนของวันก่อน) หรือเวลาเลิกข้ามเที่ยงคืน ให้ปรับให้ต่อเนื่องกับกะปกติ
       if(foundSh==='night'&&startH>12)startH-=24; // เผื่อกด AM ผิดสำหรับกะดึกที่เริ่มก่อนเที่ยงคืน (ไม่ค่อยเกิด แต่กันไว้)
       if(endH<=startH)endH+=24;
-      // ตรวจจับอัตโนมัติ: ถ้าช่วงเวลาที่กรอกไม่คาบเกี่ยวกับกะปกติเลยแม้แต่นิดเดียว ให้ถือเป็น "แยกไปทำ OT ที่อื่น" เสมอ ไม่ว่าจะเลือกโหมดไหนไว้ก็ตาม กันเผลอลืมสลับโหมดแล้วได้ 0 ชม. ผิดๆ แบบที่เจอมา
       const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
-      mode=hasOverlap?(mode||w.otMode||'extend'):'separate';
-      const totalHrs=endH-startH;
-      const baseHrs=bounds[1]-bounds[0];
-      let otHrs=(mode==='separate')?(Math.round(totalHrs*2)/2):Math.round((totalHrs-baseHrs)*2)/2;
+      const finalMode=hasOverlap?(mode||w.otMode||'extend'):'separate';
+      // คำนวณผ่าน otHrsOf() ตัวเดียวกับที่ใช้แสดงผล/พิมพ์/Dashboard ทุกจุด กันไม่ให้สูตรสองที่เพี้ยนออกจากกันอีกในอนาคต
+      const otHrs=otHrsOf({sr:startVal+'-'+endVal,otMode:finalMode,ot:true},foundSh);
       if(otHrs<=0){
         // เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ (โหมดต่อเวลา) หรือช่วงเวลาไม่ถูกต้อง (โหมดแยกงาน) — ไม่ถือเป็น OT ปิด OT ให้อัตโนมัติ
         w.sr=startVal+'-'+endVal;
@@ -4526,11 +4524,11 @@ const SCHED={
         const idx2=otLog.findIndex(l=>l.name===name&&l.dept===dept&&l.di===di&&l.sh===foundSh&&l.wk===wk);
         if(idx2>=0){otLog.splice(idx2,1);D.saveOTLog(otLog,S.sys);}
         this.render();
-        toast(mode==='separate'?'⚠️ ช่วงเวลาที่กรอกไม่ถูกต้อง — ปิด OT ให้อัตโนมัติ':'⚠️ เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ ('+baseHrs+' ชม.) — ปิด OT ให้อัตโนมัติเพราะไม่ถือเป็นการทำ OT');
+        toast(finalMode==='separate'?'⚠️ ช่วงเวลาที่กรอกไม่ถูกต้อง — ปิด OT ให้อัตโนมัติ':'⚠️ เวลาที่ตั้งสั้นกว่าหรือเท่ากับกะปกติ ('+(bounds[1]-bounds[0])+' ชม.) — ปิด OT ให้อัตโนมัติเพราะไม่ถือเป็นการทำ OT');
         return;
       }
       w.sr=startVal+'-'+endVal;
-      w.otMode=mode;
+      w.otMode=finalMode;
       w.ot=true;
       w.otHrs=otHrs;
       w.otBefore=startH<bounds[0];
@@ -6443,9 +6441,11 @@ function otHrsOf(w,sh){
       let startH=toH(sp[0]);let endH=toH(sp[1]);
       if(sh==='night'&&startH>12)startH-=24;
       if(endH<=startH)endH+=24;
+      // เช็คทุกครั้งที่คำนวณ (ไม่ใช่แค่ตอนแก้ไขใหม่) ว่าช่วงเวลาคาบเกี่ยวกับกะปกติไหม ถ้าไม่คาบเกี่ยวเลย ให้ถือเป็น "แยกไปทำ OT ที่อื่น" เสมอ ไม่ว่า w.otMode ที่บันทึกไว้จะเป็นอะไร — กันข้อมูลเก่าที่บันทึกไว้ก่อนมีตัวตรวจจับนี้คำนวณผิดค้างอยู่
+      const hasOverlap=startH<bounds[1]&&bounds[0]<endH;
       const totalHrs=endH-startH;
       const baseHrs=bounds[1]-bounds[0];
-      const mode=w.otMode||'extend';
+      const mode=hasOverlap?(w.otMode||'extend'):'separate';
       let hrs=(mode==='separate')?totalHrs:(totalHrs-baseHrs);
       hrs=Math.round(hrs*2)/2;
       return hrs>0?hrs:0;
