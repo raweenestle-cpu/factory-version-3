@@ -1024,7 +1024,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.11'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.12'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -3762,11 +3762,12 @@ const PRINT={
         SHS.forEach(sh=>{
           const ws2=sched2[dept]?.[di]?.[sh]||sched2[dept]?.[String(di)]?.[sh]||[];
           deptMaxRows=Math.max(deptMaxRows,ws2.length||1);
-          // เส้นใต้แต่ละคน ใช้เส้นขอบจริงสีเดียวกับเส้นตาราง (ไม่ใช่ลายพื้นหลัง) รับประกันว่ามีครบทุกแถวเสมอ ไม่มีจุดไหนขาดหาย
-          const rowBorder=`border-bottom:0.75pt solid #8090b0`;
-          const names=ws2.map(w=>{
+          // เส้นใต้แต่ละคน ใช้เส้นขอบจริงสีเดียวกับเส้นตาราง (ไม่ใช่ลายพื้นหลัง) รับประกันว่ามีครบทุกแถวเสมอ ไม่มีจุดไหนขาดหาย — ยกเว้นคนสุดท้ายไม่ต้องมี เพราะเส้นขอบล่างของเซลล์ (border ของ td) ทำหน้าที่นั้นอยู่แล้ว ไม่งั้นจะเห็นเป็น 2 เส้นซ้อนกันตรงรอยต่อแผนก
+          const rowBorderStyle=(isLast)=>isLast?'':'border-bottom:0.75pt solid #8090b0';
+          const names=ws2.map((w,wi)=>{
+            const isLast=wi===ws2.length-1;
             const noteHtml=w.noteText?` <span style="font-size:${noteFs};color:#0d9488;font-weight:800">📝 ${w.noteStart||''}${w.noteEnd?('-'+w.noteEnd):''} ${w.noteText}</span>`:'';
-            if(!w.ot)return`<div style="min-height:${lineH};line-height:${lineH};overflow-wrap:break-word;${rowBorder}">${w.name}${noteHtml}</div>`;
+            if(!w.ot)return`<div style="min-height:${lineH};line-height:${lineH};overflow-wrap:break-word;${rowBorderStyle(isLast)}">${w.name}${noteHtml}</div>`;
             const shStartH={morning:6,afternoon:14,night:22}[sh]||6;
             const otHrs=otHrsOf(w,sh);
             let tS,tE;
@@ -3774,10 +3775,10 @@ const PRINT={
             else if(sh==='night'){tS=String((22-otHrs+24)%24).padStart(2,'0')+':00';tE='06:00';}
             else if(w.otBefore&&sh==='morning'){tS='06:00';tE='18:00';}
             else{const eH={morning:14,afternoon:22,night:30}[sh]||14;tS=String(shStartH).padStart(2,'0')+':00';tE=String(Math.round(eH+otHrs)%24).padStart(2,'0')+':00';}
-            return`<div style="min-height:${lineH};line-height:${lineH};overflow-wrap:break-word;${rowBorder}"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE}</span>${noteHtml}</div>`;
+            return`<div style="min-height:${lineH};line-height:${lineH};overflow-wrap:break-word;${rowBorderStyle(isLast)}"><b>${w.name}</b> <span style="font-weight:700">OT ${tS}–${tE}</span>${noteHtml}</div>`;
           }).join('');
-          // เส้นในคอลัมน์ "ลงชื่อ" ต้องมีจำนวนบรรทัดเท่ากับจำนวนคนเป๊ะ (ไม่ใช่ลายพื้นหลังลอยๆ) แถวใครแถวมันตรงกันเสมอ
-          const sigLines=(ws2.length?ws2:[null]).map(()=>`<div style="min-height:${lineH};line-height:${lineH};${rowBorder}">&nbsp;</div>`).join('');
+          // เส้นในคอลัมน์ "ลงชื่อ" ต้องมีจำนวนบรรทัดเท่ากับจำนวนคนเป๊ะ (ไม่ใช่ลายพื้นหลังลอยๆ) แถวใครแถวมันตรงกันเสมอ — คนสุดท้ายก็ไม่ต้องมีเส้นเช่นกัน ด้วยเหตุผลเดียวกัน
+          const sigLines=(ws2.length?ws2:[null]).map((_,wi,arr)=>`<div style="min-height:${lineH};line-height:${lineH};${rowBorderStyle(wi===arr.length-1)}">&nbsp;</div>`).join('');
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${names||'<span style="color:#999">-</span>'}</td>`;
           rows+=`<td style="border:${bd};padding:1px 3px;vertical-align:top">${ws2.length?sigLines:''}</td>`;
         });
