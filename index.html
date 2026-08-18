@@ -907,7 +907,8 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
           <select class="fs" id="prs-sys" onchange="PRINT.updateSchedPreview()">
             <option value="current">ระบบปัจจุบัน</option>
             <option value="proc">Process</option>
-            <option value="fill">Filling</option>
+            <option value="fill">Filling (+ Process)</option>
+            <option value="fillonly">Filling อย่างเดียว</option>
           </select>
         </div>
       </div>
@@ -1023,7 +1024,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.6'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.8'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -3730,7 +3731,7 @@ const PRINT={
     const noteFs=tier.note;
     const bd='1px solid #8090b0';
     const daysToShow=selDays||[0,1,2,3,4,5];
-    const isFill=sys==='fill';
+    const isFill=sys==='fill'; // 'fill' = รวม Process ไว้ด้วย (วันละหน้า) — ส่วน 'fillonly'/'proc' คือระบบเดียว รวมทุกวันในหน้าเดียวกัน
     let maxRowsPerDay=0,currentDayRowCount=0; // นับจำนวนแถวคนที่เยอะสุดในแต่ละวัน (รวม Process+Filling ถ้าเป็นโหมด Filling) ไว้ใช้เลือกขนาดตัวอักษรให้พอดีหน้ากระดาษ
 
     const buildTable=(depts2,sched2,di,dayLabel)=>{
@@ -3790,13 +3791,19 @@ const PRINT={
     const procDepts=D.getDepts('proc').filter(d=>d!==AL);
     const fillDepts=D.getDepts('fill').filter(d=>d!==AL);
 
+    // เลือกชุดข้อมูล (แผนก+ตารางกะ) ที่จะใช้ตอนพิมพ์แบบ "ระบบเดียว" (proc หรือ fillonly)
+    const standaloneDepts=sys==='fillonly'?fillDepts:procDepts;
+    const standaloneSched=sys==='fillonly'?fillSched:procSched;
+    // Filling คนเยอะ/ไลน์เยอะกว่า Process มาก ต่อให้ลดตัวอักษรเล็กสุดก็ยังไม่พอดี 1 หน้าถ้ารวมหลายวัน (ล้นไปหลายหน้าอยู่ดีแต่ตัวเล็กจิ๋วโดยไม่ได้อะไรคืน) จึงให้ Filling อย่างเดียว วันละหน้าเสมอ (เหมือน Filling+Process) แต่ไม่มี Process มาแบ่งพื้นที่ ตัวจะใหญ่กว่าเดิมชัดเจน — ส่วน Process (คนน้อยกว่า) ยังรวมทุกวันในหน้าเดียวได้จริงเหมือนเดิม
+    const perDayPage=isFill||sys==='fillonly';
+
     let body='';
     daysToShow.forEach((di,idx)=>{
       const d2=new Date(ws);d2.setDate(ws.getDate()+di);
       const ds2=DAYTH_FULL[di]+'ที่ '+d2.getDate()+' '+MONTH_TH[d2.getMonth()]+' '+(d2.getFullYear()+543);
 
       if(isFill){
-        // Filling: วันละหน้า มี Process + Filling รวมกัน — รีเซ็ตตัวนับทุกวัน (แต่ละวันคนละหน้า) แล้วเทียบหาวันที่เนื้อหาเยอะสุด
+        // Filling (+ Process): วันละหน้า มี Process + Filling รวมกัน — รีเซ็ตตัวนับทุกวัน (แต่ละวันคนละหน้า) แล้วเทียบหาวันที่เนื้อหาเยอะสุด
         currentDayRowCount=0;
         body+=`<div class="day-page${idx===0?' day-page-first':''}">`;
         body+=`<div style="font-size:6pt;font-weight:900;color:#000;padding:1px 4px;border-bottom:1px solid #000;margin-bottom:1px">🔧 Process</div>`;
@@ -3805,17 +3812,24 @@ const PRINT={
         body+=buildTable(fillDepts,fillSched,di,null);
         body+='</div>';
         maxRowsPerDay=Math.max(maxRowsPerDay,currentDayRowCount);
+      } else if(perDayPage){
+        // Filling อย่างเดียว: วันละหน้าเช่นกัน (เนื้อหาเยอะเกินจะรวมได้จริง) แต่ไม่มี Process มาแบ่งพื้นที่ ตัวใหญ่กว่า Filling+Process ชัดเจน
+        currentDayRowCount=0;
+        body+=`<div class="day-page${idx===0?' day-page-first':''}">`;
+        body+=buildTable(standaloneDepts,standaloneSched,di,ds2);
+        body+='</div>';
+        maxRowsPerDay=Math.max(maxRowsPerDay,currentDayRowCount);
       } else {
         // Process: รวมทุกวันในหน้าเดียว (ไม่ตัดหน้าใหม่ต่อวัน) — ไม่รีเซ็ตตัวนับ ให้สะสมรวมทุกวันไว้ เพราะอยู่หน้าเดียวกันหมด
         body+=`<div class="day-block">`;
-        body+=buildTable(procDepts,procSched,di,ds2);
+        body+=buildTable(standaloneDepts,standaloneSched,di,ds2);
         body+='</div>';
       }
     });
-    if(!isFill)maxRowsPerDay=currentDayRowCount; // โหมด Process: ทุกวันอยู่หน้าเดียวกัน ใช้ยอดรวมสะสมทั้งหมด
+    if(!isFill&&!perDayPage)maxRowsPerDay=currentDayRowCount; // โหมด Process (รวมทุกวันหน้าเดียว): ใช้ยอดรวมสะสมทั้งหมด — ส่วนโหมดวันละหน้า (isFill/perDayPage) ใช้ max ของแต่ละวันที่คำนวณไปแล้วด้านบน
     this._lastMaxRows=maxRowsPerDay; // เก็บไว้ให้ confirmSched() อ่านไปเลือกขนาดตัวอักษรที่พอดีหน้ากระดาษ
 
-    const sysName=isFill?'Filling (+ Process)':'Process';
+    const sysName=isFill?'Filling (+ Process)':(sys==='fillonly'?'Filling':'Process');
     return`<div style="font-family:Sarabun,sans-serif;color:#000">
       <div style="font-size:10pt;font-weight:900;color:#1e3a5f;margin-bottom:2px">ตารางกะ — ${sysName}</div>
       <div style="font-size:7pt;color:#666;margin-bottom:4px">สัปดาห์ที่ ${wNum(ws)}: ${dStr(ws)}</div>
