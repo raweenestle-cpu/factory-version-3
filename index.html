@@ -1023,7 +1023,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-17.5'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-17.6'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -1675,16 +1675,42 @@ const APP={
     FB.on('leave_hist',v=>{if(v)LS.set('leave_hist',v);});
   },
   softReload(){
-    // รีโหลดข้อมูล/หน้าจอใหม่ทั้งหมด โดยไม่ต้อง login ใหม่ (ไม่ได้ทำ location.reload() จริงๆ)
-    toast('🔄 กำลังรีโหลด...');
-    const renders=[
-      ()=>DASH.render(),()=>PLAN.render(),()=>SCHED.render(),
-      ()=>OT.render(),()=>EMP.render(),()=>SET.render(),
-      ()=>LEAVE.render(),()=>LEAVE.updBadge(),
-      ()=>LSVC.render()
-    ];
-    renders.forEach(fn=>{try{fn();}catch(e){console.log('render error:',e.message);}});
-    setTimeout(()=>toast('✅ รีโหลดเรียบร้อย'),400);
+    // ดึงข้อมูลสดจาก Firebase จริงๆ ก่อน (ไม่ใช่แค่วาดหน้าจอใหม่จากข้อมูลที่ค้างอยู่ในเครื่องเฉยๆ) แล้วค่อยรีเฟรชทุกหน้าจอ — แก้ปัญหากรณีการเชื่อมต่อเรียลไทม์หลุดไปเงียบๆ แล้วเครื่องไม่เคยได้รับข้อมูลใหม่เลย
+    toast('🔄 กำลังดึงข้อมูลล่าสุด...');
+    const jobs=[];
+    ['proc','fill'].forEach(sys=>{
+      jobs.push(FB.get(sys+'/emps').then(v=>{if(v){const arr=(Array.isArray(v)?v:Object.values(v)).filter(e=>e&&e.name);if(arr.length)LS.set('emps_'+sys,arr);}}));
+      jobs.push(FB.get(sys+'/depts').then(v=>{if(v&&v.length)LS.set('depts_'+sys,v);}));
+      jobs.push(FB.get(sys+'/products').then(v=>{if(v)LS.set('prods_'+sys,v);}));
+      jobs.push(FB.get(sys+'/plan').then(v=>{if(v)LS.set('plan_'+sys,v);}));
+      jobs.push(FB.get(sys+'/sched').then(v=>{if(v){const existing=LS.get('sched_'+sys,{});LS.set('sched_'+sys,Object.assign({},existing,v));}}));
+      jobs.push(FB.get(sys+'/otlog').then(v=>{if(v)LS.set('otlog_'+sys,v);}));
+    });
+    jobs.push(FB.get('signs').then(v=>{if(v)LS.set('signs',v);}));
+    jobs.push(FB.get('product_master').then(v=>{if(v)LS.set('product_master',v);}));
+    jobs.push(FB.get('fill/volume').then(v=>{if(v)LS.set('fill_volume',v);}));
+    jobs.push(FB.get('proc/volume').then(v=>{if(v)LS.set('vol_proc',v);}));
+    jobs.push(FB.get('config/mixing_cfg').then(v=>{if(v)LS.set('mixing_cfg',v);}));
+    jobs.push(FB.get('config/mix_stock').then(v=>{if(v!=null)LS.set('mix_stock',v);}));
+    jobs.push(FB.get('config/prod_display').then(v=>{if(v)LS.set('prod_display',v);}));
+    jobs.push(FB.get('config/ot_target').then(v=>{if(v!=null)LS.set('ot_target',v);}));
+    jobs.push(FB.get('config/admin_pin').then(v=>{if(v)LS.set('admin_pin',v);}));
+    jobs.push(FB.get('config/max_ot').then(v=>{if(v)LS.set('max_ot',v);}));
+    jobs.push(FB.get('config/ot_reasons').then(v=>{if(v&&v.length)LS.set('ot_reasons',v);}));
+    jobs.push(FB.get('team_cfg').then(v=>{if(v)LS.set('team_cfg',v);}));
+    jobs.push(FB.get('leave_req').then(v=>{if(v)LS.set('leave_req',v);}));
+    jobs.push(FB.get('lsvc/data').then(v=>{if(v)LS.set('lsvc_data',v);}));
+    jobs.push(FB.get('leave_hist').then(v=>{if(v)LS.set('leave_hist',v);}));
+    Promise.allSettled(jobs).then(()=>{
+      const renders=[
+        ()=>DASH.render(),()=>PLAN.render(),()=>SCHED.render(),
+        ()=>OT.render(),()=>EMP.render(),()=>SET.render(),
+        ()=>LEAVE.render(),()=>LEAVE.updBadge(),
+        ()=>LSVC.render(),()=>updEmpCnt()
+      ];
+      renders.forEach(fn=>{try{fn();}catch(e){console.log('render error:',e.message);}});
+      toast('✅ ดึงข้อมูลล่าสุดและรีโหลดเรียบร้อย');
+    });
   },
   setSys(sys){
     S.sys=sys;
