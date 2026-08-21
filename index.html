@@ -1033,7 +1033,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.2'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.3'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -4232,7 +4232,7 @@ const SCHED={
     const head=document.getElementById('sth');
     if(head){
       head.innerHTML='<tr><th class="sc">แผนก</th>'
-        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:${pastelSolid(dc,0.22)};border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
+        +vDays.map(([d,di])=>{const d2=new Date(ws);d2.setDate(ws.getDate()+di);const dc=DAY_COLORS[di];return`<th colspan="3" style="text-align:center;background:var(--navy,${pastelSolid(dc,0.22)});color:#fff;border-bottom:3px solid rgba(${dc},.65)">${d}<br><span style="font-size:9px;font-weight:400">${d2.getDate()}/${d2.getMonth()+1}</span></th>`;}).join('')
         +'</tr><tr><th class="sc2"></th>'
         +vDays.map(()=>SHS.map(sh=>`<th class="sh-${sh}" style="font-size:9px;font-weight:700;padding:4px 2px">${SHTH[sh]}</th>`).join('')).join('')
         +'</tr>';
@@ -4333,7 +4333,7 @@ const SCHED={
           const _shortClass=(!readOnly&&_needBlink>0&&_haveBlink<_needBlink)?'sched-short':'';
           const _dc=DAY_COLORS[di];
           const _dayBorder=(sh==='morning')?('border-left:3px solid rgba('+_dc+',.55) !important;'):'';
-          row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px;background-image:linear-gradient(rgba('+_dc+',.09),rgba('+_dc+',.09));'+_dayBorder+'">'+cells+addBtn+'</td>';
+          row+='<td'+tdDrop+' class="sh-'+sh+' '+_shortClass+'" style="min-width:52px;vertical-align:top;padding:3px;'+_dayBorder+'">'+cells+addBtn+'</td>';
         });
       });
       row+='</tr>';
