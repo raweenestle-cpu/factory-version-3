@@ -1042,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.7'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.8'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -1878,8 +1878,8 @@ const DASH={
       function getMonday3(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
       const todayMonday2=getMonday3(new Date());
       const refMonday2=new Date(todayMonday2);refMonday2.setDate(refMonday2.getDate()+this._barWkOff*70);
-      const wStart=new Date(refMonday2);wStart.setDate(wStart.getDate()-42);
-      const wEnd=new Date(refMonday2);wEnd.setDate(wEnd.getDate()+21);
+      const wStart=new Date(refMonday2);wStart.setDate(wStart.getDate()-70);
+      const wEnd=new Date(refMonday2);wEnd.setDate(wEnd.getDate()+28);
       barLbl.textContent='W'+wNum(wStart)+' – W'+wNum(wEnd)+(this._barWkOff===0?' (ล่าสุด)':'');
     }
   },
@@ -1899,19 +1899,22 @@ const DASH={
     let data=[],labels=[],curIdx=0;
 
     if(mode==='month'){
-      // หน้าต่างเลื่อน 10 สัปดาห์แบบตายตัว (ไม่ผูกกับเดือนปฏิทินอีกต่อไป) — ใช้ _barWkOff แยกต่างหาก ไม่กระทบ Pareto ที่ยังใช้ _moOff เดิม
+      // หน้าต่างเลื่อนสัปดาห์แบบตายตัว (ไม่ผูกกับเดือนปฏิทินอีกต่อไป) — ใช้ _barWkOff แยกต่างหาก ไม่กระทบ Pareto ที่ยังใช้ _moOff เดิม
+      // จำนวนแท่ง: การ์ดเล็ก (proc/fill/lsvc) = 15 แท่ง, การ์ด TOTAL ที่กว้างเต็มจอ = 52 แท่ง (ครบ 1 ปีย้อนหลัง มีพื้นที่พอ)
+      const isTotal=type==='total';
+      const nBack=isTotal?51:10, nFwd=isTotal?0:4; // รวม 52 หรือ 15 แท่ง
       function getMonday2(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
       const todayMonday=getMonday2(new Date());
-      const refMonday=new Date(todayMonday);refMonday.setDate(refMonday.getDate()+this._barWkOff*70); // เลื่อนทีละ 10 สัปดาห์ต่อการกด 1 ครั้ง
+      const refMonday=new Date(todayMonday);refMonday.setDate(refMonday.getDate()+this._barWkOff*70); // เลื่อนทีละ 10 สัปดาห์ต่อการกด 1 ครั้ง (อิงตามการ์ดเล็กเป็นหลัก)
       const wkKeys=[];
-      for(let i=-6;i<=3;i++){ // รวม 10 สัปดาห์ สัปดาห์อ้างอิงอยู่ตำแหน่งที่ 7 (index 6) ใกล้เคียงของเดิม
+      for(let i=-nBack;i<=nFwd;i++){
         const d2=new Date(refMonday);d2.setDate(d2.getDate()+i*7);
         wkKeys.push(d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0'));
       }
       labels=wkKeys.map(k=>{const wp=k.split('-');return 'W'+wNum(new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2])));});
       const today=new Date();
       curIdx=wkKeys.findIndex(k=>{const wp=k.split('-');const mn=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));const me=new Date(mn);me.setDate(mn.getDate()+6);return today>=mn&&today<=me;});
-      if(curIdx<0)curIdx=6;
+      if(curIdx<0)curIdx=nBack;
 
       if(type==='proc')data=wkKeys.map(wk=>this.getOTWeek('proc',wk));
       else if(type==='fill')data=wkKeys.map(wk=>this.getOTWeek('fill',wk));
