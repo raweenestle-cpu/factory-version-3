@@ -76,7 +76,7 @@ body.desktop-mode .wc{font-size:11px;}
 /* หน้าตารางกะ (pg-sched) เท่านั้น — ปรับธีมให้สว่าง สบายตา ใกล้เคียงหน้าพิมพ์ ไม่กระทบหน้าอื่นในแอปเลย เพราะ scope ไว้เฉพาะใน #pg-sched */
 #pg-sched{--bg:#F1F5F9;--bg2:#FFFFFF;--bg3:#E8EEF7;--card:#FFFFFF;--border:#CBD5E1;--text:#1E293B;--text2:#475569;--text3:#64748B;--navy:#1E3A5F;--shadow:0 2px 10px rgba(30,58,95,.12);background:var(--bg)}
 #pg-sched .sched-tbl th{background:var(--navy);color:#fff}
-#pg-sched .sched-tbl th.sc{background:var(--bg2);color:var(--text)}
+#pg-sched .sched-tbl th.sc{background:var(--bg2);color:#000}
 #pg-sched .sched-tbl td,#pg-sched .sched-tbl th{border:1px solid #8090b0}
 #pg-sched .sched-tbl td{background:#fff;color:#000}
 #pg-sched .wc{background:#fff;border-color:#8090b0;color:#000}
@@ -166,6 +166,7 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tb{padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
 .sched-tb-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sched-tb-top h2{font-size:14px;font-weight:900;flex:1}
+#pg-sched .sched-tb-top h2{color:#000!important}
 .wk-nav{display:flex;align-items:center;gap:6px;min-width:0}
 .wk-nav button{width:30px;height:30px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer}
 .wk-nav span{font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;min-width:120px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
@@ -187,9 +188,9 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tbl td.sh-morning{background:rgba(37,99,235,.06);border-left:2px solid rgba(37,99,235,.35)}
 .sched-tbl td.sh-afternoon{background:rgba(245,158,11,.07);border-left:2px solid rgba(245,158,11,.4)}
 .sched-tbl td.sh-night{background:rgba(100,116,139,.08);border-left:2px solid rgba(100,116,139,.35)}
-.sched-tbl th.sh-morning{background:#DBEAFE!important;color:#1D4ED8!important;border-bottom:2px solid #2563EB!important}
-.sched-tbl th.sh-afternoon{background:#FEF3C7!important;color:#B45309!important;border-bottom:2px solid #F59E0B!important}
-.sched-tbl th.sh-night{background:#E2E8F0!important;color:#334155!important;border-bottom:2px solid #64748B!important}
+.sched-tbl th.sh-morning{background:#DBEAFE!important;color:#000!important;border-bottom:2px solid #2563EB!important}
+.sched-tbl th.sh-afternoon{background:#FEF3C7!important;color:#000!important;border-bottom:2px solid #F59E0B!important}
+.sched-tbl th.sh-night{background:#E2E8F0!important;color:#000!important;border-bottom:2px solid #64748B!important}
 .sched-tbl td.sn{position:sticky;left:0;background:#F1F5F9;font-size:10px;font-weight:800;color:#1E293B;padding:7px 8px;white-space:nowrap;z-index:4}
 .sched-tbl .wc{background:#F8FAFC;border:1px solid #CBD5E1;color:#0F172A}
 .sched-tbl .wc.ot{background:#FEF3C7;border-color:#F59E0B}
@@ -1033,7 +1034,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.3'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.5'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
