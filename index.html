@@ -121,6 +121,9 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .dash-header p{font-size:12px;color:var(--text2);margin-top:2px}
 .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px}
 .dash-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;position:relative;overflow:hidden;cursor:pointer}
+.dash-card{background:#fff;border-color:#CBD5E1}
+.dash-card .dc-label{color:#000}
+.dash-card .dc-sub{color:#334155}
 .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--blue))}
 .dash-card.full{grid-column:1/-1}
 .dc-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
@@ -528,6 +531,11 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
         <span id="view-mode-icon">🖥️</span>
         <span id="view-mode-label">Desktop Mode</span>
       </button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:0 14px 8px">
+      <button onclick="DASH.prevBarWk()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer">◀</button>
+      <span id="bar-wk-label" style="font-size:11px;font-weight:700;color:var(--text2);min-width:130px;text-align:center">10 สัปดาห์ล่าสุด</span>
+      <button onclick="DASH.nextBarWk()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer">▶</button>
     </div>
     <div class="dash-cards">
       <div class="dash-card" style="--accent:var(--blue)" onclick="APP.goPage('pg-ot')">
@@ -1034,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.5'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.7'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -1786,8 +1794,11 @@ const APP={
 };
 const DASH={
   _moOff:0,
+  _barWkOff:0, // ตัวเลื่อนหน้าต่าง 10 สัปดาห์ของกราฟแท่ง — แยกจาก _moOff เพื่อไม่ให้กระทบ Pareto/โหมดรายเดือนที่ยังผูกกับ _moOff เดิม
   prevMo(){this._moOff--;this.render();this.renderPareto();},
   nextMo(){this._moOff++;this.render();this.renderPareto();},
+  prevBarWk(){this._barWkOff--;this.render();},
+  nextBarWk(){this._barWkOff++;this.render();},
   getTargetMo(){
     const now=new Date();
     return new Date(now.getFullYear(),now.getMonth()+this._moOff,1);
@@ -1861,6 +1872,16 @@ const DASH={
     const MONTHS_TH2=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     const lbl=document.getElementById('dash-mo-label');
     if(lbl)lbl.textContent=MONTHS_TH2[_tmo2.getMonth()]+' '+(_tmo2.getFullYear());
+    // update bar-chart 10-week window label
+    const barLbl=document.getElementById('bar-wk-label');
+    if(barLbl){
+      function getMonday3(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
+      const todayMonday2=getMonday3(new Date());
+      const refMonday2=new Date(todayMonday2);refMonday2.setDate(refMonday2.getDate()+this._barWkOff*70);
+      const wStart=new Date(refMonday2);wStart.setDate(wStart.getDate()-42);
+      const wEnd=new Date(refMonday2);wEnd.setDate(wEnd.getDate()+21);
+      barLbl.textContent='W'+wNum(wStart)+' – W'+wNum(wEnd)+(this._barWkOff===0?' (ล่าสุด)':'');
+    }
   },
   renderChart(type){
     try{
@@ -1878,27 +1899,19 @@ const DASH={
     let data=[],labels=[],curIdx=0;
 
     if(mode==='month'){
-      // รายสัปดาห์ของเดือนปัจจุบัน
-      const allSchedKeys=Object.keys(LS.get('sched_proc',{})||{}).concat(Object.keys(LS.get('sched_fill',{})||{})).concat(Object.keys(LS.get('lsvc_data',{})||{}));
-      // หา wkKeys ที่อยู่ในเดือนปัจจุบัน
-      const wkSet=new Set();
-      // สร้าง wkKeys ของเดือนนี้ (4-5 สัปดาห์)
-      const firstDay=new Date(yr,curMo,1);
-      const lastDay=new Date(yr,curMo+1,0);
-      let d=new Date(firstDay);
-      // หา Monday แรกของเดือน
+      // หน้าต่างเลื่อน 10 สัปดาห์แบบตายตัว (ไม่ผูกกับเดือนปฏิทินอีกต่อไป) — ใช้ _barWkOff แยกต่างหาก ไม่กระทบ Pareto ที่ยังใช้ _moOff เดิม
       function getMonday2(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
-      d=getMonday2(firstDay);
-      while(d<=lastDay){
-        const wk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        wkSet.add(wk);
-        d=new Date(d);d.setDate(d.getDate()+7);
+      const todayMonday=getMonday2(new Date());
+      const refMonday=new Date(todayMonday);refMonday.setDate(refMonday.getDate()+this._barWkOff*70); // เลื่อนทีละ 10 สัปดาห์ต่อการกด 1 ครั้ง
+      const wkKeys=[];
+      for(let i=-6;i<=3;i++){ // รวม 10 สัปดาห์ สัปดาห์อ้างอิงอยู่ตำแหน่งที่ 7 (index 6) ใกล้เคียงของเดิม
+        const d2=new Date(refMonday);d2.setDate(d2.getDate()+i*7);
+        wkKeys.push(d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0'));
       }
-      const wkKeys=[...wkSet].sort();
       labels=wkKeys.map(k=>{const wp=k.split('-');return 'W'+wNum(new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2])));});
       const today=new Date();
       curIdx=wkKeys.findIndex(k=>{const wp=k.split('-');const mn=new Date(parseInt(wp[0]),parseInt(wp[1])-1,parseInt(wp[2]));const me=new Date(mn);me.setDate(mn.getDate()+6);return today>=mn&&today<=me;});
-      if(curIdx<0)curIdx=wkKeys.length-1;
+      if(curIdx<0)curIdx=6;
 
       if(type==='proc')data=wkKeys.map(wk=>this.getOTWeek('proc',wk));
       else if(type==='fill')data=wkKeys.map(wk=>this.getOTWeek('fill',wk));
@@ -1936,8 +1949,8 @@ const DASH={
       }
     }
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1)*1.15;
-    const BAR_H=54; // px ความสูงพื้นที่แท่ง
-    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:54px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
+    const BAR_H=88; // px ความสูงพื้นที่แท่ง — เพิ่มจากเดิม 54 ให้กราฟดูสูง/สมดุลขึ้น ไม่ต้องแก้ logic การนับสัปดาห์ที่ผูกกับปุ่มเปลี่ยนเดือนอยู่ (เสี่ยงน้อยกว่าเปลี่ยนจำนวนแท่ง)
+    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:'+BAR_H+'px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
     ce.onclick=()=>this.openChart(type);
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
@@ -1948,14 +1961,14 @@ const DASH={
       return`<div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:0;position:relative;min-width:0;height:${BAR_H}px">
         ${v!=null?`<div style="font-size:9px;font-weight:900;color:${col};margin-bottom:1px;white-space:nowrap;line-height:1">${v}%</div>`:'<div style="font-size:9px;color:transparent;line-height:1">0</div>'}
         <div style="width:100%;height:${hpx}px;background:${col};border-radius:2px 2px 0 0;min-height:2px;${isCur?'box-shadow:0 0 4px '+col:''};transition:height .3s"></div>
-        <div style="position:absolute;bottom:-16px;font-size:8px;color:${isCur?'var(--blue2)':'var(--text3)'};font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
+        <div style="position:absolute;bottom:-16px;font-size:8px;color:#000;font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
       </div>`;
     }).join('');
     // target line — คำนวณจาก px
     const tl=document.createElement('div');
     const tgtPx=Math.min(Math.round(tgt/mx*BAR_H),BAR_H);
     tl.style.cssText=`position:absolute;left:0;right:0;bottom:${tgtPx}px;border-top:1.5px dashed var(--amber);pointer-events:none;z-index:2`;
-    tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:9px;font-weight:900;color:var(--amber);background:var(--bg2);padding:1px 4px;border-radius:3px">Target ${tgt}%</span>`;
+    tl.innerHTML=`<span style="position:absolute;right:0;top:-14px;font-size:9px;font-weight:900;color:var(--amber);background:#fff;padding:1px 4px;border-radius:3px">Target ${tgt}%</span>`;
     ce.appendChild(tl);
     }catch(e){console.log('renderChart error',e.message);}
   },
