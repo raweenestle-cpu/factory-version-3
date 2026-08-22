@@ -1042,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.8'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.10'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -1902,7 +1902,7 @@ const DASH={
       // หน้าต่างเลื่อนสัปดาห์แบบตายตัว (ไม่ผูกกับเดือนปฏิทินอีกต่อไป) — ใช้ _barWkOff แยกต่างหาก ไม่กระทบ Pareto ที่ยังใช้ _moOff เดิม
       // จำนวนแท่ง: การ์ดเล็ก (proc/fill/lsvc) = 15 แท่ง, การ์ด TOTAL ที่กว้างเต็มจอ = 52 แท่ง (ครบ 1 ปีย้อนหลัง มีพื้นที่พอ)
       const isTotal=type==='total';
-      const nBack=isTotal?51:10, nFwd=isTotal?0:4; // รวม 52 หรือ 15 แท่ง
+      const nBack=isTotal?19:10, nFwd=isTotal?0:4; // รวม 20 หรือ 15 แท่ง — TOTAL ลดจาก 52 เหลือ 20 เพราะ 52 ย้อนไปถึงช่วงที่ยังไม่มีข้อมูลจริง เห็นแท่งว่างเปล่าเยอะเกินไป
       function getMonday2(dt){const dd=new Date(dt);dd.setDate(dd.getDate()-((dd.getDay()||7)-1));return dd;}
       const todayMonday=getMonday2(new Date());
       const refMonday=new Date(todayMonday);refMonday.setDate(refMonday.getDate()+this._barWkOff*70); // เลื่อนทีละ 10 สัปดาห์ต่อการกด 1 ครั้ง (อิงตามการ์ดเล็กเป็นหลัก)
@@ -1955,16 +1955,18 @@ const DASH={
     const BAR_H=88; // px ความสูงพื้นที่แท่ง — เพิ่มจากเดิม 54 ให้กราฟดูสูง/สมดุลขึ้น ไม่ต้องแก้ logic การนับสัปดาห์ที่ผูกกับปุ่มเปลี่ยนเดือนอยู่ (เสี่ยงน้อยกว่าเปลี่ยนจำนวนแท่ง)
     ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:'+BAR_H+'px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
     ce.onclick=()=>this.openChart(type);
+    const labelStep=data.length>40?5:(data.length>24?3:(data.length>14?2:1)); // แท่งเยอะ = เว้นป้ายชื่อสัปดาห์ให้ห่างขึ้น กันทับกันจนอ่านไม่ออก
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
       const col=v==null?'var(--border)':v>tgt?'var(--red2)':'var(--green2)';
       // ✅ ใช้ px แทน % เพื่อให้แท่งขึ้นตามสัดส่วนจริง
       const hpx=v==null?2:Math.max(Math.round(v/mx*BAR_H),4);
       const label=labels[mi]||MONTHS[mi]||mi;
+      const showLabel=isCur||mi%labelStep===0;
       return`<div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:0;position:relative;min-width:0;height:${BAR_H}px">
         ${v!=null?`<div style="font-size:9px;font-weight:900;color:${col};margin-bottom:1px;white-space:nowrap;line-height:1">${v}%</div>`:'<div style="font-size:9px;color:transparent;line-height:1">0</div>'}
         <div style="width:100%;height:${hpx}px;background:${col};border-radius:2px 2px 0 0;min-height:2px;${isCur?'box-shadow:0 0 4px '+col:''};transition:height .3s"></div>
-        <div style="position:absolute;bottom:-16px;font-size:8px;color:#000;font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>
+        ${showLabel?`<div style="position:absolute;bottom:-16px;font-size:8px;color:#000;font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>`:''}
       </div>`;
     }).join('');
     // target line — คำนวณจาก px
