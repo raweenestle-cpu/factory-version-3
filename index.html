@@ -1042,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.10'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-18.12'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -1953,20 +1953,19 @@ const DASH={
     }
     const mx=Math.max(...data.filter(v=>v!=null),tgt,1)*1.15;
     const BAR_H=88; // px ความสูงพื้นที่แท่ง — เพิ่มจากเดิม 54 ให้กราฟดูสูง/สมดุลขึ้น ไม่ต้องแก้ logic การนับสัปดาห์ที่ผูกกับปุ่มเปลี่ยนเดือนอยู่ (เสี่ยงน้อยกว่าเปลี่ยนจำนวนแท่ง)
-    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:'+BAR_H+'px;width:100%;margin-bottom:16px;position:relative;overflow:visible;cursor:pointer';
+    ce.style.cssText='display:flex;align-items:flex-end;gap:2px;height:'+BAR_H+'px;width:100%;margin-bottom:34px;position:relative;overflow:visible;cursor:pointer';
     ce.onclick=()=>this.openChart(type);
-    const labelStep=data.length>40?5:(data.length>24?3:(data.length>14?2:1)); // แท่งเยอะ = เว้นป้ายชื่อสัปดาห์ให้ห่างขึ้น กันทับกันจนอ่านไม่ออก
+    // ป้ายชื่อเอียง 40 องศาแทนการเว้นระยะ — โชว์ครบทุกป้ายชื่อ ไม่ซ่อนอันไหนเลย กันทับกันด้วยการเอียงแทน
     ce.innerHTML=data.map((v,mi)=>{
       const isCur=mi===curIdx;
       const col=v==null?'var(--border)':v>tgt?'var(--red2)':'var(--green2)';
       // ✅ ใช้ px แทน % เพื่อให้แท่งขึ้นตามสัดส่วนจริง
       const hpx=v==null?2:Math.max(Math.round(v/mx*BAR_H),4);
       const label=labels[mi]||MONTHS[mi]||mi;
-      const showLabel=isCur||mi%labelStep===0;
       return`<div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:0;position:relative;min-width:0;height:${BAR_H}px">
         ${v!=null?`<div style="font-size:9px;font-weight:900;color:${col};margin-bottom:1px;white-space:nowrap;line-height:1">${v}%</div>`:'<div style="font-size:9px;color:transparent;line-height:1">0</div>'}
         <div style="width:100%;height:${hpx}px;background:${col};border-radius:2px 2px 0 0;min-height:2px;${isCur?'box-shadow:0 0 4px '+col:''};transition:height .3s"></div>
-        ${showLabel?`<div style="position:absolute;bottom:-16px;font-size:8px;color:#000;font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%);left:50%">${label}</div>`:''}
+        <div style="position:absolute;top:100%;left:50%;margin-top:4px;font-size:8px;color:#000;font-weight:${isCur?'900':'700'};white-space:nowrap;transform:translateX(-50%) rotate(-40deg);transform-origin:top center">${label}</div>
       </div>`;
     }).join('');
     // target line — คำนวณจาก px
