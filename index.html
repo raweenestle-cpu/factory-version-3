@@ -1042,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-18.13'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-25.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -3526,6 +3526,8 @@ const SET={
     const inp=document.getElementById('new-mat-name');
     const name=inp?.value.trim();
     if(!name){toast('❌ ใส่ชื่อแผนก');return;}
+    // ชื่อแผนกถูกใช้เป็นส่วนหนึ่งของโครงสร้างข้อมูลที่ส่งขึ้น Firebase — ห้ามมีอักขระ . # $ / [ ] เด็ดขาด ไม่งั้นจะบันทึกไม่ได้ทั้งระบบ (เจอปัญหานี้มาแล้วจริง)
+    if(/[.#$/\[\]]/.test(name)){toast('❌ ชื่อแผนกห้ามมีเครื่องหมาย . # $ / [ ] เพราะจะทำให้บันทึกข้อมูลไม่ได้เลย กรุณาลบเครื่องหมายเหล่านี้ออก');return;}
     const d=D.getDepts();
     if(d.includes(name)){toast('❌ มีแผนกนี้แล้ว');return;}
     // เพิ่มก่อน AL
@@ -3540,11 +3542,31 @@ const SET={
   updDept(i,newName){
     newName=newName.trim();
     if(!newName)return SET.render();
+    // ชื่อแผนกถูกใช้เป็นส่วนหนึ่งของโครงสร้างข้อมูลที่ส่งขึ้น Firebase — ห้ามมีอักขระ . # $ / [ ] เด็ดขาด ไม่งั้นจะบันทึกไม่ได้ทั้งระบบ
+    if(/[.#$/\[\]]/.test(newName)){toast('❌ ชื่อแผนกห้ามมีเครื่องหมาย . # $ / [ ] เพราะจะทำให้บันทึกข้อมูลไม่ได้เลย');SET.render();return;}
     const d=D.getDepts();
+    const oldName=d[i];
+    if(oldName===newName)return SET.render();
     d[i]=newName;
     D.saveDepts(d);
+    // ย้ายข้อมูลตารางกะ/OT log เดิมของชื่อแผนกเก่า ไปไว้ที่ชื่อใหม่ทุกสัปดาห์ ไม่ให้ข้อมูลค้างอยู่กับชื่อเดิมจนหาไม่เจอ
+    const allSched=D.getSched();
+    let movedWeeks=0;
+    Object.keys(allSched).forEach(wk=>{
+      const wkSched=allSched[wk];
+      if(wkSched&&Object.prototype.hasOwnProperty.call(wkSched,oldName)){
+        wkSched[newName]=wkSched[oldName];
+        delete wkSched[oldName];
+        movedWeeks++;
+      }
+    });
+    if(movedWeeks>0)D.saveSched(allSched);
+    const otLog=D.getOTLog()||[];
+    let movedLogs=0;
+    otLog.forEach(l=>{if(l.dept===oldName){l.dept=newName;movedLogs++;}});
+    if(movedLogs>0)D.saveOTLog(otLog);
     SET.render();
-    toast('✅ แก้ชื่อแผนกแล้ว');
+    toast('✅ แก้ชื่อแผนกแล้ว'+(movedWeeks>0?' (ย้ายข้อมูลตารางกะเดิม '+movedWeeks+' สัปดาห์มาด้วย)':''));
   },
   editMat(i){
     const lbl=document.getElementById('dept-lbl-'+i);
