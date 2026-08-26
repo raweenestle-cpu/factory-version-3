@@ -131,7 +131,8 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .dash-card{background:#fff;border-color:#CBD5E1}
 .dash-card .dc-label{color:#000}
 .dash-card .dc-sub{color:#334155}
-.dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--blue))}
+.dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent,var(--blue)),color-mix(in srgb,var(--accent,var(--blue)) 40%,#fff))}
+.dash-card{border-color:color-mix(in srgb,var(--accent,var(--blue)) 22%,#E2E8F0)!important}
 .dash-card.full{grid-column:1/-1}
 .dc-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
 .dc-val{font-size:28px;font-weight:900;margin:4px 0;line-height:1}
@@ -544,21 +545,21 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
       <button onclick="DASH.nextBarWk()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer">▶</button>
     </div>
     <div class="dash-cards">
-      <div class="dash-card" style="--accent:var(--blue)" onclick="APP.goPage('pg-ot')">
+      <div class="dash-card" style="--accent:#2563EB;background:linear-gradient(160deg,#EFF6FF,#ffffff 55%)" onclick="APP.goPage('pg-ot')">
         <div class="dc-label">Process OT%</div><div class="dc-val ot-none" id="pp">-</div>
         <div class="dc-sub" id="pc">0 คน</div><div class="dc-chart"><div class="mini-bars" id="pch"></div></div>
       </div>
-      <div class="dash-card" style="--accent:var(--teal)" onclick="APP.goPage('pg-ot')">
+      <div class="dash-card" style="--accent:#0D9488;background:linear-gradient(160deg,#F0FDFA,#ffffff 55%)" onclick="APP.goPage('pg-ot')">
         <div class="dc-label">Filling OT%</div><div class="dc-val ot-none" id="fp">-</div>
         <div class="dc-sub" id="fc">0 คน</div><div class="dc-chart"><div class="mini-bars" id="fch"></div></div>
       </div>
-      <div class="dash-card" onclick="DASH.openChart('lsvc')" style="--accent:var(--amber)">
+      <div class="dash-card" onclick="DASH.openChart('lsvc')" style="--accent:#D97706;background:linear-gradient(160deg,#FFFBEB,#ffffff 55%)">
         <div class="dc-val ot-none" id="lsp">-</div>
         <div class="dc-label">Line Service OT%</div>
         <div class="dc-sub" id="lsc">0 คน</div>
         <div class="dc-chart"><div id="lschart" style="flex:1;position:relative;overflow:hidden;height:60px"></div></div>
       </div>
-      <div class="dash-card full" style="--accent:var(--teal)" onclick="DASH.openChart('total')">
+      <div class="dash-card full" style="--accent:#6D28D9;background:linear-gradient(160deg,#F5F3FF,#ffffff 55%)" onclick="DASH.openChart('total')">
         <div class="dc-val ot-none" id="tp">-</div>
         <div class="dc-label">Total OT%</div><div class="dc-val ot-none" id="tp">-</div>
         <div class="dc-sub" id="tc">รวม 0 คน</div>
@@ -1048,7 +1049,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-26.2'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-26.3'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
