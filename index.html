@@ -186,8 +186,7 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .sched-tbl th.sc{position:sticky;left:0;z-index:7;background:#1E293B;color:#fff;min-width:75px}
 .sched-tbl th.sc2{position:sticky;left:0;z-index:7;background:#E2E8F0}
 .sched-tbl td{border:1px solid #E2E8F0;padding:3px;vertical-align:top;width:auto;background:#fff;color:#0F172A}
-@keyframes shortBlink{0%,100%{background:rgba(220,38,38,.05)}50%{background:rgba(220,38,38,.25)}}
-.sched-short{animation:shortBlink 1s ease-in-out infinite;border:1.5px dashed rgba(220,38,38,.6)!important}
+.sched-short{background:rgba(220,38,38,.12);border:1.5px dashed rgba(220,38,38,.6)!important}
 .sched-tbl td.sh-morning{background:rgba(37,99,235,.06);border-left:2px solid rgba(37,99,235,.35)}
 .sched-tbl td.sh-afternoon{background:rgba(245,158,11,.07);border-left:2px solid rgba(245,158,11,.4)}
 .sched-tbl td.sh-night{background:rgba(100,116,139,.08);border-left:2px solid rgba(100,116,139,.35)}
@@ -1042,7 +1041,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-25.2'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-25.4'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -6614,6 +6613,7 @@ function checkRest(name,di,sh,sched){
   // 1) กะดึกเมื่อวาน (จบ 06:00) → กะเช้าวันนี้ (พัก 0 ชม.)
   // 2) กะบ่ายเมื่อวาน (จบ 22:00) → กะเช้าวันนี้ (พัก 8 ชม.)
   // 3) กะดึกเมื่อวาน (จบ 06:00) → กะบ่ายวันนี้ (พัก 8 ชม.)
+  // หมายเหตุ: เช็คแค่ "วันก่อนหน้าติดกัน" เท่านั้นโดยตั้งใจ — ถ้าวันก่อนหน้าเป็นวันลาเต็มวัน (ไม่มีกะ) ถือว่าพักครบแล้วเสมอ ไม่ต้องมองย้อนไปไกลกว่านั้น เพราะลาเต็มวันให้พักเกิน 12 ชม. อยู่แล้วไม่ว่าก่อนหน้านั้นจะทำกะอะไรมา
   if(di<=0)return true;
   const depts=D.getDepts().filter(d=>d!==AL);
   const prevShiftEmps=(prevSh)=>{
