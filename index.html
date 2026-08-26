@@ -1042,7 +1042,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-25.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-25.2'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -4221,6 +4221,51 @@ const SCHED={
     this.render();DASH.render();
     toast('✅ ย้าย '+name+' → '+toDept+' ('+SHTH[sh]+' '+DAYS[di]+')');
   },
+  moveToLineCross(name,fromDept,di,sh,toSys,toDept){
+    // ย้ายข้ามระบบ (Process ↔ Filling) — OT นับเป็นของระบบปลายทางเสมอ เพราะเป็นระบบที่ไปทำงานจริง
+    if(!S.user?.isAdmin){toast('❌ เฉพาะ Admin');return;}
+    if(!toDept)return;
+    const fromSys=S.sys;
+    const wk=wKey(S.wkStart);
+    const allFrom=D.getSched(fromSys);const schedFrom=allFrom[wk]||{};
+    const srcArr=schedFrom[fromDept]?.[di]?.[sh]||schedFrom[fromDept]?.[String(di)]?.[sh]||[];
+    const wIdx=srcArr.findIndex(w=>w.name===name);
+    if(wIdx<0){toast('❌ ไม่พบพนักงานในกะต้นทาง');return;}
+    const worker={...srcArr[wIdx]};
+    // เช็คว่าปลายทาง (ระบบ+ไลน์+วัน+กะ) ว่างจริง ไม่ซ้อนกับใครที่มีอยู่แล้วในสัปดาห์เดียวกันของระบบปลายทาง
+    const allTo=D.getSched(toSys);const schedTo=allTo[wk]||{};
+    if(!checkRest(name,di,sh,schedTo)){toast('😴 '+name+' พักไม่ครบ 12 ชม. ก่อนกะนี้ (เช็คจากตารางฝั่งปลายทาง)');return;}
+    if(!checkMax6Consec(name,di,toSys,wk,schedTo))return;
+    if(isDoubleBooked(name,di,schedTo)){toast('⚠️ '+name+' มีกะอยู่แล้วในวันนั้นฝั่งปลายทาง — 1 คนทำได้แค่ 1 กะต่อวัน');return;}
+    // ลบออกจากต้นทาง
+    srcArr.splice(wIdx,1);
+    if(!schedFrom[fromDept])schedFrom[fromDept]={};
+    if(!schedFrom[fromDept][di])schedFrom[fromDept][di]={morning:[],afternoon:[],night:[]};
+    schedFrom[fromDept][di][sh]=srcArr;
+    allFrom[wk]=schedFrom;D.saveSched(allFrom,fromSys);
+    // ย้าย log เหตุผล OT (ถ้ามี) จาก otLog ของระบบต้นทาง ไปเป็นของระบบปลายทาง (นับ OT ที่ปลายทางตามที่ตกลงกัน)
+    if(worker.ot){
+      const otLogFrom=D.getOTLog(fromSys)||[];
+      const idx2=otLogFrom.findIndex(l=>l.name===name&&l.dept===fromDept&&l.di===di&&l.sh===sh&&l.wk===wk);
+      let movedEntry=null;
+      if(idx2>=0){movedEntry=otLogFrom[idx2];otLogFrom.splice(idx2,1);D.saveOTLog(otLogFrom,fromSys);}
+      const otLogTo=D.getOTLog(toSys)||[];
+      otLogTo.push(movedEntry?{...movedEntry,dept:toDept}:{name,dept:toDept,di,sh,hrs:otHrsOf(worker,sh),reason:worker.otReason||'',wk,date:new Date().toISOString()});
+      D.saveOTLog(otLogTo,toSys);
+    }
+    // เพิ่มเข้าปลายทาง
+    if(!schedTo[toDept])schedTo[toDept]={};
+    if(!schedTo[toDept][di])schedTo[toDept][di]={morning:[],afternoon:[],night:[]};
+    if(!schedTo[toDept][di][sh])schedTo[toDept][di][sh]=[];
+    if(!schedTo[toDept][di][sh].find(w=>w.name===name)){
+      schedTo[toDept][di][sh].push(worker);
+    }
+    allTo[wk]=schedTo;D.saveSched(allTo,toSys);
+    markUnsaved();
+    closeMo('mo-w');
+    this.render();DASH.render();
+    toast('✅ ย้าย '+name+' ข้ามระบบไป '+(toSys==='fill'?'Filling':'Process')+': '+toDept+' ('+SHTH[sh]+' '+DAYS[di]+')');
+  },
   onDropOnChip(e,toDept,toDi,toSh,targetName){
     e.stopPropagation();
     this.onDrop(e,toDept,toDi,toSh,targetName);
@@ -4466,11 +4511,17 @@ const SCHED={
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${dept} \u2014 ${SHTH[sh]} \u2014 ${DAYS[di]}</div>`;
     if(isAdmin){
       const allDepts=D.getDepts().filter(d=>d!==AL&&d!==dept);
+      const otherSys=S.sys==='proc'?'fill':'proc';
+      const otherSysLabel=otherSys==='fill'?'🏭 Filling':'⚙️ Process';
+      const otherDepts=D.getDepts(otherSys).filter(d=>d!==AL&&d!=='__IDLE__');
       html+=`<div style="margin-bottom:8px">
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">🔀 ย้ายไปไลน์อื่น (วัน/กะเดิม)</label>
-        <select onchange="if(this.value)SCHED.moveToLine('${ne}','${dept}',${di},'${sh}',this.value);this.value=''" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
+        <select onchange="if(this.value){if(this.value.startsWith('X::')){SCHED.moveToLineCross('${ne}','${dept}',${di},'${sh}','${otherSys}',this.value.slice(3));}else{SCHED.moveToLine('${ne}','${dept}',${di},'${sh}',this.value);}}this.value=''" style="width:100%;padding:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:'Sarabun',sans-serif">
           <option value="">-- เลือกไลน์ปลายทาง --</option>
           ${allDepts.map(d2=>`<option value="${d2.replace(/'/g,"\\'")}">${d2}</option>`).join('')}
+          <optgroup label="── ข้ามระบบไปยัง ${otherSysLabel} ──">
+            ${otherDepts.map(d2=>`<option value="X::${d2.replace(/'/g,"\\'")}">${otherSysLabel}: ${d2}</option>`).join('')}
+          </optgroup>
         </select>
       </div>`;
       html+=`<button onclick="SCHED.toggleOT('${ne}','${dept}',${di},'${sh}');closeMo('mo-w')" style="display:block;width:100%;padding:9px;border-radius:8px;border:none;background:${w.ot?'rgba(245,158,11,.2)':'rgba(37,99,235,.15)'};color:${w.ot?'var(--amber)':'var(--blue2)'};font-size:13px;font-weight:800;font-family:'Sarabun',sans-serif;margin-bottom:6px">${w.ot?'🟡 ปิด OT':'⚡ เปิด OT'}</button>`;
