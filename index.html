@@ -1041,7 +1041,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-25.5'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-26.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
@@ -3903,15 +3903,27 @@ const PRINT={
     this.buildSchedHTML(sys,daysArg);
     const maxRows=this._lastMaxRows||10;
     // เลือกขนาดตัวอักษร/บรรทัด ให้พอดีกับปริมาณเนื้อหาจริง (เนื้อหาน้อย = ตัวใหญ่มาก, เนื้อหาเยอะ = ตัวเล็กลงพอให้พอดี 1 หน้า)
+    // โหมด "วันละหน้า" (Filling(+Process) หรือ Filling อย่างเดียว) มีพื้นที่ต่อหน้าเยอะกว่าโหมด "Process รวมหลายวันในหน้าเดียว" มาก จึงใช้เกณฑ์ที่ใจกว้างกว่าแยกกันไปเลย ไม่ปนกับโหมด Process ที่เคยจูนละเอียดไว้เพื่อกันล้นหน้าโดยเฉพาะ
+    const isDayPageMode=(sys==='fill'||sys==='fillonly');
     let tier;
-    if(maxRows<=5)tier={lineH:22,note:'12pt',fs:'12pt',pad:'6px 8px'};
-    else if(maxRows<=10)tier={lineH:18,note:'11pt',fs:'11pt',pad:'5px 7px'};
-    else if(maxRows<=16)tier={lineH:16,note:'10pt',fs:'10pt',pad:'4px 6px'};
-    else if(maxRows<=25)tier={lineH:14,note:'9pt',fs:'9pt',pad:'3px 5px'};
-    else if(maxRows<=38)tier={lineH:12,note:'8.5pt',fs:'8.5pt',pad:'2px 4px'};
-    else if(maxRows<=55)tier={lineH:9,note:'7.5pt',fs:'7.5pt',pad:'1px 2px'};
-    else if(maxRows<=80)tier={lineH:7,note:'6pt',fs:'6pt',pad:'0px 2px'};
-    else tier={lineH:5.5,note:'5pt',fs:'5pt',pad:'0px 1px'};
+    if(isDayPageMode){
+      if(maxRows<=8)tier={lineH:26,note:'14pt',fs:'14pt',pad:'7px 9px'};
+      else if(maxRows<=16)tier={lineH:22,note:'12pt',fs:'12pt',pad:'6px 8px'};
+      else if(maxRows<=25)tier={lineH:19,note:'11pt',fs:'11pt',pad:'5px 6px'};
+      else if(maxRows<=38)tier={lineH:16,note:'10pt',fs:'10pt',pad:'4px 5px'};
+      else if(maxRows<=55)tier={lineH:13,note:'9pt',fs:'9pt',pad:'3px 4px'};
+      else if(maxRows<=80)tier={lineH:10,note:'8pt',fs:'8pt',pad:'2px 3px'};
+      else tier={lineH:8,note:'7pt',fs:'7pt',pad:'1px 2px'};
+    } else {
+      if(maxRows<=5)tier={lineH:22,note:'12pt',fs:'12pt',pad:'6px 8px'};
+      else if(maxRows<=10)tier={lineH:18,note:'11pt',fs:'11pt',pad:'5px 7px'};
+      else if(maxRows<=16)tier={lineH:16,note:'10pt',fs:'10pt',pad:'4px 6px'};
+      else if(maxRows<=25)tier={lineH:14,note:'9pt',fs:'9pt',pad:'3px 5px'};
+      else if(maxRows<=38)tier={lineH:12,note:'8.5pt',fs:'8.5pt',pad:'2px 4px'};
+      else if(maxRows<=55)tier={lineH:9,note:'7.5pt',fs:'7.5pt',pad:'1px 2px'};
+      else if(maxRows<=80)tier={lineH:7,note:'6pt',fs:'6pt',pad:'0px 2px'};
+      else tier={lineH:5.5,note:'5pt',fs:'5pt',pad:'0px 1px'};
+    }
     // รอบสอง: สร้างจริงด้วยขนาดที่คำนวณได้
     const html=this.buildSchedHTML(sys,daysArg,tier);
     const fs=tier.fs;
