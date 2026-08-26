@@ -111,8 +111,15 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .u-name{font-size:11px;font-weight:700;color:var(--text2)}
 .u-badge{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:var(--amber);color:#000}
 .bottomnav{background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:3px;border:none;background:transparent;color:var(--text3);font-size:9px;font-weight:700;font-family:'Sarabun',sans-serif}
-.nav-item.active{color:var(--blue2)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;gap:3px;border:none;background:transparent;color:var(--text3);font-size:9px;font-weight:700;font-family:'Sarabun',sans-serif;position:relative}
+.nav-item .nav-icon{font-size:17px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:10px;transition:all .2s}
+.nav-item.active{color:var(--text)}
+.nav-item.active .nav-icon{background:linear-gradient(135deg,var(--nav-c1,#2563EB),var(--nav-c2,#3B82F6));color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+#nav-dash{--nav-c1:#2563EB;--nav-c2:#38BDF8}
+#nav-exec{--nav-c1:#7C3AED;--nav-c2:#A78BFA}
+#nav-sched{--nav-c1:#0D9488;--nav-c2:#2DD4BF}
+#nav-leave{--nav-c1:#EA580C;--nav-c2:#FB923C}
+#nav-more{--nav-c1:#475569;--nav-c2:#94A3B8}
 .nav-icon{font-size:20px;line-height:1}
 .page{flex:1;overflow-y:auto;overflow-x:hidden;display:none;-webkit-overflow-scrolling:touch}
 .page.active{display:flex;flex-direction:column}
@@ -837,14 +844,14 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
     <div style="background:var(--card);border-radius:16px 16px 0 0;width:100%;max-width:480px;margin:0 auto;padding:16px 0 32px">
       <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px"></div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px">
-        <button onclick="closeMo('mo-more');APP.goPage('pg-plan')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📋</span><span style="font-size:11px;font-weight:700">วางแผน</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-lsvc')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">🔧</span><span style="font-size:11px;font-weight:700">Line Svc</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-emp')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">👥</span><span style="font-size:11px;font-weight:700">พนักงาน</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-team',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">🔄</span><span style="font-size:11px;font-weight:700">ทีม</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-ot')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">👤</span><span style="font-size:11px;font-weight:700">OT</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-lhist')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📊</span><span style="font-size:11px;font-weight:700">ประวัติลา</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-products',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">📦</span><span style="font-size:11px;font-weight:700">Product</span></button>
-        <button onclick="closeMo('mo-more');APP.goPage('pg-settings',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:Sarabun,sans-serif;cursor:pointer"><span style="font-size:24px">⚙️</span><span style="font-size:11px;font-weight:700">ตั้งค่า</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-plan')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#2563EB,#38BDF8);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(37,99,235,.35)"><span style="font-size:24px">📋</span><span style="font-size:11px;font-weight:800">วางแผน</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-lsvc')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#0D9488,#2DD4BF);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(13,148,136,.35)"><span style="font-size:24px">🔧</span><span style="font-size:11px;font-weight:800">Line Svc</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-emp')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#7C3AED,#A78BFA);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(124,58,237,.35)"><span style="font-size:24px">👥</span><span style="font-size:11px;font-weight:800">พนักงาน</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-team',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#EA580C,#FB923C);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(234,88,12,.35)"><span style="font-size:24px">🔄</span><span style="font-size:11px;font-weight:800">ทีม</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-ot')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#DC2626,#F87171);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(220,38,38,.35)"><span style="font-size:24px">👤</span><span style="font-size:11px;font-weight:800">OT</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-lhist')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#4F46E5,#818CF8);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(79,70,229,.35)"><span style="font-size:24px">📊</span><span style="font-size:11px;font-weight:800">ประวัติลา</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-products',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#16A34A,#4ADE80);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,.35)"><span style="font-size:24px">📦</span><span style="font-size:11px;font-weight:800">Product</span></button>
+        <button onclick="closeMo('mo-more');APP.goPage('pg-settings',true)" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:linear-gradient(145deg,#475569,#94A3B8);border:none;border-radius:12px;color:#fff;font-family:Sarabun,sans-serif;cursor:pointer;box-shadow:0 3px 10px rgba(71,85,105,.35)"><span style="font-size:24px">⚙️</span><span style="font-size:11px;font-weight:800">ตั้งค่า</span></button>
       </div>
     </div>
   </div>
@@ -1041,7 +1048,7 @@ table.pr-tbl, #print-area table.pr-tbl td.center{text-align:center}
 
 const FB_URL='https://factory-schedule-f342c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FB_PATH='factory_v2';
-const APP_BUILD='2026-08-26.1'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
+const APP_BUILD='2026-08-26.2'; // เลขเวอร์ชัน/วันที่อัปเดตล่าสุด — เช็คตรงนี้ได้ว่าเว็บที่เปิดอยู่คือไฟล์ล่าสุดจริงไหม (โชว์ที่หน้า login และหน้าตั้งค่า)
 {const bt=document.getElementById('build-tag');if(bt)bt.textContent='Build '+APP_BUILD;}
 let fbDb=null;
 function initFB(){
